@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Worms SVG</title>
+<style>
+  html,body{margin:0;height:100%;background:#111;color:#eee;font-family:system-ui,sans-serif}
+  body{display:flex;align-items:center;justify-content:center}
+  #wrap{width:min(96vw,calc(96vh*1.6));text-align:center}
+  svg{width:100%;height:auto;display:block;border:2px solid #333;border-radius:8px;user-select:none}
+  #help{font-size:13px;margin-top:10px;opacity:.85;line-height:1.5}
+  kbd{background:#333;border:1px solid #555;border-radius:4px;padding:1px 5px;font-size:12px}
+</style>
+</head>
+<body>
+<div id="wrap">
+<svg id="game" viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4a90c8"/><stop offset="1" stop-color="#bfe3f5"/>
+    </linearGradient>
+    <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a6fb0"/><stop offset="1" stop-color="#14365a"/>
+    </linearGradient>
+    <linearGradient id="dirt" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7fa83c"/>
+      <stop offset=".07" stop-color="#6b4a2b"/>
+      <stop offset="1" stop-color="#3f2a18"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="800" height="500" fill="url(#sky)"/>
+  <g fill="#fff" opacity=".7">
+    <ellipse cx="120" cy="70" rx="60" ry="16"/><ellipse cx="150" cy="60" rx="35" ry="14"/>
+    <ellipse cx="520" cy="110" rx="70" ry="18"/><ellipse cx="560" cy="98" rx="40" ry="14"/>
+    <ellipse cx="700" cy="50" rx="50" ry="13"/>
+  </g>
+  <rect x="0" y="480" width="800" height="20" fill="url(#sea)"/>
+  <path id="terrain" fill="url(#dirt)" stroke="#2f5d1a" stroke-width="3"/>
+  <g id="aim"></g>
+  <g id="worms"></g>
+  <g id="fx"></g>
+  <g id="powerbar"></g>
+  <text id="hud" x="10" y="24" fill="#fff" font-size="15" font-weight="bold" stroke="#000" stroke-width=".5"></text>
+  <text id="msg" x="400" y="240" text-anchor="middle" font-size="26" font-weight="bold" fill="#fff" stroke="#000" stroke-width="1.2"></text>
+</svg>
+<div id="help">
+  <kbd>←</kbd> <kbd>→</kbd> andar &nbsp;·&nbsp; <kbd>↑</kbd> <kbd>↓</kbd> mirar &nbsp;·&nbsp;
+  segure <kbd>ESPAÇO</kbd> para força e solte para atirar &nbsp;·&nbsp;
+  <kbd>TAB</kbd> troca de verme &nbsp;·&nbsp; <kbd>R</kbd> reinicia
+</div>
+</div>
+
+<script>
+(() => {
+  const W = 800, H = 500, WATER = 480;
+  const GRAV = 0.2;          // gravidade do projétil (px/frame²)
+  const CRATER = 28;         // raio da cratera
+  const BLAST = CRATER + 18; // raio de dano
+  const WALK_MAX = 120;      // distância máxima de caminhada por turno
+
+  const $ = id => document.getElementById(id);
+  const TEAM_DEF = [
+    { name: 'Vermelho', color: '#e0433a', names: ['Rex', 'Max', 'Tina'] },
+    { name: 'Azul',     color: '#3a7de0', names: ['Kiko', 'Lulu', 'Bob'] }
+  ];
+
+  let heights, worms, teams, turnTeam, state, proj, fx, wind, power, charging,
+      angle, walkBudget, dirty, msg, msgT, keys = {};
+
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const gy = x => heights[Math.max(0, Math.min(W - 1, Math.round(x)))];
+  const activeWorm = () => { const t = teams[turnTeam]; return t.worms[t.cur]; };
+  const showMsg = (text, frames) => { msg = text; msgT = frames; };
+
+  function genTerrain() {
+    const p1 = rnd(0, 6.3), p2 = rnd(0, 6.3), p3 = rnd(0, 6.3);
+    heights = new Float32Array(W);
+    for (let x = 0; x < W; x++) {
+      heights[x] = 265 + 38 * Math.sin(x * 0.011 + p1)
+                       + 20 * Math.sin(x * 0.027 + p2)
+                       +  9 * Math.sin(x * 0.063 + p3);
+    }
+  }
+
+  function fixCur(t) {
+    if (!t.worms[t.cur] || !t.worms[t.cur].alive) {
+      const i = t.worms.findIndex(w => w.alive);
+      if (i >= 0) t.cur = i;
+    }
+  }
+
+  function init() {
+    genTerrain();
+    dirty = true; fx = []; proj = null; power = 0; charging = false;
+    angle = 45; wind = Math.round(rnd(-3, 3)); walkBudget = WALK_MAX;
+    worms = []; teams = TEAM_DEF.map(d => ({ ...d, worms: [], cur: 0 }));
+    teams.forEach((t, ti) => {
+      for (let i = 0; i < 3; i++) {
+        const x = ti === 0 ? 70 + i * 75 + rnd(-10, 10) : W - 70 - i * 75 + rnd(-10, 10);
+        const w = { team: ti, name: t.names[i], x, y: gy(x), hp: 100, alive: true };
+        worms.push(w); t.worms.push(w);
+      }
+    });
+    turnTeam = 0; state = 'aim';
+    showMsg('Vez de ' + teams[0].name + '!', 120);
+  }
+
+  function carve(cx, cy, r) {
+    for (let x = Math.max(0, Math.floor(cx - r)); x <= Math.min(W - 1, Math.ceil(cx + r)); x++) {
+      const dd = r * r - (x - cx) * (x - cx);
+      if (dd <= 0) continue;
+      const dy = Math.sqrt(dd), top = cy - dy, bot = cy + dy;
+      if (top <= heights[x] && bot > heights[x]) heights[x] = bot;
+    }
+    dirty = true;
+  }
+
+  function explode(x, y) {
+    carve(x, y, CRATER);
+    fx.push({ x, y, t: 0, max: 40 });
+    for (const w of worms) {
+      if (!w.alive) continue;
+      const d = Math.hypot(w.x - x, (w.y - 8) - y);
+      if (d < BLAST) w.hp -= Math.round(60 * (1 - d / BLAST));
+    }
+    state = 'settle';
+  }
+
+  function fire() {
+    if (state !== 'aim') return;
+    const w = activeWorm(), a = angle * Math.PI / 180, sp = 3 + power * 0.075;
+    proj = {
+      x: w.x + Math.cos(a) * 13,
+      y: w.y - 8 - Math.sin(a) * 13,
+      vx: sp * Math.cos(a),
+      vy: -sp * Math.sin(a)
+    };
+    power = 0; charging = false; state = 'flying';
+  }
+
+  function stepProj() {
+    const p = proj;
+    if (!p) return;
+    for (let s = 0; s < 3; s++) {
+      p.vx += wind * 0.0012;
+      p.vy += GRAV / 3;
+      p.x += p.vx / 3;
+      p.y += p.vy / 3;
+      if (p.x < -60 || p.x > W + 60 || p.y > H + 60) { proj = null; state = 'settle'; return; }
+      const hitTerrain = p.x >= 0 && p.x < W && p.y >= heights[Math.round(p.x)];
+      const hitWorm = worms.some(w => w.alive && Math.hypot(w.x - p.x, (w.y - 8) - p.y) < 11);
+      if (hitTerrain || hitWorm) { proj = null; explode(p.x, Math.min(p.y, H)); return; }
+    }
+  }
+
+  function updateWorms() {
+    for (const w of worms) {
+      if (!w.alive) continue;
+      const g = gy(w.x);
+      if (w.y < g - 0.5) w.y = Math.min(g, w.y + 2.5);   // cai
+      else if (w.y > g + 0.5) w.y = g;                   // sobe até a superfície
+    }
+  }
+
+  function walk(dir) {
+    const w = activeWorm();
+    if (!w || walkBudget <= 0) return;
+    const nx = Math.max(8, Math.min(W - 8, w.x + dir * 1.5));
+    if (gy(nx) < w.y - 10) return;                       // parede alta demais
+    w.x = nx;
+    walkBudget -= 1.5;
+  }
+
+  function settle() {
+    if (worms.some(w => w.alive && w.y < gy(w.x) - 0.5)) return; // ainda caindo
+    for (const w of worms) {
+      if (!w.alive) continue;
+      if (w.hp <= 0 || w.y > WATER - 6) {
+        w.alive = false; w.hp = 0;
+        showMsg(w.name + ' ' + (w.y > WATER - 6 ? 'afogou!' : 'morreu!'), 100);
+      }
+    }
+    teams.forEach(fixCur);
+    const alive = teams.map(t => t.worms.filter(w => w.alive).length);
+    if (alive[0] === 0 || alive[1] === 0) {
+      state = 'over';
+      const winner = alive[0] === 0 && alive[1] === 0 ? 'Empate'
+                   : alive[0] > 0 ? teams[0].name : teams[1].name;
+      showMsg('Fim de jogo! ' + winner + ' venceu! (R reinicia)', 1e9);
+      return;
+    }
+    turnTeam = 1 - turnTeam;
+    fixCur(teams[turnTeam]);
+    angle = turnTeam === 0 ? 45 : 135;
+    wind = Math.round(rnd(-3, 3));
+    walkBudget = WALK_MAX;
+    state = 'aim';
+    showMsg('Vez de ' + teams[turnTeam].name + '!', 110);
+  }
+
+  // ---------- Render (tudo em SVG) ----------
+  function renderTerrain() {
+    let d = 'M0,' + heights[0].toFixed(1);
+    for (let x = 1; x < W; x++) d += ' L' + x + ',' + heights[x].toFixed(1);
+    d += ' L' + W + ',' + H + ' L0,' + H + ' Z';
+    $('terrain').setAttribute('d', d);
+  }
+
+  function renderAll() {
+    if (dirty) { renderTerrain(); dirty = false; }
+    const act = state === 'over' ? null : activeWorm();
+
+    // mira
+    let aim = '';
+    if (state === 'aim' && act) {
+      const a = angle * Math.PI / 180;
+      const x1 = act.x, y1 = act.y - 8;
+      const x2 = x1 + Math.cos(a) * 42, y2 = y1 - Math.sin(a) * 42;
+      aim = `<line x1="${x1}" y1="${y1}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"
+              stroke="#ffe14d" stroke-width="2.5" stroke-dasharray="5 4" stroke-linecap="round"/>
+             <circle cx="${x2.toFixed(1)}" cy="${y2.toFixed(1)}" r="3" fill="#ffe14d"/>`;
+    }
+    $('aim').innerHTML = aim;
+
+    // vermes
+    let wh = '';
+    for (const w of worms) {
+      if (!w.alive) continue;
+      const t = teams[w.team];
+      wh += `<g transform="translate(${w.x.toFixed(1)} ${w.y.toFixed(1)})">`;
+      if (w === act) wh += `<circle cx="0" cy="-8" r="16" fill="none" stroke="#ffe14d"
+                              stroke-width="2" stroke-dasharray="4 3"/>`;
+      wh += `<ellipse cx="0" cy="-8" rx="9" ry="8" fill="${t.color}" stroke="#111" stroke-width="1.5"/>
+             <circle cx="-3.5" cy="-10" r="3" fill="#fff"/><circle cx="3.5" cy="-10" r="3" fill="#fff"/>
+             <circle cx="-3.5" cy="-10" r="1.2" fill="#111"/><circle cx="3.5" cy="-10" r="1.2" fill="#111"/>
+             <text x="0" y="-27" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff"
+                   stroke="#000" stroke-width=".6">${w.name} ${Math.max(0, Math.round(w.hp))}</text>
+           </g>`;
+    }
+    $('worms').innerHTML = wh;
+
+    // projétil
+    if (proj) {
+      $('fx').innerHTML = '';
+      $('aim').innerHTML += `<circle cx="${proj.x.toFixed(1)}" cy="${proj.y.toFixed(1)}" r="4"
+                              fill="#222" stroke="#ffd34d" stroke-width="1.5"/>`;
+    }
+
+    // explosões
+    $('fx').innerHTML = fx.map(f => {
+      const k = f.t / f.max;
+      return `<circle cx="${f.x.toFixed(1)}" cy="${f.y.toFixed(1)}" r="${(BLAST * k).toFixed(1)}"
+               fill="#ffb347" opacity="${(1 - k).toFixed(2)}"/>`;
+    }).join('');
+
+    // barra de força
+    $('powerbar').innerHTML = charging
+      ? `<rect x="10" y="62" width="204" height="14" fill="#000" opacity=".5" rx="3"/>
+         <rect x="12" y="64" width="${(power * 2).toFixed(0)}" height="10" fill="#ffb347" rx="2"/>`
+      : '';
+
+    // HUD
+    const t = teams[turnTeam];
+    const windTxt = wind === 0 ? 'calmo' : (wind > 0 ? '→ ' : '← ') + Math.abs(wind);
+    $('hud').textContent = state === 'over' ? '' :
+      `Vez: ${t.name} · Vento: ${windTxt} · Ângulo: ${Math.round(angle)}° · Caminhada: ${Math.max(0, Math.round(walkBudget))}`;
+
+    $('msg').textContent = msg || '';
+  }
+
+  // ---------- Loop ----------
+  function frame() {
+    if (state === 'aim') {
+      if (keys.up)   angle = Math.min(180, angle + 1.2);
+      if (keys.down) angle = Math.max(0, angle - 1.2);
+      if (!charging) {
+        if (keys.left)  walk(-1);
+        if (keys.right) walk(1);
+      } else {
+        power = Math.min(100, power + 0.9);
+      }
+    }
+    if (state === 'flying') stepProj();
+    updateWorms();
+    if (state === 'settle') settle();
+    for (const f of fx) f.t++;
+    fx = fx.filter(f => f.t < f.max);
+    if (msgT > 0 && --msgT === 0) msg = '';
+    renderAll();
+    requestAnimationFrame(frame);
+  }
+
+  // ---------- Controles ----------
+  const ARROWS = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
+
+  addEventListener('keydown', e => {
+    if (e.key === 'r' || e.key === 'R') { init(); return; }
+    if (state === 'over') return;
+    if (ARROWS[e.key]) { keys[ARROWS[e.key]] = true; e.preventDefault(); return; }
+    if (e.code === 'Space') {
+      e.preventDefault();
+      if (!e.repeat && state === 'aim') { charging = true; power = 0; }
+      return;
+    }
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      if (state !== 'aim') return;
+      const t = teams[turnTeam], n = t.worms.length;
+      for (let i = 1; i <= n; i++) {
+        const j = (t.cur + i) % n;
+        if (t.worms[j].alive) { t.cur = j; break; }
+      }
+    }
+  });
+
+  addEventListener('keyup', e => {
+    if (ARROWS[e.key]) keys[ARROWS[e.key]] = false;
+    else if (e.code === 'Space' && charging) fire();
+  });
+
+  addEventListener('blur', () => { keys = {}; charging = false; power = 0; });
+
+  init();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

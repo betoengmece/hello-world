@@ -15,4 +15,6 @@ Abra `index.html` no navegador.
 | TAB | trocar de verme |
 | R | reiniciar |
 
+**No celular:** use os botões na tela (◀ ▶ andar, ▲ ▼ mirar, segure FOGO para carregar e solte para atirar, ⇄ troca de verme, ↻ reinicia). Jogue com o celular deitado.
+
 Dois times de três vermes jogam por turnos no mesmo teclado. Explosões destroem o terreno, vermes sem apoio caem, e quem cair na água morre.

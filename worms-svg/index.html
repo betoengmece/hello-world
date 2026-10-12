@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>Lagarto de Fogo</title>
+<title>Monstrinhos de Artilharia</title>
 <style>
   html,body{margin:0;height:100%;background:#111;color:#eee;font-family:system-ui,sans-serif;
     overflow:hidden;overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
@@ -46,6 +46,10 @@
       <stop offset="0" stop-color="#fff8c0"/><stop offset=".35" stop-color="#ffb020"/>
       <stop offset=".75" stop-color="#ff5a1f"/><stop offset="1" stop-color="#7a1c00" stop-opacity="0"/>
     </radialGradient>
+    <radialGradient id="splash">
+      <stop offset="0" stop-color="#eaf8ff"/><stop offset=".6" stop-color="#6ad0ff"/>
+      <stop offset="1" stop-color="#1f6fb0" stop-opacity="0"/>
+    </radialGradient>
   </defs>
 
   <rect width="800" height="500" fill="url(#sky)"/>
@@ -58,6 +62,7 @@
   <path id="terrain" fill="url(#dirt)" stroke="#2f5d1a" stroke-width="3"/>
   <g id="aim"></g>
   <g id="worms"></g>
+  <g id="volt"></g>
   <g id="proj"></g>
   <g id="fx"></g>
   <g id="powerbar"></g>
@@ -66,7 +71,7 @@
     <g class="btn" data-act="right"><rect x="82" y="420" width="62" height="62" rx="14"/><text x="113" y="461">▶</text></g>
     <g class="btn" data-act="up"><rect x="548" y="420" width="62" height="62" rx="14"/><text x="579" y="461">▲</text></g>
     <g class="btn" data-act="down"><rect x="618" y="420" width="62" height="62" rx="14"/><text x="649" y="461">▼</text></g>
-    <g class="btn" data-act="fire"><circle cx="738" cy="436" r="46"/><text x="738" y="444" style="font-size:18px">FOGO</text></g>
+    <g class="btn" data-act="fire"><circle cx="738" cy="436" r="46"/><text x="738" y="444" style="font-size:18px">TIRO</text></g>
     <g class="btn" data-act="switch"><rect x="676" y="8" width="56" height="44" rx="10"/><text x="704" y="39" style="font-size:22px">⇄</text></g>
     <g class="btn" data-act="restart"><rect x="738" y="8" width="54" height="44" rx="10"/><text x="765" y="39" style="font-size:22px">↻</text></g>
   </g>
@@ -75,8 +80,8 @@
 </svg>
 <div id="help">
   <kbd>←</kbd> <kbd>→</kbd> andar &nbsp;·&nbsp; <kbd>↑</kbd> <kbd>↓</kbd> mirar &nbsp;·&nbsp;
-  segure <kbd>ESPAÇO</kbd> para força e solte para soltar fogo &nbsp;·&nbsp;
-  <kbd>TAB</kbd> troca de lagarto &nbsp;·&nbsp; <kbd>R</kbd> reinicia
+  segure <kbd>ESPAÇO</kbd> para força e solte para atirar &nbsp;·&nbsp;
+  <kbd>TAB</kbd> troca de personagem &nbsp;·&nbsp; <kbd>R</kbd> reinicia
 </div>
 <div id="rotate">📱 Gire o celular para o modo paisagem (deitado) para jogar melhor.</div>
 </div>
@@ -84,26 +89,44 @@
 <script>
 (() => {
   const W = 800, H = 500, WATER = 480;
-  const GRAV = 0.2;          // gravidade da bola de fogo (px/frame²)
-  const CRATER = 28;         // raio da cratera
-  const BLAST = CRATER + 18; // raio de dano
+  const GRAV = 0.2;          // gravidade base (px/frame²)
   const WALK_MAX = 120;      // distância máxima de caminhada por turno
-  const MOUTH_X = 11, MOUTH_Y = -18; // posição da boca do lagarto
+  const MOUTH_X = 11, MOUTH_Y = -18; // boca do personagem
+  const VOLT_X = 400;        // posição do Volt, no meio do campo
 
   const $ = id => document.getElementById(id);
+
+  // Tipos de tiro. speed/grav são multiplicadores; push empurra os atingidos.
+  const WEAPONS = {
+    fogo:   { kind: 'fire',    count: 1, spread: 0, speed: 1.0,  grav: 1.0, boom: 46, carve: 28, dmg: 60 },
+    planta: { kind: 'leaf',    count: 3, spread: 6, speed: 0.95, grav: 0.5, boom: 24, carve: 10, dmg: 26 },
+    agua:   { kind: 'water',   count: 1, spread: 0, speed: 0.95, grav: 1.0, boom: 42, carve: 0,  dmg: 30, push: 9 },
+    volt:   { kind: 'thunder', count: 1, spread: 0, speed: 1.2,  grav: 1.0, boom: 30, carve: 14, dmg: 45 }
+  };
+  const SPECIES = {
+    fogo:   { weapon: 'fogo',   breath: ['#ff7a1a', '#fff3a0'] },
+    planta: { weapon: 'planta', breath: ['#5cc46a', '#e6ffd0'] },
+    agua:   { weapon: 'agua',   breath: ['#6ad0ff', '#e6f8ff'] }
+  };
+  const FX_FILL = { fogo: 'url(#boom)', planta: '#7be07b', agua: 'url(#splash)', volt: '#fff27a' };
+
   const TEAM_DEF = [
-    { name: 'Vermelho', color: '#e0433a', names: ['Chama', 'Brasa', 'Fagulha'] },
-    { name: 'Azul',     color: '#3a7de0', names: ['Lava', 'Cinza', 'Fumaça'] }
+    { name: 'Fogo',   color: '#e0433a', species: 'fogo',   names: ['Chama', 'Brasa'],    spawn: [60, 140]  },
+    { name: 'Planta', color: '#3fae5a', species: 'planta', names: ['Musgo', 'Folhinha'], spawn: [660, 740] },
+    { name: 'Água',   color: '#3a7de0', species: 'agua',   names: ['Casco', 'Bolha'],    spawn: [230, 310] }
   ];
 
   let frameNo = 0;
-  let heights, worms, teams, turnTeam, state, proj, fx, wind, power, charging,
+  let heights, worms, teams, turnTeam, state, projs, fx, wind, power, charging,
       angle, walkBudget, dirty, msg, msgT, keys = {};
+  let lastShotVolt = false, voltDelay = 0, voltSide = 1;
 
   const rnd = (a, b) => a + Math.random() * (b - a);
-  const gy = x => heights[Math.max(0, Math.min(W - 1, Math.round(x)))];
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const gy = x => heights[clamp(Math.round(x), 0, W - 1)];
   const activeWorm = () => { const t = teams[turnTeam]; return t.worms[t.cur]; };
   const showMsg = (text, frames) => { msg = text; msgT = frames; };
+  const teamAlive = t => t.worms.some(w => w.alive);
 
   function genTerrain() {
     const p1 = rnd(0, 6.3), p2 = rnd(0, 6.3), p3 = rnd(0, 6.3);
@@ -124,22 +147,26 @@
 
   function init() {
     genTerrain();
-    dirty = true; fx = []; proj = null; power = 0; charging = false;
-    angle = 45; wind = Math.round(rnd(-3, 3)); walkBudget = WALK_MAX;
+    dirty = true; fx = []; projs = []; power = 0; charging = false;
+    lastShotVolt = false; voltDelay = 0;
+    wind = Math.round(rnd(-3, 3)); walkBudget = WALK_MAX;
     worms = []; teams = TEAM_DEF.map(d => ({ ...d, worms: [], cur: 0 }));
     teams.forEach((t, ti) => {
-      for (let i = 0; i < 3; i++) {
-        const x = ti === 0 ? 70 + i * 75 + rnd(-10, 10) : W - 70 - i * 75 + rnd(-10, 10);
-        const w = { team: ti, name: t.names[i], x, y: gy(x), hp: 100, alive: true,
-                    face: ti === 0 ? 1 : -1, breath: 0 };
+      t.spawn.forEach((x0, i) => {
+        const x = x0 + rnd(-6, 6);
+        const face = x < VOLT_X ? 1 : -1;
+        const w = { team: ti, species: t.species, name: t.names[i], x, y: gy(x),
+                    hp: 100, alive: true, face, breath: 0 };
         worms.push(w); t.worms.push(w);
-      }
+      });
     });
     turnTeam = 0; state = 'aim';
+    angle = 45;
     showMsg('Vez de ' + teams[0].name + '!', 120);
   }
 
   function carve(cx, cy, r) {
+    if (r <= 0) return;
     for (let x = Math.max(0, Math.floor(cx - r)); x <= Math.min(W - 1, Math.ceil(cx + r)); x++) {
       const dd = r * r - (x - cx) * (x - cx);
       if (dd <= 0) continue;
@@ -149,46 +176,80 @@
     dirty = true;
   }
 
-  function explode(x, y) {
-    carve(x, y, CRATER);
-    fx.push({ x, y, t: 0, max: 40 });
+  function explode(x, y, wk) {
+    const wp = WEAPONS[wk];
+    carve(x, y, wp.carve);
+    fx.push({ x, y, t: 0, max: 40, r: wp.boom, fill: FX_FILL[wk] });
     for (const w of worms) {
       if (!w.alive) continue;
       const d = Math.hypot(w.x - x, (w.y - 8) - y);
-      if (d < BLAST) w.hp -= Math.round(60 * (1 - d / BLAST));
+      if (d >= wp.boom) continue;
+      const k = 1 - d / wp.boom;
+      w.hp -= Math.round(wp.dmg * k);
+      if (wp.push) {
+        const dir = (w.x - x) >= 0 ? 1 : -1;
+        w.x = clamp(w.x + dir * wp.push * k, 8, W - 8);
+      }
     }
-    state = 'settle';
+  }
+
+  // Cria os projéteis de uma arma (planta atira três folhas em leque)
+  function launch(wk, x, y, a, sp, owner) {
+    const wp = WEAPONS[wk];
+    for (let i = 0; i < wp.count; i++) {
+      const off = wp.count === 1 ? 0 : (i - (wp.count - 1) / 2) * wp.spread * Math.PI / 180;
+      const aa = a + off, s = sp * wp.speed;
+      projs.push({ wk, wp, owner, x, y, vx: s * Math.cos(aa), vy: -s * Math.sin(aa),
+                   trail: [], spin: rnd(0, 6) });
+    }
   }
 
   function fire() {
     if (state !== 'aim') return;
     const w = activeWorm(), a = angle * Math.PI / 180, sp = 3 + power * 0.075;
-    proj = {
-      x: w.x + w.face * MOUTH_X,
-      y: w.y + MOUTH_Y,
-      vx: sp * Math.cos(a),
-      vy: -sp * Math.sin(a),
-      trail: []
-    };
-    w.breath = 18;                 // o lagarto solta o sopro de fogo
+    launch(SPECIES[w.species].weapon, w.x + w.face * MOUTH_X, w.y + MOUTH_Y, a, sp, 'player');
+    w.breath = 18;
     power = 0; charging = false; state = 'flying';
   }
 
-  function stepProj() {
-    const p = proj;
-    if (!p) return;
-    p.trail.push({ x: p.x, y: p.y });
-    if (p.trail.length > 14) p.trail.shift();
-    for (let s = 0; s < 3; s++) {
-      p.vx += wind * 0.0012;
-      p.vy += GRAV / 3;
-      p.x += p.vx / 3;
-      p.y += p.vy / 3;
-      if (p.x < -60 || p.x > W + 60 || p.y > H + 60) { proj = null; state = 'settle'; return; }
-      const hitTerrain = p.x >= 0 && p.x < W && p.y >= heights[Math.round(p.x)];
-      const hitWorm = worms.some(w => w.alive && Math.hypot(w.x - p.x, (w.y - 8) - p.y) < 11);
-      if (hitTerrain || hitWorm) { proj = null; explode(p.x, Math.min(p.y, H)); return; }
+  function voltPos() { return { x: VOLT_X, y: gy(VOLT_X) }; }
+
+  function voltShoot() {
+    // Volt atira para o lado sorteado, com ângulo e força aleatórios
+    const deg = rnd(40, 75);
+    const a = (voltSide > 0 ? deg : 180 - deg) * Math.PI / 180;
+    const vp = voltPos();
+    launch('volt', vp.x, vp.y - 34, a, rnd(5, 6.5), 'volt');
+    lastShotVolt = true;
+    state = 'flying';
+  }
+
+  function stepProjs() {
+    for (let i = projs.length - 1; i >= 0; i--) {
+      const p = projs[i];
+      p.trail.push({ x: p.x, y: p.y });
+      if (p.trail.length > 14) p.trail.shift();
+      let outcome = null;
+      for (let s = 0; s < 3 && !outcome; s++) {
+        p.vx += wind * 0.0012;
+        p.vy += GRAV * p.wp.grav / 3;
+        p.x += p.vx / 3;
+        p.y += p.vy / 3;
+        if (p.x < -60 || p.x > W + 60 || p.y > H + 60) { outcome = 'gone'; break; }
+        if (p.x >= 0 && p.x < W && p.y >= heights[Math.round(p.x)]) { outcome = 'hit'; break; }
+        if (worms.some(w => w.alive && Math.hypot(w.x - p.x, (w.y - 8) - p.y) < 11)) { outcome = 'hit'; break; }
+        if (p.owner !== 'volt') {
+          const vp = voltPos();
+          if (Math.hypot(vp.x - p.x, (vp.y - 14) - p.y) < 14) { outcome = 'hit'; break; }
+        }
+      }
+      if (outcome === 'gone') projs.splice(i, 1);
+      else if (outcome === 'hit') {
+        projs.splice(i, 1);
+        explode(p.x, Math.min(p.y, H), p.wk);
+      }
     }
+    if (!projs.length && state === 'flying') state = 'settle';
   }
 
   function updateWorms() {
@@ -203,13 +264,25 @@
   function walk(dir) {
     const w = activeWorm();
     if (!w || walkBudget <= 0) return;
-    const nx = Math.max(8, Math.min(W - 8, w.x + dir * 1.5));
+    const nx = clamp(w.x + dir * 1.5, 8, W - 8);
     if (gy(nx) < w.y - 10) return;                       // parede alta demais
+    if (Math.abs(nx - VOLT_X) < 18) return;              // não pisa no Volt
     w.x = nx;
     walkBudget -= 1.5;
   }
 
+  function startTurn() {
+    fixCur(teams[turnTeam]);
+    const w = activeWorm();
+    angle = w.face === 1 ? 45 : 135;
+    wind = Math.round(rnd(-3, 3));
+    walkBudget = WALK_MAX;
+    state = 'aim';
+    showMsg('Vez de ' + teams[turnTeam].name + '!', 110);
+  }
+
   function settle() {
+    if (projs.length) return;
     if (worms.some(w => w.alive && w.y < gy(w.x) - 0.5)) return; // ainda caindo
     for (const w of worms) {
       if (!w.alive) continue;
@@ -219,34 +292,44 @@
       }
     }
     teams.forEach(fixCur);
-    const alive = teams.map(t => t.worms.filter(w => w.alive).length);
-    if (alive[0] === 0 || alive[1] === 0) {
+    const aliveTeams = teams.filter(teamAlive);
+    if (aliveTeams.length <= 1) {
       state = 'over';
-      const winner = alive[0] === 0 && alive[1] === 0 ? 'Empate'
-                   : alive[0] > 0 ? teams[0].name : teams[1].name;
+      const winner = aliveTeams.length === 0 ? 'Empate' : aliveTeams[0].name;
       showMsg('Fim de jogo! ' + winner + ' venceu! (toque em ↻ ou tecle R)', 1e9);
       return;
     }
-    turnTeam = 1 - turnTeam;
-    fixCur(teams[turnTeam]);
-    angle = turnTeam === 0 ? 45 : 135;
-    wind = Math.round(rnd(-3, 3));
-    walkBudget = WALK_MAX;
-    state = 'aim';
-    showMsg('Vez de ' + teams[turnTeam].name + '!', 110);
+    if (lastShotVolt) { lastShotVolt = false; startTurn(); return; }
+
+    // próximo time vivo
+    const prev = turnTeam;
+    let n = prev;
+    do { n = (n + 1) % teams.length; } while (!teamAlive(teams[n]));
+    turnTeam = n;
+    if (n < prev) {
+      // rodada completa: o Volt atira num dos lados
+      voltSide = Math.random() < 0.5 ? -1 : 1;
+      voltDelay = 100;
+      state = 'volt';
+      showMsg('Volt vai atirar para a ' + (voltSide < 0 ? 'ESQUERDA' : 'DIREITA') + '!', 100);
+      return;
+    }
+    startTurn();
   }
 
   // ---------- Render (tudo em SVG) ----------
 
-  // Lagarto de fogo (pés em y=0, virado para +x). Desenhado com formas SVG simples.
-  function lizard(w) {
-    const sc = 1 + 0.12 * Math.sin(frameNo * 0.35 + w.x);   // chama da cauda tremulando
-    const jit = (Math.sin(frameNo * 1.7) * 2).toFixed(1);
-    const breath = w.breath > 0 ? `
-      <g opacity="${(w.breath / 18).toFixed(2)}">
-        <path d="M${MOUTH_X},-20 Q22,${(-25 + Number(jit)).toFixed(1)} 36,-19 Q24,-14 ${MOUTH_X},-15 Z" fill="#ff7a1a"/>
-        <path d="M${MOUTH_X},-18 Q20,-20 30,-19 Q20,-16 ${MOUTH_X},-16 Z" fill="#fff3a0"/>
-      </g>` : '';
+  function breathFx(w, [col, hi]) {
+    if (!(w.breath > 0)) return '';
+    const j = (Math.sin(frameNo * 1.7) * 2).toFixed(1);
+    return `<g opacity="${(w.breath / 18).toFixed(2)}">
+      <path d="M${MOUTH_X},-20 Q22,${(-25 + Number(j)).toFixed(1)} 36,-19 Q24,-14 ${MOUTH_X},-15 Z" fill="${col}"/>
+      <path d="M${MOUTH_X},-18 Q20,-20 30,-19 Q20,-16 ${MOUTH_X},-16 Z" fill="${hi}"/></g>`;
+  }
+
+  // Lagarto de fogo (pés em y=0, virado para +x)
+  function fogo(w) {
+    const sc = 1 + 0.12 * Math.sin(frameNo * 0.35 + w.x);
     return `
       <path d="M-6,-8 C-14,-8 -16,-16 -14,-22" fill="none" stroke="#f58a30" stroke-width="4.5" stroke-linecap="round"/>
       <g transform="translate(-14 -22) scale(1 ${sc.toFixed(2)})">
@@ -263,7 +346,67 @@
       <circle cx="6" cy="-23" r="1.6" fill="#111"/>
       <circle cx="9" cy="-20" r=".7" fill="#6b2a0e"/>
       <path d="M5,-17 Q9,-15 ${MOUTH_X},-17" fill="none" stroke="#6b2a0e" stroke-width="1"/>
-      ${breath}`;
+      ${breathFx(w, SPECIES.fogo.breath)}`;
+  }
+
+  // Planta com bulbo nas costas (pés em y=0)
+  function planta(w) {
+    return `
+      <ellipse cx="-4" cy="-2" rx="3.5" ry="2.5" fill="#5cc46a" stroke="#1d4a2a" stroke-width="1"/>
+      <ellipse cx="4" cy="-2" rx="3.5" ry="2.5" fill="#5cc46a" stroke="#1d4a2a" stroke-width="1"/>
+      <ellipse cx="0" cy="-12" rx="9" ry="9.5" fill="#5cc46a" stroke="#1d4a2a" stroke-width="1.2"/>
+      <ellipse cx="1" cy="-9" rx="5" ry="5" fill="#d4f5b8"/>
+      <circle cx="-2" cy="-12" r="1.2" fill="#2b6b3a"/><circle cx="2" cy="-14" r="1" fill="#2b6b3a"/>
+      <ellipse cx="6" cy="-12" rx="3" ry="1.8" fill="#5cc46a" stroke="#1d4a2a" stroke-width="1"/>
+      <ellipse cx="-6" cy="-21" rx="7.5" ry="7" fill="#3e8f58" stroke="#1d4a2a" stroke-width="1.1"/>
+      <path d="M-7,-27 Q-10,-35 -15,-34 Q-12,-29 -7,-27 Z" fill="#2e9a4a" stroke="#1d4a2a" stroke-width=".8"/>
+      <path d="M-5,-28 Q-4,-34 0,-36 Q-1,-30 -5,-28 Z" fill="#3fae5a" stroke="#1d4a2a" stroke-width=".8"/>
+      <ellipse cx="4" cy="-20" rx="8" ry="7" fill="#5cc46a" stroke="#1d4a2a" stroke-width="1.2"/>
+      <circle cx="6" cy="-21" r="2.8" fill="#fff" stroke="#1d4a2a" stroke-width=".7"/>
+      <circle cx="7" cy="-21" r="1.5" fill="#c0392b"/>
+      <path d="M7,-16 Q10,-15 ${MOUTH_X},-17" fill="none" stroke="#1d4a2a" stroke-width="1"/>
+      ${breathFx(w, SPECIES.planta.breath)}`;
+  }
+
+  // Tartaruga com casco (pés em y=0)
+  function agua(w) {
+    return `
+      <path d="M-8,-8 Q-15,-9 -14,-3" fill="none" stroke="#c49a52" stroke-width="4" stroke-linecap="round"/>
+      <ellipse cx="-4" cy="-2" rx="3.5" ry="2.5" fill="#8fd3ef" stroke="#1d4a6b" stroke-width="1"/>
+      <ellipse cx="4" cy="-2" rx="3.5" ry="2.5" fill="#8fd3ef" stroke="#1d4a6b" stroke-width="1"/>
+      <ellipse cx="0" cy="-12" rx="9.5" ry="9.5" fill="#8fd3ef" stroke="#1d4a6b" stroke-width="1.2"/>
+      <ellipse cx="2" cy="-8" rx="5" ry="4" fill="#f7e9b8"/>
+      <path d="M-9,-12 Q-10,-22 0,-22 Q10,-22 9,-12 Q9,-6 0,-6 Q-9,-6 -9,-12 Z" fill="#b5763a" stroke="#4a2a10" stroke-width="1.2"/>
+      <path d="M-4,-18 L0,-14 L4,-18 M-7,-12 L0,-9 L7,-12" fill="none" stroke="#6b4016" stroke-width="1"/>
+      <ellipse cx="6" cy="-10" rx="3" ry="1.8" fill="#8fd3ef" stroke="#1d4a6b" stroke-width="1"/>
+      <circle cx="6" cy="-19" r="6.5" fill="#8fd3ef" stroke="#1d4a6b" stroke-width="1.2"/>
+      <circle cx="8.5" cy="-20" r="2.4" fill="#fff" stroke="#222" stroke-width=".7"/>
+      <circle cx="9.5" cy="-20" r="1.2" fill="#111"/>
+      <path d="M8,-15 Q11,-14 ${MOUTH_X},-16" fill="none" stroke="#1d4a6b" stroke-width="1"/>
+      ${breathFx(w, SPECIES.agua.breath)}`;
+  }
+
+  const BODY = { fogo, planta, agua };
+
+  // Volt: rato elétrico neutro no meio do campo
+  function voltSvg() {
+    const flicker = state === 'volt' ? (frameNo % 8 < 4 ? 1 : 0.3) : 0;
+    const sparks = flicker
+      ? `<path d="M-11,-22 l-5,-3 M-11,-18 l-5,2 M11,-22 l5,-3 M11,-18 l5,2"
+           stroke="#fff27a" stroke-width="1.6" stroke-linecap="round" opacity="${flicker}"/>` : '';
+    return `
+      <path d="M9,-8 L14,-12 L11,-14 L17,-22 L13,-22 L18,-30" fill="none" stroke="#d9a000" stroke-width="3" stroke-linejoin="round"/>
+      <ellipse cx="-4" cy="-2" rx="3" ry="2" fill="#e0b400" stroke="#5a4300" stroke-width="1"/>
+      <ellipse cx="4" cy="-2" rx="3" ry="2" fill="#e0b400" stroke="#5a4300" stroke-width="1"/>
+      <ellipse cx="0" cy="-12" rx="9" ry="11" fill="#ffd83a" stroke="#5a4300" stroke-width="1.2"/>
+      <path d="M-7,-26 L-10,-38 L-2,-28 Z" fill="#ffd83a" stroke="#5a4300" stroke-width="1"/>
+      <path d="M7,-26 L10,-38 L2,-28 Z" fill="#ffd83a" stroke="#5a4300" stroke-width="1"/>
+      <circle cx="-10" cy="-38" r="2.5" fill="#222"/><circle cx="10" cy="-38" r="2.5" fill="#222"/>
+      <ellipse cx="0" cy="-22" rx="9" ry="8" fill="#ffd83a" stroke="#5a4300" stroke-width="1.2"/>
+      <circle cx="-6" cy="-19" r="2.8" fill="#e8413a"/><circle cx="6" cy="-19" r="2.8" fill="#e8413a"/>
+      <circle cx="-3" cy="-23" r="1.6" fill="#222"/><circle cx="3" cy="-23" r="1.6" fill="#222"/>
+      <path d="M-2,-17 Q0,-15 2,-17" fill="none" stroke="#5a4300" stroke-width="1"/>
+      ${sparks}`;
   }
 
   function renderTerrain() {
@@ -277,8 +420,8 @@
     if (dirty) { renderTerrain(); dirty = false; }
     const act = state === 'over' ? null : activeWorm();
 
-    // o lagarto da vez olha para o lado da mira
-    if (act) act.face = Math.cos(angle * Math.PI / 180) >= 0 ? 1 : -1;
+    // o personagem da vez olha para o lado da mira
+    if (act && state === 'aim') act.face = Math.cos(angle * Math.PI / 180) >= 0 ? 1 : -1;
 
     // mira
     let aim = '';
@@ -292,7 +435,7 @@
     }
     $('aim').innerHTML = aim;
 
-    // lagartos
+    // personagens
     let wh = '';
     for (const w of worms) {
       if (!w.alive) continue;
@@ -301,31 +444,57 @@
       wh += `<ellipse cx="0" cy="0" rx="12" ry="3" fill="${t.color}" opacity=".85"/>`;   // anel do time
       if (w === act) wh += `<circle cx="0" cy="-12" r="19" fill="none" stroke="#ffe14d"
                               stroke-width="2" stroke-dasharray="4 3"/>`;
-      wh += `<g transform="scale(${w.face} 1)">${lizard(w)}</g>`;
+      wh += `<g transform="scale(${w.face} 1)">${BODY[w.species](w)}</g>`;
       wh += `<text x="0" y="-38" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff"
                    stroke="#000" stroke-width=".6">${w.name} ${Math.max(0, Math.round(w.hp))}</text>`;
       wh += `</g>`;
     }
     $('worms').innerHTML = wh;
 
-    // bola de fogo com rastro
+    // Volt
+    const vp = voltPos();
+    $('volt').innerHTML = `<g transform="translate(${vp.x} ${vp.y.toFixed(1)})">${voltSvg()}</g>
+      <text x="${vp.x}" y="${(vp.y - 46).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="bold"
+            fill="#fff" stroke="#000" stroke-width=".6">Volt</text>`;
+
+    // projéteis
     let ph = '';
-    if (proj) {
-      proj.trail.forEach((tp, i) => {
-        const k = (i + 1) / proj.trail.length;
-        ph += `<circle cx="${tp.x.toFixed(1)}" cy="${tp.y.toFixed(1)}" r="${(2 + 5 * k).toFixed(1)}"
-                fill="${k > 0.5 ? '#ffb020' : '#ff5a1f'}" opacity="${(k * 0.7).toFixed(2)}"/>`;
-      });
-      const r = 7 + Math.sin(frameNo * 0.6) * 1.2;
-      ph += `<circle cx="${proj.x.toFixed(1)}" cy="${proj.y.toFixed(1)}" r="${r.toFixed(1)}" fill="url(#fireball)"/>`;
+    for (const p of projs) {
+      if (p.wk === 'fogo') {
+        p.trail.forEach((tp, i) => {
+          const k = (i + 1) / p.trail.length;
+          ph += `<circle cx="${tp.x.toFixed(1)}" cy="${tp.y.toFixed(1)}" r="${(2 + 5 * k).toFixed(1)}"
+                  fill="${k > 0.5 ? '#ffb020' : '#ff5a1f'}" opacity="${(k * 0.7).toFixed(2)}"/>`;
+        });
+        const r = 7 + Math.sin(frameNo * 0.6) * 1.2;
+        ph += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${r.toFixed(1)}" fill="url(#fireball)"/>`;
+      } else if (p.wk === 'planta') {
+        const deg = Math.atan2(p.vy, p.vx) * 180 / Math.PI + Math.sin(frameNo * 0.4 + p.spin) * 25;
+        ph += `<g transform="translate(${p.x.toFixed(1)} ${p.y.toFixed(1)}) rotate(${deg.toFixed(1)})">
+                <path d="M-8,0 Q0,-6 8,0 Q0,6 -8,0 Z" fill="#5cc46a" stroke="#1d4a2a" stroke-width=".8"/>
+                <line x1="-6" y1="0" x2="6" y2="0" stroke="#1d4a2a" stroke-width=".7"/></g>`;
+      } else if (p.wk === 'agua') {
+        p.trail.forEach((tp, i) => {
+          const k = (i + 1) / p.trail.length;
+          ph += `<circle cx="${tp.x.toFixed(1)}" cy="${tp.y.toFixed(1)}" r="${(1.5 + 2 * k).toFixed(1)}"
+                  fill="#bfe9ff" opacity="${(k * 0.6).toFixed(2)}"/>`;
+        });
+        ph += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="5" fill="#7fd0ff" stroke="#1f6fb0" stroke-width="1"/>
+               <circle cx="${(p.x - 1.5).toFixed(1)}" cy="${(p.y - 1.5).toFixed(1)}" r="1.6" fill="#fff"/>`;
+      } else { // raio do Volt, em ziguezague
+        const pts = p.trail.concat([{ x: p.x, y: p.y }]);
+        const d = pts.map((tp, i) => `${i ? 'L' : 'M'}${tp.x.toFixed(1)},${(tp.y + (i % 2 ? 3 : -3)).toFixed(1)}`).join(' ');
+        ph += `<path d="${d}" fill="none" stroke="#fff27a" stroke-width="2.4" stroke-linejoin="round" opacity=".9"/>
+               <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" fill="#fff"/>`;
+      }
     }
     $('proj').innerHTML = ph;
 
     // explosões
     $('fx').innerHTML = fx.map(f => {
       const k = f.t / f.max;
-      return `<circle cx="${f.x.toFixed(1)}" cy="${f.y.toFixed(1)}" r="${(BLAST * k).toFixed(1)}"
-               fill="url(#boom)" opacity="${(1 - k).toFixed(2)}"/>`;
+      return `<circle cx="${f.x.toFixed(1)}" cy="${f.y.toFixed(1)}" r="${(f.r * k).toFixed(1)}"
+               fill="${f.fill}" opacity="${(1 - k).toFixed(2)}"/>`;
     }).join('');
 
     // barra de força
@@ -336,9 +505,10 @@
 
     // HUD
     const t = teams[turnTeam];
+    const who = (state === 'volt' || lastShotVolt) ? 'Volt' : t.name;
     const windTxt = wind === 0 ? 'calmo' : (wind > 0 ? '→ ' : '← ') + Math.abs(wind);
     $('hud').textContent = state === 'over' ? '' :
-      `Vez: ${t.name} · Vento: ${windTxt} · Ângulo: ${Math.round(angle)}° · Caminhada: ${Math.max(0, Math.round(walkBudget))}`;
+      `Vez: ${who} · Vento: ${windTxt} · Ângulo: ${Math.round(angle)}° · Caminhada: ${Math.max(0, Math.round(walkBudget))}`;
 
     $('msg').textContent = msg || '';
   }
@@ -358,7 +528,8 @@
         power = Math.min(100, power + 0.9);
       }
     }
-    if (state === 'flying') stepProj();
+    if (state === 'flying') stepProjs();
+    if (state === 'volt' && --voltDelay <= 0) voltShoot();
     updateWorms();
     if (state === 'settle') settle();
     for (const f of fx) f.t++;

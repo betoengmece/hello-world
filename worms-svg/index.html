@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>Worms SVG</title>
+<title>Lagarto de Fogo</title>
 <style>
   html,body{margin:0;height:100%;background:#111;color:#eee;font-family:system-ui,sans-serif;
     overflow:hidden;overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
@@ -38,6 +38,14 @@
       <stop offset=".07" stop-color="#6b4a2b"/>
       <stop offset="1" stop-color="#3f2a18"/>
     </linearGradient>
+    <radialGradient id="fireball">
+      <stop offset="0" stop-color="#fff6b0"/><stop offset=".45" stop-color="#ffa000"/>
+      <stop offset="1" stop-color="#ff3d00" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="boom">
+      <stop offset="0" stop-color="#fff8c0"/><stop offset=".35" stop-color="#ffb020"/>
+      <stop offset=".75" stop-color="#ff5a1f"/><stop offset="1" stop-color="#7a1c00" stop-opacity="0"/>
+    </radialGradient>
   </defs>
 
   <rect width="800" height="500" fill="url(#sky)"/>
@@ -50,6 +58,7 @@
   <path id="terrain" fill="url(#dirt)" stroke="#2f5d1a" stroke-width="3"/>
   <g id="aim"></g>
   <g id="worms"></g>
+  <g id="proj"></g>
   <g id="fx"></g>
   <g id="powerbar"></g>
   <g id="touch">
@@ -66,8 +75,8 @@
 </svg>
 <div id="help">
   <kbd>←</kbd> <kbd>→</kbd> andar &nbsp;·&nbsp; <kbd>↑</kbd> <kbd>↓</kbd> mirar &nbsp;·&nbsp;
-  segure <kbd>ESPAÇO</kbd> para força e solte para atirar &nbsp;·&nbsp;
-  <kbd>TAB</kbd> troca de verme &nbsp;·&nbsp; <kbd>R</kbd> reinicia
+  segure <kbd>ESPAÇO</kbd> para força e solte para soltar fogo &nbsp;·&nbsp;
+  <kbd>TAB</kbd> troca de lagarto &nbsp;·&nbsp; <kbd>R</kbd> reinicia
 </div>
 <div id="rotate">📱 Gire o celular para o modo paisagem (deitado) para jogar melhor.</div>
 </div>
@@ -75,17 +84,19 @@
 <script>
 (() => {
   const W = 800, H = 500, WATER = 480;
-  const GRAV = 0.2;          // gravidade do projétil (px/frame²)
+  const GRAV = 0.2;          // gravidade da bola de fogo (px/frame²)
   const CRATER = 28;         // raio da cratera
   const BLAST = CRATER + 18; // raio de dano
   const WALK_MAX = 120;      // distância máxima de caminhada por turno
+  const MOUTH_X = 11, MOUTH_Y = -18; // posição da boca do lagarto
 
   const $ = id => document.getElementById(id);
   const TEAM_DEF = [
-    { name: 'Vermelho', color: '#e0433a', names: ['Rex', 'Max', 'Tina'] },
-    { name: 'Azul',     color: '#3a7de0', names: ['Kiko', 'Lulu', 'Bob'] }
+    { name: 'Vermelho', color: '#e0433a', names: ['Chama', 'Brasa', 'Fagulha'] },
+    { name: 'Azul',     color: '#3a7de0', names: ['Lava', 'Cinza', 'Fumaça'] }
   ];
 
+  let frameNo = 0;
   let heights, worms, teams, turnTeam, state, proj, fx, wind, power, charging,
       angle, walkBudget, dirty, msg, msgT, keys = {};
 
@@ -119,7 +130,8 @@
     teams.forEach((t, ti) => {
       for (let i = 0; i < 3; i++) {
         const x = ti === 0 ? 70 + i * 75 + rnd(-10, 10) : W - 70 - i * 75 + rnd(-10, 10);
-        const w = { team: ti, name: t.names[i], x, y: gy(x), hp: 100, alive: true };
+        const w = { team: ti, name: t.names[i], x, y: gy(x), hp: 100, alive: true,
+                    face: ti === 0 ? 1 : -1, breath: 0 };
         worms.push(w); t.worms.push(w);
       }
     });
@@ -152,17 +164,21 @@
     if (state !== 'aim') return;
     const w = activeWorm(), a = angle * Math.PI / 180, sp = 3 + power * 0.075;
     proj = {
-      x: w.x + Math.cos(a) * 13,
-      y: w.y - 8 - Math.sin(a) * 13,
+      x: w.x + w.face * MOUTH_X,
+      y: w.y + MOUTH_Y,
       vx: sp * Math.cos(a),
-      vy: -sp * Math.sin(a)
+      vy: -sp * Math.sin(a),
+      trail: []
     };
+    w.breath = 18;                 // o lagarto solta o sopro de fogo
     power = 0; charging = false; state = 'flying';
   }
 
   function stepProj() {
     const p = proj;
     if (!p) return;
+    p.trail.push({ x: p.x, y: p.y });
+    if (p.trail.length > 14) p.trail.shift();
     for (let s = 0; s < 3; s++) {
       p.vx += wind * 0.0012;
       p.vy += GRAV / 3;
@@ -221,6 +237,35 @@
   }
 
   // ---------- Render (tudo em SVG) ----------
+
+  // Lagarto de fogo (pés em y=0, virado para +x). Desenhado com formas SVG simples.
+  function lizard(w) {
+    const sc = 1 + 0.12 * Math.sin(frameNo * 0.35 + w.x);   // chama da cauda tremulando
+    const jit = (Math.sin(frameNo * 1.7) * 2).toFixed(1);
+    const breath = w.breath > 0 ? `
+      <g opacity="${(w.breath / 18).toFixed(2)}">
+        <path d="M${MOUTH_X},-20 Q22,${(-25 + Number(jit)).toFixed(1)} 36,-19 Q24,-14 ${MOUTH_X},-15 Z" fill="#ff7a1a"/>
+        <path d="M${MOUTH_X},-18 Q20,-20 30,-19 Q20,-16 ${MOUTH_X},-16 Z" fill="#fff3a0"/>
+      </g>` : '';
+    return `
+      <path d="M-6,-8 C-14,-8 -16,-16 -14,-22" fill="none" stroke="#f58a30" stroke-width="4.5" stroke-linecap="round"/>
+      <g transform="translate(-14 -22) scale(1 ${sc.toFixed(2)})">
+        <path d="M0,0 C-6,-4 -4,-9 0,-14 C4,-9 6,-4 0,0 Z" fill="#ffb020"/>
+        <path d="M0,-1 C-2.5,-3 -1.5,-6 0,-8 C1.5,-6 2.5,-3 0,-1 Z" fill="#fff3a0"/>
+      </g>
+      <ellipse cx="-4" cy="-2" rx="3.5" ry="2.5" fill="#f58a30" stroke="#6b2a0e" stroke-width="1"/>
+      <ellipse cx="4" cy="-2" rx="3.5" ry="2.5" fill="#f58a30" stroke="#6b2a0e" stroke-width="1"/>
+      <ellipse cx="0" cy="-12" rx="9" ry="10" fill="#f58a30" stroke="#6b2a0e" stroke-width="1.2"/>
+      <ellipse cx="1" cy="-9" rx="5.5" ry="6.5" fill="#fbe3a6"/>
+      <ellipse cx="6" cy="-12" rx="3" ry="1.8" fill="#f58a30" stroke="#6b2a0e" stroke-width="1"/>
+      <ellipse cx="3" cy="-22" rx="8" ry="7.5" fill="#f58a30" stroke="#6b2a0e" stroke-width="1.2"/>
+      <circle cx="5" cy="-23" r="3.2" fill="#fff" stroke="#222" stroke-width=".8"/>
+      <circle cx="6" cy="-23" r="1.6" fill="#111"/>
+      <circle cx="9" cy="-20" r=".7" fill="#6b2a0e"/>
+      <path d="M5,-17 Q9,-15 ${MOUTH_X},-17" fill="none" stroke="#6b2a0e" stroke-width="1"/>
+      ${breath}`;
+  }
+
   function renderTerrain() {
     let d = 'M0,' + heights[0].toFixed(1);
     for (let x = 1; x < W; x++) d += ' L' + x + ',' + heights[x].toFixed(1);
@@ -232,47 +277,55 @@
     if (dirty) { renderTerrain(); dirty = false; }
     const act = state === 'over' ? null : activeWorm();
 
+    // o lagarto da vez olha para o lado da mira
+    if (act) act.face = Math.cos(angle * Math.PI / 180) >= 0 ? 1 : -1;
+
     // mira
     let aim = '';
     if (state === 'aim' && act) {
       const a = angle * Math.PI / 180;
-      const x1 = act.x, y1 = act.y - 8;
+      const x1 = act.x + act.face * MOUTH_X, y1 = act.y + MOUTH_Y;
       const x2 = x1 + Math.cos(a) * 42, y2 = y1 - Math.sin(a) * 42;
-      aim = `<line x1="${x1}" y1="${y1}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"
+      aim = `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"
               stroke="#ffe14d" stroke-width="2.5" stroke-dasharray="5 4" stroke-linecap="round"/>
              <circle cx="${x2.toFixed(1)}" cy="${y2.toFixed(1)}" r="3" fill="#ffe14d"/>`;
     }
     $('aim').innerHTML = aim;
 
-    // vermes
+    // lagartos
     let wh = '';
     for (const w of worms) {
       if (!w.alive) continue;
       const t = teams[w.team];
       wh += `<g transform="translate(${w.x.toFixed(1)} ${w.y.toFixed(1)})">`;
-      if (w === act) wh += `<circle cx="0" cy="-8" r="16" fill="none" stroke="#ffe14d"
+      wh += `<ellipse cx="0" cy="0" rx="12" ry="3" fill="${t.color}" opacity=".85"/>`;   // anel do time
+      if (w === act) wh += `<circle cx="0" cy="-12" r="19" fill="none" stroke="#ffe14d"
                               stroke-width="2" stroke-dasharray="4 3"/>`;
-      wh += `<ellipse cx="0" cy="-8" rx="9" ry="8" fill="${t.color}" stroke="#111" stroke-width="1.5"/>
-             <circle cx="-3.5" cy="-10" r="3" fill="#fff"/><circle cx="3.5" cy="-10" r="3" fill="#fff"/>
-             <circle cx="-3.5" cy="-10" r="1.2" fill="#111"/><circle cx="3.5" cy="-10" r="1.2" fill="#111"/>
-             <text x="0" y="-27" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff"
-                   stroke="#000" stroke-width=".6">${w.name} ${Math.max(0, Math.round(w.hp))}</text>
-           </g>`;
+      wh += `<g transform="scale(${w.face} 1)">${lizard(w)}</g>`;
+      wh += `<text x="0" y="-38" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff"
+                   stroke="#000" stroke-width=".6">${w.name} ${Math.max(0, Math.round(w.hp))}</text>`;
+      wh += `</g>`;
     }
     $('worms').innerHTML = wh;
 
-    // projétil
+    // bola de fogo com rastro
+    let ph = '';
     if (proj) {
-      $('fx').innerHTML = '';
-      $('aim').innerHTML += `<circle cx="${proj.x.toFixed(1)}" cy="${proj.y.toFixed(1)}" r="4"
-                              fill="#222" stroke="#ffd34d" stroke-width="1.5"/>`;
+      proj.trail.forEach((tp, i) => {
+        const k = (i + 1) / proj.trail.length;
+        ph += `<circle cx="${tp.x.toFixed(1)}" cy="${tp.y.toFixed(1)}" r="${(2 + 5 * k).toFixed(1)}"
+                fill="${k > 0.5 ? '#ffb020' : '#ff5a1f'}" opacity="${(k * 0.7).toFixed(2)}"/>`;
+      });
+      const r = 7 + Math.sin(frameNo * 0.6) * 1.2;
+      ph += `<circle cx="${proj.x.toFixed(1)}" cy="${proj.y.toFixed(1)}" r="${r.toFixed(1)}" fill="url(#fireball)"/>`;
     }
+    $('proj').innerHTML = ph;
 
     // explosões
     $('fx').innerHTML = fx.map(f => {
       const k = f.t / f.max;
       return `<circle cx="${f.x.toFixed(1)}" cy="${f.y.toFixed(1)}" r="${(BLAST * k).toFixed(1)}"
-               fill="#ffb347" opacity="${(1 - k).toFixed(2)}"/>`;
+               fill="url(#boom)" opacity="${(1 - k).toFixed(2)}"/>`;
     }).join('');
 
     // barra de força
@@ -292,6 +345,9 @@
 
   // ---------- Loop ----------
   function frame() {
+    frameNo++;
+    for (const w of worms) if (w.breath > 0) w.breath--;
+
     if (state === 'aim') {
       if (keys.up)   angle = Math.min(180, angle + 1.2);
       if (keys.down) angle = Math.max(0, angle - 1.2);

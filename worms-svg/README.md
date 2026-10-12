@@ -35,7 +35,7 @@ Ataques com o tipo certo causam **o dobro de dano** ("Super efetivo!"); com o ti
 | Caterpie | Inseto | Teia: o atingido perde a caminhada no próximo turno |
 | Starmie | Água/Psíquico | Hidro Pulso: dois jatos |
 | Magikarp | Água | Splash: não faz nada (mas é fácil de capturar) |
-| Dratini | Dragão | Fúria do Dragão (chefe da campanha) |
+| Dratini | Dragão | Fúria do Dragão (chefe da campanha, pequeno e frágil) |
 | Onix | Pedra/Terra | Lançar Pedra: pedra pesada que abre cratera (aparece como visitante na Caverna e no Covil) |
 | Charmeleon / Ivysaur / Wartortle | Fogo / Planta / Água | versões mais fortes dos ataques iniciais |
 | Raticate / Pidgeotto | Normal / Normal+Voador | Hiperpresa / Furacão |

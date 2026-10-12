@@ -40,7 +40,7 @@
     ventania:  { label: 'Ventania',        type: 'flying',   style: 'gust',    count: 2, spread: 5, speed: 1.0,  grav: 0.6, boom: 22, carve: 6,  dmg: 19, push: 4 },
     teia:      { label: 'Teia',            type: 'bug',      style: 'web',     count: 1, spread: 0, speed: 0.9,  grav: 1.0, boom: 28, carve: 4,  dmg: 8,  web: true },
     hidro:     { label: 'Hidro Pulso',     type: 'water',    style: 'water',   count: 2, spread: 4, speed: 1.0,  grav: 1.0, boom: 28, carve: 0,  dmg: 24, push: 5 },
-    furia:     { label: 'Fúria do Dragão', type: 'dragon',   style: 'dragon',  count: 1, spread: 0, speed: 1.05, grav: 1.0, boom: 44, carve: 22, dmg: 50 },
+    furia:     { label: 'Fúria do Dragão', type: 'dragon',   style: 'dragon',  count: 1, spread: 0, speed: 1.0,  grav: 1.0, boom: 38, carve: 16, dmg: 36 },
     fogo2:     { label: 'Lança-chamas+',   type: 'fire',     style: 'fire',    count: 1, spread: 0, speed: 1.0,  grav: 1.0, boom: 52, carve: 32, dmg: 72 },
     planta2:   { label: 'Folha Navalha+',  type: 'grass',    style: 'leaf',    count: 4, spread: 6, speed: 0.95, grav: 0.5, boom: 26, carve: 10, dmg: 30 },
     agua2:     { label: "Jato d'Água+",    type: 'water',    style: 'water',   count: 1, spread: 0, speed: 0.95, grav: 1.0, boom: 46, carve: 0,  dmg: 40, push: 11 },
@@ -67,7 +67,7 @@
     caterpie:   { name: 'Caterpie',   types: ['bug'],               weapon: 'teia',      maxhp: 60,  h: 32, hitY: 8,  hitR: 11, catch: 1.1,  mouth: [15, -8], evo: 'butterfree', evoXp: 130 },
     starmie:    { name: 'Starmie',    types: ['water', 'psychic'],  weapon: 'hidro',     maxhp: 90,  h: 46, hitY: 22, hitR: 15, catch: 0.55, mouth: [14, -26] },
     magikarp:   { name: 'Magikarp',   types: ['water'],             weapon: 'splash',    maxhp: 50,  h: 38, hitY: 11, hitR: 13, catch: 1.25, mouth: [14, -9], evo: 'gyarados', evoXp: 120 },
-    dratini:    { name: 'Dratini',    types: ['dragon'],            weapon: 'furia',     maxhp: 140, h: 44, hitY: 15, hitR: 13, catch: 0.35, mouth: [15, -25], scale: 1.25, evo: 'dragonair', evoXp: 260 },
+    dratini:    { name: 'Dratini',    types: ['dragon'],            weapon: 'furia',     maxhp: 90, h: 36, hitY: 13, hitR: 12, catch: 0.5, mouth: [16, -20], scale: 1.0, evo: 'dragonair', evoXp: 260 },
     // formas evoluídas (um estágio só) e visitantes
     charmeleon: { name: 'Charmeleon', types: ['fire'],              weapon: 'fogo2',      maxhp: 130, h: 40, hitY: 11, hitR: 12, catch: 0.3,  mouth: [13, -21], scale: 1.12 },
     ivysaur:    { name: 'Ivysaur',    types: ['grass'],             weapon: 'planta2',    maxhp: 130, h: 42, hitY: 11, hitR: 12, catch: 0.3,  mouth: [12, -19], scale: 1.12 },

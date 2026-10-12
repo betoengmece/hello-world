@@ -238,24 +238,30 @@
 
   function dratini(c) {
     const s = Math.sin(c.f * 0.08), s2 = Math.sin(c.f * 0.08 + 1.4);
-    const body = `M-26,${f1(-3 + s)} Q-19,${f1(1 + s)} -14,-6 Q-9,-12 -4,-7 Q2,-3 3,-12 Q${f1(3.5 + s2)},-19 ${f1(6 + s2)},-21`;
-    const hx = 9 + s2 * 1.2, hy = -26 + s2 * 0.8;
+    const tx = -22, ty = f1(-3 + s);
+    const body = `M${tx},${ty} Q-16,${f1(1 + s)} -12,-5 Q-8,-10 -3,-6 Q2,-2 3,-9 Q${f1(3 + s2 * 0.8)},-13 ${f1(5 + s2)},-15`;
+    const hx = 7 + s2 * 1.1, hy = -21 + s2 * 0.7;
     return `
-      <path d="${body}" fill="none" stroke="#1d3f7a" stroke-width="12" stroke-linecap="round"/>
-      <path d="${body}" fill="none" stroke="url(#gDrat)" stroke-width="9.6" stroke-linecap="round"/>
-      <path d="${body}" fill="none" stroke="#bfe0ff" stroke-width="2.4" stroke-linecap="round" transform="translate(-1 -2.4)" opacity=".7"/>
-      <path d="${body}" fill="none" stroke="#f2f6ff" stroke-width="3.2" stroke-linecap="round" stroke-dasharray="4 5" transform="translate(1.5 3)" opacity=".85"/>
+      <ellipse cx="-8" cy=".5" rx="17" ry="2.2" fill="#000" opacity=".18"/>
+      <path d="${body}" fill="none" stroke="#1d3f7a" stroke-width="10.4" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="${body}" fill="none" stroke="url(#gDrat)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="${body}" fill="none" stroke="#f2f6ff" stroke-width="3" stroke-linecap="round" stroke-dasharray="7 3.4" transform="translate(1 2.2)" opacity=".9"/>
+      <path d="${body}" fill="none" stroke="#cfe6ff" stroke-width="1.6" stroke-linecap="round" transform="translate(-1 -2.6)" opacity=".7"/>
+      <circle cx="${tx}" cy="${ty}" r="3.4" fill="#e8f1ff" stroke="#1d3f7a" stroke-width="1"/>
+      <circle cx="${f1(tx - 0.8)}" cy="${f1(-4 + s)}" r="1" fill="#fff"/>
       <g transform="translate(${f1(hx)} ${f1(hy)})">
-        <path d="M-6,-3 Q-12,-9 -10,-1 Z" fill="#f2f6ff" stroke="#1d3f7a" stroke-width=".9" stroke-linejoin="round"/>
-        <path d="M-3,-5 Q-8,-13 -5,-4 Z" fill="#f2f6ff" stroke="#1d3f7a" stroke-width=".9" stroke-linejoin="round"/>
-        <ellipse cx="0" cy="0" rx="8.4" ry="6.8" fill="url(#gDrat)" stroke="#1d3f7a" stroke-width="1.3"/>
-        <ellipse cx="2" cy="3" rx="6" ry="3" fill="#f2f6ff" opacity=".9"/>
-        <path d="M-2,-6.4 L0,-10.5 L2,-6.4 Z" fill="#f2f6ff" stroke="#1d3f7a" stroke-width=".8" stroke-linejoin="round"/>
-        ${c.blink ? `<path d="M2,-2.4 Q4.2,-0.8 6.4,-2.4" fill="none" stroke="#222" stroke-width="1.1" stroke-linecap="round"/>`
-                  : `<circle cx="4.4" cy="-2" r="2.5" fill="#fff" stroke="#1d3f7a" stroke-width=".7"/><circle cx="4.9" cy="-2" r="1.6" fill="#6a2a9a"/><circle cx="5.4" cy="-2.6" r=".6" fill="#fff"/>`}
-        <path d="M5,2.8 Q8,3.4 8.2,1.4" fill="none" stroke="#1d3f7a" stroke-width=".9" stroke-linecap="round"/>
+        <path d="M-7,-1 Q-14,-8 -12,2 Q-9,3 -6,2 Z" fill="#fff" stroke="#1d3f7a" stroke-width="1" stroke-linejoin="round"/>
+        <path d="M-5,-4 Q-9,-13 -3.4,-7 Z" fill="#fff" stroke="#1d3f7a" stroke-width="1" stroke-linejoin="round"/>
+        <ellipse cx="0" cy="0" rx="9.6" ry="8.2" fill="url(#gDrat)" stroke="#1d3f7a" stroke-width="1.4"/>
+        <path d="M-5,-5.5 Q0,-8.6 5,-5.8" fill="none" stroke="#bfe0ff" stroke-width="1.4" stroke-linecap="round" opacity=".8"/>
+        <ellipse cx="3" cy="4" rx="6.4" ry="3.4" fill="#f4f8ff"/>
+        <path d="M-1.2,-7.4 L1,-12.6 L3.2,-7.4 Z" fill="#fff" stroke="#1d3f7a" stroke-width=".9" stroke-linejoin="round"/>
+        ${c.blink ? `<path d="M1.6,-1.6 Q4.4,0.4 7.2,-1.6" fill="none" stroke="#222" stroke-width="1.3" stroke-linecap="round"/>`
+                  : `<ellipse cx="4.6" cy="-1.4" rx="3.3" ry="3.7" fill="#fff" stroke="#1d3f7a" stroke-width=".8"/><ellipse cx="5.2" cy="-1.2" rx="2.3" ry="2.8" fill="#7a3ac4"/><ellipse cx="5.6" cy="-1.1" rx="1.2" ry="1.7" fill="#2a1048"/><circle cx="6.2" cy="-2.6" r=".95" fill="#fff"/><circle cx="4.4" cy=".2" r=".5" fill="#fff"/>`}
+        <path d="M5.4,4.2 Q8,5.2 8.8,3" fill="none" stroke="#1d3f7a" stroke-width="1" stroke-linecap="round"/>
+        <ellipse cx="-1.6" cy="2.6" rx="2" ry="1.2" fill="#ff9ab8" opacity=".55"/>
       </g>
-      ${puff(c, [15, -25], '#8a5cff', '#d8c8ff')}`;
+      ${puff(c, [16, -20], '#8a5cff', '#d8c8ff')}`;
   }
 
 

@@ -5,21 +5,21 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Monstrinhos de Artilharia</title>
 <style>
-  html,body{margin:0;height:100%;background:#111;color:#eee;font-family:system-ui,sans-serif;
+  html,body{margin:0;height:100%;background:#0d1117;color:#eee;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
     overflow:hidden;overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
   body{display:flex;align-items:center;justify-content:center}
   #wrap{width:min(96vw,calc(96vh*1.6));text-align:center}
-  svg{width:100%;height:auto;display:block;border:2px solid #333;border-radius:8px;
+  svg{width:100%;height:auto;display:block;border-radius:10px;box-shadow:0 6px 30px rgba(0,0,0,.6);
     user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:none}
   #touch{display:none}
   body.touch #touch{display:block}
   body.touch #help{display:none}
   #rotate{display:none;font-size:13px;margin-top:8px;opacity:.85}
   @media (orientation:portrait){ body.touch #rotate{display:block} }
-  .btn rect,.btn circle{fill:#000;fill-opacity:.35;stroke:#fff;stroke-opacity:.7;stroke-width:2}
+  .btn rect,.btn circle{fill:#000;fill-opacity:.32;stroke:#fff;stroke-opacity:.65;stroke-width:2}
   .btn.on rect,.btn.on circle{fill:#ffb347;fill-opacity:.7}
   .btn text{fill:#fff;font-size:26px;font-weight:bold;text-anchor:middle;pointer-events:none}
-  #help{font-size:13px;margin-top:10px;opacity:.85;line-height:1.5}
+  #help{font-size:13px;margin-top:10px;opacity:.8;line-height:1.5}
   kbd{background:#333;border:1px solid #555;border-radius:4px;padding:1px 5px;font-size:12px}
 </style>
 </head>
@@ -27,17 +27,74 @@
 <div id="wrap">
 <svg id="game" viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg">
   <defs>
+    <!-- céu e cenário -->
     <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#4a90c8"/><stop offset="1" stop-color="#bfe3f5"/>
+      <stop offset="0" stop-color="#3a78c2"/><stop offset=".55" stop-color="#8cc4ea"/><stop offset="1" stop-color="#f3e2b8"/>
     </linearGradient>
-    <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#2a6fb0"/><stop offset="1" stop-color="#14365a"/>
+    <radialGradient id="sunGlow">
+      <stop offset="0" stop-color="#fff6c8" stop-opacity=".9"/><stop offset=".4" stop-color="#ffe7a0" stop-opacity=".35"/>
+      <stop offset="1" stop-color="#ffe7a0" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="mtFar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#9db8d6"/><stop offset="1" stop-color="#c9d9e6"/>
     </linearGradient>
-    <linearGradient id="dirt" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#7fa83c"/>
-      <stop offset=".07" stop-color="#6b4a2b"/>
-      <stop offset="1" stop-color="#3f2a18"/>
+    <linearGradient id="mtNear" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6f9f84"/><stop offset="1" stop-color="#a8c7a0"/>
     </linearGradient>
+    <linearGradient id="dirt" gradientUnits="userSpaceOnUse" x1="0" y1="160" x2="0" y2="500">
+      <stop offset="0" stop-color="#9a6a3c"/><stop offset=".45" stop-color="#6e4526"/><stop offset="1" stop-color="#3a2414"/>
+    </linearGradient>
+    <pattern id="dirtTex" width="48" height="40" patternUnits="userSpaceOnUse">
+      <ellipse cx="8" cy="9" rx="3.5" ry="2.2" fill="#2e1b0e" opacity=".35"/>
+      <ellipse cx="30" cy="22" rx="4.5" ry="2.8" fill="#b08a62" opacity=".35"/>
+      <ellipse cx="40" cy="6" rx="2" ry="1.4" fill="#2e1b0e" opacity=".4"/>
+      <ellipse cx="16" cy="32" rx="2.6" ry="1.8" fill="#c49a6c" opacity=".3"/>
+      <circle cx="24" cy="12" r="1" fill="#1f120a" opacity=".45"/>
+      <circle cx="44" cy="34" r="1.2" fill="#1f120a" opacity=".4"/>
+      <circle cx="4" cy="24" r=".9" fill="#d9b88d" opacity=".45"/>
+      <circle cx="34" cy="36" r=".8" fill="#d9b88d" opacity=".4"/>
+    </pattern>
+    <linearGradient id="seaBack" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3b86c4"/><stop offset="1" stop-color="#1b4a7a"/>
+    </linearGradient>
+    <linearGradient id="seaFront" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4aa3e0" stop-opacity=".92"/><stop offset="1" stop-color="#123a63"/>
+    </linearGradient>
+    <clipPath id="tclip"><path id="tclipPath"/></clipPath>
+
+    <!-- personagens -->
+    <radialGradient id="gOrange" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#ffc283"/><stop offset=".55" stop-color="#f58a30"/><stop offset="1" stop-color="#cf5f17"/>
+    </radialGradient>
+    <radialGradient id="gCream" cx=".4" cy=".3" r=".8">
+      <stop offset="0" stop-color="#fff6d8"/><stop offset="1" stop-color="#f0d08a"/>
+    </radialGradient>
+    <radialGradient id="gCreamGreen" cx=".4" cy=".3" r=".8">
+      <stop offset="0" stop-color="#eaffd8"/><stop offset="1" stop-color="#b6e39a"/>
+    </radialGradient>
+    <radialGradient id="gGreen" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#a6efb0"/><stop offset=".55" stop-color="#5cc46a"/><stop offset="1" stop-color="#358a48"/>
+    </radialGradient>
+    <radialGradient id="gBulb" cx=".35" cy=".3" r=".8">
+      <stop offset="0" stop-color="#7fcf8f"/><stop offset=".6" stop-color="#3e8f58"/><stop offset="1" stop-color="#245e37"/>
+    </radialGradient>
+    <radialGradient id="gBlue" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#e2f7ff"/><stop offset=".55" stop-color="#8fd3ef"/><stop offset="1" stop-color="#4e9fc6"/>
+    </radialGradient>
+    <radialGradient id="gShell" cx=".4" cy=".3" r=".8">
+      <stop offset="0" stop-color="#e3a46a"/><stop offset=".6" stop-color="#b5763a"/><stop offset="1" stop-color="#7a4a1e"/>
+    </radialGradient>
+    <radialGradient id="gYellow" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#fff6a8"/><stop offset=".55" stop-color="#ffd83a"/><stop offset="1" stop-color="#e0a800"/>
+    </radialGradient>
+    <radialGradient id="gTree" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#8fd36a"/><stop offset=".6" stop-color="#4f9a3a"/><stop offset="1" stop-color="#2d6626"/>
+    </radialGradient>
+    <radialGradient id="voltGlow">
+      <stop offset="0" stop-color="#fff9b0" stop-opacity=".9"/><stop offset="1" stop-color="#ffe600" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- tiros e efeitos -->
     <radialGradient id="fireball">
       <stop offset="0" stop-color="#fff6b0"/><stop offset=".45" stop-color="#ffa000"/>
       <stop offset="1" stop-color="#ff3d00" stop-opacity="0"/>
@@ -50,22 +107,56 @@
       <stop offset="0" stop-color="#eaf8ff"/><stop offset=".6" stop-color="#6ad0ff"/>
       <stop offset="1" stop-color="#1f6fb0" stop-opacity="0"/>
     </radialGradient>
+    <radialGradient id="leafBoom">
+      <stop offset="0" stop-color="#eaffd0"/><stop offset=".6" stop-color="#7be07b"/>
+      <stop offset="1" stop-color="#2e9a4a" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="zap">
+      <stop offset="0" stop-color="#ffffff"/><stop offset=".5" stop-color="#fff27a"/>
+      <stop offset="1" stop-color="#ffd000" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="pow" gradientUnits="userSpaceOnUse" x1="12" y1="0" x2="216" y2="0">
+      <stop offset="0" stop-color="#5ad16a"/><stop offset=".55" stop-color="#ffd34d"/><stop offset="1" stop-color="#ff4d3a"/>
+    </linearGradient>
   </defs>
 
+  <!-- fundo -->
   <rect width="800" height="500" fill="url(#sky)"/>
-  <g fill="#fff" opacity=".7">
-    <ellipse cx="120" cy="70" rx="60" ry="16"/><ellipse cx="150" cy="60" rx="35" ry="14"/>
-    <ellipse cx="520" cy="110" rx="70" ry="18"/><ellipse cx="560" cy="98" rx="40" ry="14"/>
-    <ellipse cx="700" cy="50" rx="50" ry="13"/>
+  <circle cx="660" cy="92" r="90" fill="url(#sunGlow)"/>
+  <circle cx="660" cy="92" r="26" fill="#fff3c4"/>
+  <g id="clouds"></g>
+  <path id="mtFarPath" fill="url(#mtFar)"/>
+  <path id="mtNearPath" fill="url(#mtNear)" opacity=".9"/>
+  <path id="waveBack" fill="url(#seaBack)"/>
+
+  <!-- terreno -->
+  <g clip-path="url(#tclip)">
+    <rect width="800" height="500" fill="url(#dirt)"/>
+    <path id="strata1" fill="#4a2c16" opacity=".5"/>
+    <path id="strata2" fill="#2a180c" opacity=".7"/>
+    <rect width="800" height="500" fill="url(#dirtTex)"/>
   </g>
-  <rect x="0" y="480" width="800" height="20" fill="url(#sea)"/>
-  <path id="terrain" fill="url(#dirt)" stroke="#2f5d1a" stroke-width="3"/>
+  <path id="edgeBurnt" fill="none" stroke="#1e130b" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+  <path id="edgeGrass" fill="none" stroke="#3f8a2a" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+  <path id="edgeGrassHi" fill="none" stroke="#8fd14f" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" transform="translate(0 -2.5)"/>
+  <path id="tufts" fill="none" stroke="#5aa834" stroke-width="1.3" stroke-linecap="round"/>
+  <g id="decor"></g>
+
+  <!-- jogo -->
+  <g id="graves"></g>
   <g id="aim"></g>
   <g id="worms"></g>
   <g id="volt"></g>
   <g id="proj"></g>
+  <g id="parts"></g>
   <g id="fx"></g>
+  <path id="waveFront" fill="url(#seaFront)"/>
+  <g id="floaters"></g>
+
+  <!-- interface -->
+  <g id="hud"></g>
   <g id="powerbar"></g>
+  <g id="msgbox"></g>
   <g id="touch">
     <g class="btn" data-act="left"><rect x="12" y="420" width="62" height="62" rx="14"/><text x="43" y="461">◀</text></g>
     <g class="btn" data-act="right"><rect x="82" y="420" width="62" height="62" rx="14"/><text x="113" y="461">▶</text></g>
@@ -75,8 +166,6 @@
     <g class="btn" data-act="switch"><rect x="676" y="8" width="56" height="44" rx="10"/><text x="704" y="39" style="font-size:22px">⇄</text></g>
     <g class="btn" data-act="restart"><rect x="738" y="8" width="54" height="44" rx="10"/><text x="765" y="39" style="font-size:22px">↻</text></g>
   </g>
-  <text id="hud" x="10" y="24" fill="#fff" font-size="15" font-weight="bold" stroke="#000" stroke-width=".5"></text>
-  <text id="msg" x="400" y="240" text-anchor="middle" font-size="26" font-weight="bold" fill="#fff" stroke="#000" stroke-width="1.2"></text>
 </svg>
 <div id="help">
   <kbd>←</kbd> <kbd>→</kbd> andar &nbsp;·&nbsp; <kbd>↑</kbd> <kbd>↓</kbd> mirar &nbsp;·&nbsp;
@@ -95,20 +184,21 @@
   const VOLT_X = 400;        // posição do Volt, no meio do campo
 
   const $ = id => document.getElementById(id);
+  const f1 = v => (+v).toFixed(1);
 
   // Tipos de tiro. speed/grav são multiplicadores; push empurra os atingidos.
   const WEAPONS = {
-    fogo:   { kind: 'fire',    count: 1, spread: 0, speed: 1.0,  grav: 1.0, boom: 46, carve: 28, dmg: 60 },
-    planta: { kind: 'leaf',    count: 3, spread: 6, speed: 0.95, grav: 0.5, boom: 24, carve: 10, dmg: 26 },
-    agua:   { kind: 'water',   count: 1, spread: 0, speed: 0.95, grav: 1.0, boom: 42, carve: 0,  dmg: 30, push: 9 },
-    volt:   { kind: 'thunder', count: 1, spread: 0, speed: 1.2,  grav: 1.0, boom: 30, carve: 14, dmg: 45 }
+    fogo:   { count: 1, spread: 0, speed: 1.0,  grav: 1.0, boom: 46, carve: 28, dmg: 60 },
+    planta: { count: 3, spread: 6, speed: 0.95, grav: 0.5, boom: 24, carve: 10, dmg: 26 },
+    agua:   { count: 1, spread: 0, speed: 0.95, grav: 1.0, boom: 42, carve: 0,  dmg: 30, push: 9 },
+    volt:   { count: 1, spread: 0, speed: 1.2,  grav: 1.0, boom: 30, carve: 14, dmg: 45 }
   };
   const SPECIES = {
     fogo:   { weapon: 'fogo',   breath: ['#ff7a1a', '#fff3a0'] },
     planta: { weapon: 'planta', breath: ['#5cc46a', '#e6ffd0'] },
     agua:   { weapon: 'agua',   breath: ['#6ad0ff', '#e6f8ff'] }
   };
-  const FX_FILL = { fogo: 'url(#boom)', planta: '#7be07b', agua: 'url(#splash)', volt: '#fff27a' };
+  const FX_FILL = { fogo: 'url(#boom)', planta: 'url(#leafBoom)', agua: 'url(#splash)', volt: 'url(#zap)' };
 
   const TEAM_DEF = [
     { name: 'Fogo',   color: '#e0433a', species: 'fogo',   names: ['Chama', 'Brasa'],    spawn: [60, 140]  },
@@ -117,25 +207,77 @@
   ];
 
   let frameNo = 0;
-  let heights, worms, teams, turnTeam, state, projs, fx, wind, power, charging,
+  let heights, grass, tuft, decor, graves, parts, floaters, clouds, cloudEls;
+  let worms, teams, turnTeam, state, projs, fx, wind, power, charging,
       angle, walkBudget, dirty, msg, msgT, keys = {};
   let lastShotVolt = false, voltDelay = 0, voltSide = 1;
 
   const rnd = (a, b) => a + Math.random() * (b - a);
+  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const gy = x => heights[clamp(Math.round(x), 0, W - 1)];
   const activeWorm = () => { const t = teams[turnTeam]; return t.worms[t.cur]; };
   const showMsg = (text, frames) => { msg = text; msgT = frames; };
   const teamAlive = t => t.worms.some(w => w.alive);
 
-  function genTerrain() {
-    const p1 = rnd(0, 6.3), p2 = rnd(0, 6.3), p3 = rnd(0, 6.3);
-    heights = new Float32Array(W);
-    for (let x = 0; x < W; x++) {
-      heights[x] = 265 + 38 * Math.sin(x * 0.011 + p1)
-                       + 20 * Math.sin(x * 0.027 + p2)
-                       +  9 * Math.sin(x * 0.063 + p3);
+  // ---------- Geração do mundo ----------
+  function hillPath(pts) {
+    let d = `M0,${H} L${pts[0].x},${f1(pts[0].y)}`;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const mx = (pts[i].x + pts[i + 1].x) / 2, my = (pts[i].y + pts[i + 1].y) / 2;
+      d += ` Q${pts[i].x},${f1(pts[i].y)} ${f1(mx)},${f1(my)}`;
     }
+    const last = pts[pts.length - 1];
+    return d + ` L${last.x},${f1(last.y)} L${W},${H} Z`;
+  }
+
+  function bandPath(off) {
+    let d = `M0,${H}`;
+    for (let x = 0; x <= W; x += 4) d += ` L${x},${f1(heights[Math.min(x, W - 1)] + off(x))}`;
+    return d + ` L${W},${H} Z`;
+  }
+
+  function genWorld() {
+    const p1 = rnd(0, 6.3), p2 = rnd(0, 6.3), p3 = rnd(0, 6.3);
+    const bumps = Array.from({ length: 5 }, () => ({ c: rnd(40, 760), w: rnd(35, 100), h: rnd(-75, 55) }));
+    heights = new Float32Array(W); grass = new Uint8Array(W).fill(1); tuft = new Float32Array(W);
+    for (let x = 0; x < W; x++) {
+      let h = 285 + 26 * Math.sin(x * 0.011 + p1) + 14 * Math.sin(x * 0.029 + p2) + 5 * Math.sin(x * 0.07 + p3);
+      for (const b of bumps) h += b.h * Math.exp(-(((x - b.c) / b.w) ** 2));
+      heights[x] = clamp(h, 150, 440);
+      tuft[x] = rnd(4, 9);
+    }
+    // camadas de rocha (fixas; o recorte do terreno as revela nas crateras)
+    $('strata1').setAttribute('d', bandPath(x => 48 + 8 * Math.sin(x * 0.05 + p2)));
+    $('strata2').setAttribute('d', bandPath(x => 115 + 12 * Math.sin(x * 0.03 + p1)));
+
+    // montanhas ao fundo
+    const far = [], near = [];
+    for (let x = -20; x <= W + 40; x += 60) far.push({ x, y: rnd(150, 215) });
+    for (let x = -20; x <= W + 40; x += 45) near.push({ x, y: rnd(212, 262) });
+    $('mtFarPath').setAttribute('d', hillPath(far));
+    $('mtNearPath').setAttribute('d', hillPath(near));
+
+    // decoração: árvores, pinheiros, pedras, arbustos e flores (destrutíveis)
+    decor = [];
+    const avoid = TEAM_DEF.flatMap(t => t.spawn).concat([VOLT_X]);
+    for (let tries = 0; decor.length < 11 && tries < 300; tries++) {
+      const x = Math.round(rnd(15, 785));
+      if (avoid.some(a => Math.abs(a - x) < 26)) continue;
+      if (decor.some(d => Math.abs(d.x - x) < 26)) continue;
+      decor.push({ x, base: heights[x], type: pick(['pine', 'tree', 'rock', 'bush', 'flower', 'flower']),
+                   s: rnd(0.8, 1.15), col: pick(['#ff6b8a', '#ffd84d', '#ffffff', '#b98cff']) });
+    }
+  }
+
+  function genClouds() {
+    clouds = Array.from({ length: 5 }, () => ({ x: rnd(-50, 850), y: rnd(36, 140), s: rnd(0.55, 1.15), sp: rnd(0.04, 0.12) }));
+    const CLOUD = `<g opacity=".92">
+      <ellipse cx="0" cy="8" rx="46" ry="10" fill="#d9e6f2"/>
+      <circle cx="-22" cy="0" r="16" fill="#fff"/><circle cx="0" cy="-9" r="22" fill="#fff"/>
+      <circle cx="24" cy="0" r="15" fill="#fff"/><rect x="-38" y="0" width="78" height="12" rx="6" fill="#fff"/></g>`;
+    $('clouds').innerHTML = clouds.map(() => `<g>${CLOUD}</g>`).join('');
+    cloudEls = [...$('clouds').children];
   }
 
   function fixCur(t) {
@@ -146,9 +288,10 @@
   }
 
   function init() {
-    genTerrain();
-    dirty = true; fx = []; projs = []; power = 0; charging = false;
-    lastShotVolt = false; voltDelay = 0;
+    genWorld();
+    genClouds();
+    dirty = true; fx = []; projs = []; parts = []; floaters = []; graves = [];
+    power = 0; charging = false; lastShotVolt = false; voltDelay = 0;
     wind = Math.round(rnd(-3, 3)); walkBudget = WALK_MAX;
     worms = []; teams = TEAM_DEF.map(d => ({ ...d, worms: [], cur: 0 }));
     teams.forEach((t, ti) => {
@@ -156,7 +299,8 @@
         const x = x0 + rnd(-6, 6);
         const face = x < VOLT_X ? 1 : -1;
         const w = { team: ti, species: t.species, name: t.names[i], x, y: gy(x),
-                    hp: 100, alive: true, face, breath: 0 };
+                    hp: 100, alive: true, face, breath: 0, hurt: 0, walkT: 0, moving: false,
+                    blinkOff: Math.floor(rnd(0, 230)) };
         worms.push(w); t.worms.push(w);
       });
     });
@@ -165,27 +309,43 @@
     showMsg('Vez de ' + teams[0].name + '!', 120);
   }
 
+  // ---------- Física e regras ----------
   function carve(cx, cy, r) {
     if (r <= 0) return;
     for (let x = Math.max(0, Math.floor(cx - r)); x <= Math.min(W - 1, Math.ceil(cx + r)); x++) {
       const dd = r * r - (x - cx) * (x - cx);
       if (dd <= 0) continue;
       const dy = Math.sqrt(dd), top = cy - dy, bot = cy + dy;
-      if (top <= heights[x] && bot > heights[x]) heights[x] = bot;
+      if (top <= heights[x] && bot > heights[x]) { heights[x] = bot; grass[x] = 0; }
     }
+    // grama chamuscada em volta da cratera
+    for (let x = Math.max(0, Math.floor(cx - r - 8)); x <= Math.min(W - 1, Math.ceil(cx + r + 8)); x++) {
+      if (Math.hypot(x - cx, heights[x] - cy) < r + 8) grass[x] = 0;
+    }
+    // decoração atingida é destruída
+    decor = decor.filter(d => {
+      const hit = gy(d.x) > d.base + 2 || Math.hypot(d.x - cx, d.base - 10 - cy) < r;
+      if (hit) burstDecor(d);
+      return !hit;
+    });
     dirty = true;
   }
 
   function explode(x, y, wk) {
     const wp = WEAPONS[wk];
     carve(x, y, wp.carve);
-    fx.push({ x, y, t: 0, max: 40, r: wp.boom, fill: FX_FILL[wk] });
+    fx.push({ x, y, t: 0, max: 36, r: wp.boom, fill: FX_FILL[wk] });
+    burst(x, y, wk);
     for (const w of worms) {
       if (!w.alive) continue;
       const d = Math.hypot(w.x - x, (w.y - 8) - y);
       if (d >= wp.boom) continue;
       const k = 1 - d / wp.boom;
-      w.hp -= Math.round(wp.dmg * k);
+      const dmg = Math.round(wp.dmg * k);
+      if (dmg > 0) {
+        w.hp -= dmg; w.hurt = 24;
+        floaters.push({ x: w.x, y: w.y - 52, t: 0, text: '-' + dmg, col: teams[w.team].color });
+      }
       if (wp.push) {
         const dir = (w.x - x) >= 0 ? 1 : -1;
         w.x = clamp(w.x + dir * wp.push * k, 8, W - 8);
@@ -236,6 +396,12 @@
         p.x += p.vx / 3;
         p.y += p.vy / 3;
         if (p.x < -60 || p.x > W + 60 || p.y > H + 60) { outcome = 'gone'; break; }
+        if (p.y >= WATER && p.wk !== 'agua') {               // caiu no mar
+          outcome = 'gone';
+          for (let k = 0; k < 10; k++) addPart({ x: p.x, y: WATER, vx: rnd(-1.5, 1.5), vy: rnd(-3, -1), g: 0.15,
+                                                 life: 40, max: 40, r: rnd(1.2, 2.2), col: '#bfe9ff', kind: 'drop' });
+          break;
+        }
         if (p.x >= 0 && p.x < W && p.y >= heights[Math.round(p.x)]) { outcome = 'hit'; break; }
         if (worms.some(w => w.alive && Math.hypot(w.x - p.x, (w.y - 8) - p.y) < 11)) { outcome = 'hit'; break; }
         if (p.owner !== 'volt') {
@@ -259,6 +425,11 @@
       if (w.y < g - 0.5) w.y = Math.min(g, w.y + 2.5);   // cai
       else if (w.y > g + 0.5) w.y = g;                   // sobe até a superfície
     }
+    for (let i = graves.length - 1; i >= 0; i--) {
+      const g = graves[i];
+      g.y = Math.min(gy(g.x), g.y + 2.5);
+      if (g.y > WATER) graves.splice(i, 1);
+    }
   }
 
   function walk(dir) {
@@ -268,6 +439,7 @@
     if (gy(nx) < w.y - 10) return;                       // parede alta demais
     if (Math.abs(nx - VOLT_X) < 18) return;              // não pisa no Volt
     w.x = nx;
+    w.moving = true; w.walkT++;
     walkBudget -= 1.5;
   }
 
@@ -286,9 +458,16 @@
     if (worms.some(w => w.alive && w.y < gy(w.x) - 0.5)) return; // ainda caindo
     for (const w of worms) {
       if (!w.alive) continue;
-      if (w.hp <= 0 || w.y > WATER - 6) {
+      const drowned = w.y > WATER - 6;
+      if (w.hp <= 0 || drowned) {
         w.alive = false; w.hp = 0;
-        showMsg(w.name + ' ' + (w.y > WATER - 6 ? 'afogou!' : 'morreu!'), 100);
+        if (drowned) {
+          for (let k = 0; k < 16; k++) addPart({ x: w.x, y: WATER, vx: rnd(-2, 2), vy: rnd(-4, -1.5), g: 0.15,
+                                                 life: 45, max: 45, r: rnd(1.5, 2.5), col: '#bfe9ff', kind: 'drop' });
+        } else {
+          graves.push({ x: w.x, y: w.y - 30 });
+        }
+        showMsg(w.name + ' ' + (drowned ? 'afogou!' : 'desmaiou!'), 100);
       }
     }
     teams.forEach(fixCur);
@@ -317,107 +496,293 @@
     startTurn();
   }
 
-  // ---------- Render (tudo em SVG) ----------
+  // ---------- Partículas ----------
+  function addPart(p) { if (parts.length < 320) parts.push(p); }
+
+  function spray(x, y, n, col, sp, g, life, r, kind) {
+    for (let i = 0; i < n; i++) {
+      const a = rnd(0.08, Math.PI - 0.08), s = rnd(sp * 0.35, sp);
+      addPart({ x, y, vx: Math.cos(a) * s, vy: -Math.sin(a) * s, g,
+                life: rnd(life * 0.6, life), max: life, r: rnd(r * 0.6, r), col, kind });
+    }
+  }
+
+  function smoke(x, y, n) {
+    for (let i = 0; i < n; i++) {
+      addPart({ x: x + rnd(-8, 8), y: y + rnd(-6, 4), vx: rnd(-0.3, 0.3) + wind * 0.05, vy: rnd(-0.7, -0.3),
+                g: 0, life: rnd(50, 80), max: 80, r: rnd(5, 9), col: '#5d5d5d', kind: 'smoke' });
+    }
+  }
+
+  function burst(x, y, wk) {
+    if (wk === 'fogo') {
+      spray(x, y, 14, '#5b3a20', 4, 0.15, 70, 3.2, 'chunk');
+      spray(x, y, 18, '#ffb020', 3.2, 0.04, 40, 1.8, 'ember');
+      smoke(x, y, 6);
+    } else if (wk === 'planta') {
+      spray(x, y, 10, '#5cc46a', 2.5, 0.03, 70, 3.4, 'leaf');
+      spray(x, y, 5, '#5b3a20', 2.5, 0.15, 50, 2, 'chunk');
+    } else if (wk === 'agua') {
+      spray(x, y, 24, '#9fe0ff', 3.8, 0.15, 50, 2.3, 'drop');
+    } else {
+      spray(x, y, 16, '#fff27a', 4.5, 0, 22, 1.4, 'spark');
+      spray(x, y, 8, '#5b3a20', 3, 0.15, 60, 2.6, 'chunk');
+      smoke(x, y, 3);
+    }
+  }
+
+  function burstDecor(d) {
+    const y = d.base - 10;
+    if (d.type === 'rock') spray(d.x, y, 8, '#8c8f94', 3, 0.15, 60, 2.6, 'chunk');
+    else spray(d.x, y, 8, d.type === 'flower' ? d.col : '#4f9a3a', 2.2, 0.03, 70, 3, 'leaf');
+  }
+
+  function stepParts() {
+    for (let i = parts.length - 1; i >= 0; i--) {
+      const p = parts[i];
+      p.vy += p.g; p.vx *= 0.985;
+      if (p.kind === 'leaf') { p.vx += Math.sin((frameNo + i) * 0.15) * 0.05; p.vy = Math.min(p.vy, 1.2); }
+      p.x += p.vx; p.y += p.vy;
+      if (p.g > 0.1 && p.x >= 0 && p.x < W && p.y >= heights[Math.round(p.x)]) {
+        p.y = heights[Math.round(p.x)]; p.vy *= -0.3; p.vx *= 0.5;
+      }
+      if (--p.life <= 0 || p.y > H + 20) parts.splice(i, 1);
+    }
+  }
+
+  // ---------- Desenho (tudo em SVG) ----------
+  const blink = w => ((frameNo + w.blinkOff) % 230) < 7;
+
+  function eye(cx, cy, r, pupil, closed) {
+    if (closed) return `<path d="M${f1(cx - r)},${f1(cy)} Q${f1(cx)},${f1(cy + r * 0.7)} ${f1(cx + r)},${f1(cy)}"
+                          fill="none" stroke="#222" stroke-width="1.1" stroke-linecap="round"/>`;
+    return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#fff" stroke="#222" stroke-width=".8"/>
+            <circle cx="${f1(cx + r * 0.3)}" cy="${cy}" r="${f1(r * 0.58)}" fill="${pupil}"/>
+            <circle cx="${f1(cx + r * 0.45)}" cy="${f1(cy - r * 0.3)}" r="${f1(r * 0.24)}" fill="#fff"/>`;
+  }
+
+  function feet(step, grad, stroke) {
+    return `<ellipse cx="${f1(-4 + step)}" cy="-2" rx="3.8" ry="2.6" fill="${grad}" stroke="${stroke}" stroke-width="1"/>
+            <ellipse cx="${f1(4 - step)}" cy="-2" rx="3.8" ry="2.6" fill="${grad}" stroke="${stroke}" stroke-width="1"/>`;
+  }
 
   function breathFx(w, [col, hi]) {
     if (!(w.breath > 0)) return '';
-    const j = (Math.sin(frameNo * 1.7) * 2).toFixed(1);
+    const j = Math.sin(frameNo * 1.7) * 2;
     return `<g opacity="${(w.breath / 18).toFixed(2)}">
-      <path d="M${MOUTH_X},-20 Q22,${(-25 + Number(j)).toFixed(1)} 36,-19 Q24,-14 ${MOUTH_X},-15 Z" fill="${col}"/>
+      <path d="M${MOUTH_X},-20 Q22,${f1(-25 + j)} 36,-19 Q24,-14 ${MOUTH_X},-15 Z" fill="${col}"/>
       <path d="M${MOUTH_X},-18 Q20,-20 30,-19 Q20,-16 ${MOUTH_X},-16 Z" fill="${hi}"/></g>`;
   }
 
   // Lagarto de fogo (pés em y=0, virado para +x)
-  function fogo(w) {
-    const sc = 1 + 0.12 * Math.sin(frameNo * 0.35 + w.x);
-    return `
-      <path d="M-6,-8 C-14,-8 -16,-16 -14,-22" fill="none" stroke="#f58a30" stroke-width="4.5" stroke-linecap="round"/>
+  function fogo(w, bob, step) {
+    const sc = 1 + 0.14 * Math.sin(frameNo * 0.35 + w.x);
+    return feet(step, 'url(#gOrange)', '#6b2a0e') + `
+    <g transform="translate(0 ${f1(bob)})">
+      <path d="M-6,-8 C-14,-8 -17,-15 -14,-22" fill="none" stroke="#6b2a0e" stroke-width="6.5" stroke-linecap="round"/>
+      <path d="M-6,-8 C-14,-8 -17,-15 -14,-22" fill="none" stroke="#f58a30" stroke-width="4.3" stroke-linecap="round"/>
+      <circle cx="-14" cy="-29" r="10" fill="url(#fireball)" opacity=".55"/>
       <g transform="translate(-14 -22) scale(1 ${sc.toFixed(2)})">
-        <path d="M0,0 C-6,-4 -4,-9 0,-14 C4,-9 6,-4 0,0 Z" fill="#ffb020"/>
-        <path d="M0,-1 C-2.5,-3 -1.5,-6 0,-8 C1.5,-6 2.5,-3 0,-1 Z" fill="#fff3a0"/>
+        <path d="M0,0 C-6,-4 -5,-10 0,-15 C1,-11 4,-12 4,-9 C6,-5 4,-1 0,0 Z" fill="#ff8a1a"/>
+        <path d="M0,-1 C-3,-3 -2,-7 0,-10 C2,-7 3,-3 0,-1 Z" fill="#ffd34d"/>
+        <path d="M0,-2 C-1.2,-3 -1,-5 0,-6 C1,-5 1.2,-3 0,-2 Z" fill="#fffbe0"/>
       </g>
-      <ellipse cx="-4" cy="-2" rx="3.5" ry="2.5" fill="#f58a30" stroke="#6b2a0e" stroke-width="1"/>
-      <ellipse cx="4" cy="-2" rx="3.5" ry="2.5" fill="#f58a30" stroke="#6b2a0e" stroke-width="1"/>
-      <ellipse cx="0" cy="-12" rx="9" ry="10" fill="#f58a30" stroke="#6b2a0e" stroke-width="1.2"/>
-      <ellipse cx="1" cy="-9" rx="5.5" ry="6.5" fill="#fbe3a6"/>
-      <ellipse cx="6" cy="-12" rx="3" ry="1.8" fill="#f58a30" stroke="#6b2a0e" stroke-width="1"/>
-      <ellipse cx="3" cy="-22" rx="8" ry="7.5" fill="#f58a30" stroke="#6b2a0e" stroke-width="1.2"/>
-      <circle cx="5" cy="-23" r="3.2" fill="#fff" stroke="#222" stroke-width=".8"/>
-      <circle cx="6" cy="-23" r="1.6" fill="#111"/>
-      <circle cx="9" cy="-20" r=".7" fill="#6b2a0e"/>
-      <path d="M5,-17 Q9,-15 ${MOUTH_X},-17" fill="none" stroke="#6b2a0e" stroke-width="1"/>
-      ${breathFx(w, SPECIES.fogo.breath)}`;
+      <ellipse cx="0" cy="-12" rx="9" ry="10" fill="url(#gOrange)" stroke="#6b2a0e" stroke-width="1.2"/>
+      <ellipse cx="1.5" cy="-9" rx="5.5" ry="6.5" fill="url(#gCream)"/>
+      <path d="M4,-13 Q9,-13 9,-10" fill="none" stroke="#6b2a0e" stroke-width="3.6" stroke-linecap="round"/>
+      <path d="M4,-13 Q9,-13 9,-10" fill="none" stroke="#f5892e" stroke-width="2.2" stroke-linecap="round"/>
+      <ellipse cx="3" cy="-22" rx="8.5" ry="7.8" fill="url(#gOrange)" stroke="#6b2a0e" stroke-width="1.2"/>
+      ${eye(5.5, -23.5, 3.3, '#1b2a5a', blink(w))}
+      <circle cx="9.8" cy="-20.5" r=".7" fill="#6b2a0e"/>
+      <path d="M5,-17.5 Q8.5,-15 ${MOUTH_X},-17.5" fill="none" stroke="#6b2a0e" stroke-width="1" stroke-linecap="round"/>
+      ${breathFx(w, SPECIES.fogo.breath)}
+    </g>`;
   }
 
-  // Planta com bulbo nas costas (pés em y=0)
-  function planta(w) {
-    return `
-      <ellipse cx="-4" cy="-2" rx="3.5" ry="2.5" fill="#5cc46a" stroke="#1d4a2a" stroke-width="1"/>
-      <ellipse cx="4" cy="-2" rx="3.5" ry="2.5" fill="#5cc46a" stroke="#1d4a2a" stroke-width="1"/>
-      <ellipse cx="0" cy="-12" rx="9" ry="9.5" fill="#5cc46a" stroke="#1d4a2a" stroke-width="1.2"/>
-      <ellipse cx="1" cy="-9" rx="5" ry="5" fill="#d4f5b8"/>
-      <circle cx="-2" cy="-12" r="1.2" fill="#2b6b3a"/><circle cx="2" cy="-14" r="1" fill="#2b6b3a"/>
-      <ellipse cx="6" cy="-12" rx="3" ry="1.8" fill="#5cc46a" stroke="#1d4a2a" stroke-width="1"/>
-      <ellipse cx="-6" cy="-21" rx="7.5" ry="7" fill="#3e8f58" stroke="#1d4a2a" stroke-width="1.1"/>
-      <path d="M-7,-27 Q-10,-35 -15,-34 Q-12,-29 -7,-27 Z" fill="#2e9a4a" stroke="#1d4a2a" stroke-width=".8"/>
-      <path d="M-5,-28 Q-4,-34 0,-36 Q-1,-30 -5,-28 Z" fill="#3fae5a" stroke="#1d4a2a" stroke-width=".8"/>
-      <ellipse cx="4" cy="-20" rx="8" ry="7" fill="#5cc46a" stroke="#1d4a2a" stroke-width="1.2"/>
-      <circle cx="6" cy="-21" r="2.8" fill="#fff" stroke="#1d4a2a" stroke-width=".7"/>
-      <circle cx="7" cy="-21" r="1.5" fill="#c0392b"/>
-      <path d="M7,-16 Q10,-15 ${MOUTH_X},-17" fill="none" stroke="#1d4a2a" stroke-width="1"/>
-      ${breathFx(w, SPECIES.planta.breath)}`;
+  // Planta com bulbo nas costas
+  function planta(w, bob, step) {
+    return feet(step, 'url(#gGreen)', '#1d4a2a') + `
+    <g transform="translate(0 ${f1(bob)})">
+      <ellipse cx="0" cy="-12" rx="9.5" ry="9.5" fill="url(#gGreen)" stroke="#1d4a2a" stroke-width="1.2"/>
+      <ellipse cx="2" cy="-8.5" rx="5" ry="5" fill="url(#gCreamGreen)"/>
+      <path d="M-5,-15 l2,-1.5 l1,2 Z M-1,-18 l2,-1 l.6,2 Z M-6,-10 l2,-.5 l.3,1.8 Z" fill="#2b6b3a"/>
+      <ellipse cx="-6" cy="-22" rx="8" ry="7.5" fill="url(#gBulb)" stroke="#1d4a2a" stroke-width="1.1"/>
+      <path d="M-8,-27 Q-9,-31 -6,-34" fill="none" stroke="#1d4a2a" stroke-width=".7" opacity=".6"/>
+      <path d="M-6,-29 Q-11,-37 -17,-35 Q-13,-29 -6,-29 Z" fill="#2e9a4a" stroke="#1d4a2a" stroke-width=".8"/>
+      <path d="M-5,-29 Q-3,-37 2,-38 Q0,-31 -5,-29 Z" fill="#3fae5a" stroke="#1d4a2a" stroke-width=".8"/>
+      <path d="M0,-25 L1.5,-30.5 L4.5,-26.5 Z M6,-25.5 L9,-29.5 L10,-24.5 Z" fill="url(#gGreen)" stroke="#1d4a2a" stroke-width=".9" stroke-linejoin="round"/>
+      <ellipse cx="4.5" cy="-20" rx="8.2" ry="7" fill="url(#gGreen)" stroke="#1d4a2a" stroke-width="1.2"/>
+      ${eye(6.5, -21, 2.9, '#c0392b', blink(w))}
+      <path d="M7,-16 Q10,-14.5 ${MOUTH_X},-16.8" fill="none" stroke="#1d4a2a" stroke-width="1" stroke-linecap="round"/>
+      <ellipse cx="6" cy="-12" rx="3" ry="1.8" fill="url(#gGreen)" stroke="#1d4a2a" stroke-width="1"/>
+      ${breathFx(w, SPECIES.planta.breath)}
+    </g>`;
   }
 
-  // Tartaruga com casco (pés em y=0)
-  function agua(w) {
-    return `
-      <path d="M-8,-8 Q-15,-9 -14,-3" fill="none" stroke="#c49a52" stroke-width="4" stroke-linecap="round"/>
-      <ellipse cx="-4" cy="-2" rx="3.5" ry="2.5" fill="#8fd3ef" stroke="#1d4a6b" stroke-width="1"/>
-      <ellipse cx="4" cy="-2" rx="3.5" ry="2.5" fill="#8fd3ef" stroke="#1d4a6b" stroke-width="1"/>
-      <ellipse cx="0" cy="-12" rx="9.5" ry="9.5" fill="#8fd3ef" stroke="#1d4a6b" stroke-width="1.2"/>
-      <ellipse cx="2" cy="-8" rx="5" ry="4" fill="#f7e9b8"/>
-      <path d="M-9,-12 Q-10,-22 0,-22 Q10,-22 9,-12 Q9,-6 0,-6 Q-9,-6 -9,-12 Z" fill="#b5763a" stroke="#4a2a10" stroke-width="1.2"/>
-      <path d="M-4,-18 L0,-14 L4,-18 M-7,-12 L0,-9 L7,-12" fill="none" stroke="#6b4016" stroke-width="1"/>
-      <ellipse cx="6" cy="-10" rx="3" ry="1.8" fill="#8fd3ef" stroke="#1d4a6b" stroke-width="1"/>
-      <circle cx="6" cy="-19" r="6.5" fill="#8fd3ef" stroke="#1d4a6b" stroke-width="1.2"/>
-      <circle cx="8.5" cy="-20" r="2.4" fill="#fff" stroke="#222" stroke-width=".7"/>
-      <circle cx="9.5" cy="-20" r="1.2" fill="#111"/>
-      <path d="M8,-15 Q11,-14 ${MOUTH_X},-16" fill="none" stroke="#1d4a6b" stroke-width="1"/>
-      ${breathFx(w, SPECIES.agua.breath)}`;
+  // Tartaruga com casco
+  function agua(w, bob, step) {
+    return feet(step, 'url(#gBlue)', '#1d4a6b') + `
+    <g transform="translate(0 ${f1(bob)})">
+      <path d="M-8,-7 Q-16,-8 -15,-2 Q-14,2 -10.5,.5" fill="none" stroke="#1d4a6b" stroke-width="5.5" stroke-linecap="round"/>
+      <path d="M-8,-7 Q-16,-8 -15,-2 Q-14,2 -10.5,.5" fill="none" stroke="#8fd3ef" stroke-width="3.5" stroke-linecap="round"/>
+      <ellipse cx="0" cy="-12" rx="9.5" ry="9.5" fill="url(#gBlue)" stroke="#1d4a6b" stroke-width="1.2"/>
+      <ellipse cx="2.5" cy="-8" rx="5" ry="4.2" fill="url(#gCream)" stroke="#b89a5a" stroke-width=".6"/>
+      <path d="M-10,-11 Q-11,-23 0,-23 Q9,-23 8,-13 Q7,-6 -1,-6 Q-10,-6 -10,-11 Z" fill="url(#gShell)" stroke="#4a2a10" stroke-width="1.2"/>
+      <path d="M-5,-19 L-1,-16 L3,-19 M-1,-16 L-1,-11 M-7,-12 L-1,-11 L5,-12" fill="none" stroke="#6b4016" stroke-width="1"/>
+      <path d="M-10,-10 Q-1,-4 8,-11" fill="none" stroke="#f3e2b0" stroke-width="1.6"/>
+      <ellipse cx="6" cy="-10" rx="3" ry="1.8" fill="url(#gBlue)" stroke="#1d4a6b" stroke-width="1"/>
+      <circle cx="6.5" cy="-19.5" r="7" fill="url(#gBlue)" stroke="#1d4a6b" stroke-width="1.2"/>
+      ${eye(9, -21, 2.6, '#6b3a1a', blink(w))}
+      <path d="M8,-15.5 Q11,-14 ${MOUTH_X},-16.5" fill="none" stroke="#1d4a6b" stroke-width="1" stroke-linecap="round"/>
+      ${breathFx(w, SPECIES.agua.breath)}
+    </g>`;
   }
 
   const BODY = { fogo, planta, agua };
 
   // Volt: rato elétrico neutro no meio do campo
   function voltSvg() {
-    const flicker = state === 'volt' ? (frameNo % 8 < 4 ? 1 : 0.3) : 0;
-    const sparks = flicker
-      ? `<path d="M-11,-22 l-5,-3 M-11,-18 l-5,2 M11,-22 l5,-3 M11,-18 l5,2"
-           stroke="#fff27a" stroke-width="1.6" stroke-linecap="round" opacity="${flicker}"/>` : '';
+    const charge = state === 'volt';
+    const fl = charge ? (frameNo % 8 < 4 ? 1 : 0.35) : 0;
+    const bob = Math.sin(frameNo * 0.08) * 0.7;
+    const closed = ((frameNo + 37) % 260) < 7;
+    const darkEye = cx => closed
+      ? `<path d="M${cx - 2},-23 Q${cx},-21.6 ${cx + 2},-23" fill="none" stroke="#222" stroke-width="1.1" stroke-linecap="round"/>`
+      : `<circle cx="${cx}" cy="-23" r="2.1" fill="#222"/><circle cx="${f1(cx + 0.7)}" cy="-23.8" r=".75" fill="#fff"/>`;
+    const sparks = charge
+      ? `<path d="M-11,-22 l-5,-3 l2,-1 l-4,-3 M-11,-18 l-5,2 M11,-22 l5,-3 l-2,-1 l4,-3 M11,-18 l5,2"
+           fill="none" stroke="#fff27a" stroke-width="1.6" stroke-linecap="round" opacity="${fl}"/>` : '';
     return `
-      <path d="M9,-8 L14,-12 L11,-14 L17,-22 L13,-22 L18,-30" fill="none" stroke="#d9a000" stroke-width="3" stroke-linejoin="round"/>
-      <ellipse cx="-4" cy="-2" rx="3" ry="2" fill="#e0b400" stroke="#5a4300" stroke-width="1"/>
-      <ellipse cx="4" cy="-2" rx="3" ry="2" fill="#e0b400" stroke="#5a4300" stroke-width="1"/>
-      <ellipse cx="0" cy="-12" rx="9" ry="11" fill="#ffd83a" stroke="#5a4300" stroke-width="1.2"/>
-      <path d="M-7,-26 L-10,-38 L-2,-28 Z" fill="#ffd83a" stroke="#5a4300" stroke-width="1"/>
-      <path d="M7,-26 L10,-38 L2,-28 Z" fill="#ffd83a" stroke="#5a4300" stroke-width="1"/>
-      <circle cx="-10" cy="-38" r="2.5" fill="#222"/><circle cx="10" cy="-38" r="2.5" fill="#222"/>
-      <ellipse cx="0" cy="-22" rx="9" ry="8" fill="#ffd83a" stroke="#5a4300" stroke-width="1.2"/>
-      <circle cx="-6" cy="-19" r="2.8" fill="#e8413a"/><circle cx="6" cy="-19" r="2.8" fill="#e8413a"/>
-      <circle cx="-3" cy="-23" r="1.6" fill="#222"/><circle cx="3" cy="-23" r="1.6" fill="#222"/>
-      <path d="M-2,-17 Q0,-15 2,-17" fill="none" stroke="#5a4300" stroke-width="1"/>
-      ${sparks}`;
+      <ellipse cx="0" cy=".5" rx="11" ry="2.6" fill="#000" opacity=".25"/>
+      ${charge ? `<circle cx="0" cy="-18" r="${f1(22 + fl * 5)}" fill="url(#voltGlow)" opacity="${fl}"/>` : ''}
+      <ellipse cx="-4" cy="-2" rx="3.4" ry="2.3" fill="url(#gYellow)" stroke="#5a4300" stroke-width="1"/>
+      <ellipse cx="4" cy="-2" rx="3.4" ry="2.3" fill="url(#gYellow)" stroke="#5a4300" stroke-width="1"/>
+      <g transform="translate(0 ${f1(bob)})">
+        <path d="M7,-7 L13,-11 L10,-14 L17,-22 L13,-23 L19,-32 L8,-24 L11,-22 L5,-15 L8,-13 Z"
+              fill="url(#gYellow)" stroke="#5a4300" stroke-width="1" stroke-linejoin="round"/>
+        <path d="M7,-7 L13,-11 L10,-14 L8,-13 Z" fill="#8a5a1a"/>
+        <ellipse cx="0" cy="-12" rx="9" ry="10.5" fill="url(#gYellow)" stroke="#5a4300" stroke-width="1.2"/>
+        <path d="M-5,-27 Q-11,-34 -12,-42 Q-6,-37 -1,-29 Z" fill="#222" stroke="#5a4300" stroke-width="1"/>
+        <path d="M-5,-27 Q-9.5,-32 -10.2,-36.5 Q-5.5,-34 -1,-29 Z" fill="url(#gYellow)"/>
+        <path d="M5,-27 Q11,-34 12,-42 Q6,-37 1,-29 Z" fill="#222" stroke="#5a4300" stroke-width="1"/>
+        <path d="M5,-27 Q9.5,-32 10.2,-36.5 Q5.5,-34 1,-29 Z" fill="url(#gYellow)"/>
+        <ellipse cx="0" cy="-21.5" rx="9.5" ry="8" fill="url(#gYellow)" stroke="#5a4300" stroke-width="1.2"/>
+        ${darkEye(-3.5)}${darkEye(3.5)}
+        <circle cx="-6.6" cy="-18.4" r="2.6" fill="#ef4b3c"/><circle cx="6.6" cy="-18.4" r="2.6" fill="#ef4b3c"/>
+        <circle cx="0" cy="-20.3" r=".6" fill="#222"/>
+        <path d="M-2,-17.6 Q-1,-16 0,-17.3 Q1,-16 2,-17.6" fill="none" stroke="#5a4300" stroke-width=".9" stroke-linecap="round"/>
+        <ellipse cx="-5" cy="-11" rx="2.6" ry="1.6" fill="url(#gYellow)" stroke="#5a4300" stroke-width=".9"/>
+        <ellipse cx="5" cy="-11" rx="2.6" ry="1.6" fill="url(#gYellow)" stroke="#5a4300" stroke-width=".9"/>
+        ${sparks}
+      </g>`;
+  }
+
+  function decorSvg(d) {
+    let s = '';
+    switch (d.type) {
+      case 'pine':
+        s = `<rect x="-1.6" y="-8" width="3.2" height="8" fill="#5b3a1e"/>
+             <path d="M0,-36 L-9,-18 L-5,-18 L-12,-6 L12,-6 L5,-18 L9,-18 Z" fill="#2f7d3a" stroke="#1d4f25" stroke-width="1" stroke-linejoin="round"/>
+             <path d="M0,-36 L-4,-27 L1,-27 Z" fill="#4fa35a" opacity=".7"/>`; break;
+      case 'tree':
+        s = `<path d="M-2,0 L-1.5,-15 L1.5,-15 L2,0 Z" fill="#6b4423"/>
+             <circle cx="-7" cy="-17" r="7" fill="url(#gTree)"/><circle cx="7" cy="-17" r="7" fill="url(#gTree)"/>
+             <circle cx="0" cy="-23" r="10" fill="url(#gTree)"/>`; break;
+      case 'rock':
+        s = `<path d="M-10,0 Q-11,-7 -4,-9 Q3,-12 8,-6 Q11,-2 10,0 Z" fill="#8c8f94" stroke="#55585c" stroke-width="1"/>
+             <path d="M-5,-7 Q0,-9.5 4,-7" fill="none" stroke="#c4c7cc" stroke-width="1.2" stroke-linecap="round"/>`; break;
+      case 'bush':
+        s = `<circle cx="-6" cy="-4" r="5.5" fill="url(#gTree)"/><circle cx="6" cy="-4" r="5.5" fill="url(#gTree)"/>
+             <circle cx="0" cy="-7" r="7" fill="url(#gTree)"/>`; break;
+      default:
+        s = `<path d="M0,0 Q1,-4 0,-8" fill="none" stroke="#3f8a2a" stroke-width="1.2"/>
+             <circle cx="-2" cy="-9" r="1.9" fill="${d.col}"/><circle cx="2" cy="-9" r="1.9" fill="${d.col}"/>
+             <circle cx="0" cy="-11" r="1.9" fill="${d.col}"/><circle cx="0" cy="-7" r="1.9" fill="${d.col}"/>
+             <circle cx="0" cy="-9" r="1.3" fill="#ffcf33"/>`;
+    }
+    return `<g transform="translate(${d.x} ${f1(d.base + 1)}) scale(${d.s.toFixed(2)})">${s}</g>`;
   }
 
   function renderTerrain() {
-    let d = 'M0,' + heights[0].toFixed(1);
-    for (let x = 1; x < W; x++) d += ' L' + x + ',' + heights[x].toFixed(1);
-    d += ' L' + W + ',' + H + ' L0,' + H + ' Z';
-    $('terrain').setAttribute('d', d);
+    let d = 'M0,' + f1(heights[0]);
+    for (let x = 1; x < W; x++) d += ' L' + x + ',' + f1(heights[x]);
+    d += ` L${W},${f1(heights[W - 1])} L${W},${H} L0,${H} Z`;
+    $('tclipPath').setAttribute('d', d);
+
+    // borda superior: grama onde intacto, terra queimada nas crateras
+    let g = '', b = '', inG = false, inB = false, tf = '';
+    for (let x = 0; x < W; x += 2) {
+      const y = f1(heights[x]);
+      if (grass[x]) { g += (inG ? ' L' : ' M') + x + ',' + y; inG = true; inB = false; }
+      else          { b += (inB ? ' L' : ' M') + x + ',' + y; inB = true; inG = false; }
+    }
+    for (let x = 3; x < W; x += 7) {
+      if (!grass[x]) continue;
+      const y = heights[x], t = tuft[x];
+      tf += `M${x},${f1(y)} l-2,${f1(-t * 0.7)} M${x},${f1(y)} l.6,${f1(-t)} M${x},${f1(y)} l2.6,${f1(-t * 0.6)} `;
+    }
+    $('edgeGrass').setAttribute('d', g);
+    $('edgeGrassHi').setAttribute('d', g);
+    $('edgeBurnt').setAttribute('d', b);
+    $('tufts').setAttribute('d', tf);
+    $('decor').innerHTML = decor.map(decorSvg).join('');
+  }
+
+  function renderWater() {
+    let back = `M0,${H}`, front = `M0,${H}`;
+    for (let x = 0; x <= W; x += 10) {
+      back  += ` L${x},${f1(472 + 3 * Math.sin(x * 0.03 + frameNo * 0.04))}`;
+      front += ` L${x},${f1(481 + 3 * Math.sin(x * 0.045 - frameNo * 0.05) + 1.5 * Math.sin(x * 0.11 + frameNo * 0.08))}`;
+    }
+    $('waveBack').setAttribute('d', back + ` L${W},${H} Z`);
+    $('waveFront').setAttribute('d', front + ` L${W},${H} Z`);
+  }
+
+  function renderClouds() {
+    clouds.forEach((c, i) => {
+      c.x += c.sp + wind * 0.04;
+      if (c.x > W + 110) c.x = -110;
+      if (c.x < -110) c.x = W + 110;
+      cloudEls[i].setAttribute('transform', `translate(${f1(c.x)} ${f1(c.y)}) scale(${c.s.toFixed(2)})`);
+    });
+  }
+
+  function hudSvg() {
+    if (state === 'over') return '';
+    const isVolt = state === 'volt' || lastShotVolt;
+    const t = teams[turnTeam];
+    const name = isVolt ? 'Volt' : t.name;
+    const col = isVolt ? '#ffd83a' : t.color;
+    const walkW = (Math.max(0, walkBudget) / WALK_MAX) * 70;
+    const ww = Math.abs(wind) / 3 * 50;
+    const wx = wind >= 0 ? 400 : 400 - ww;
+    const arrow = wind > 0 ? `M${f1(400 + ww)},26.5 l6,4 l-6,4 Z` : `M${f1(400 - ww)},26.5 l-6,4 l6,4 Z`;
+    return `
+      <rect x="8" y="8" width="222" height="40" rx="12" fill="#0d1b2a" opacity=".72"/>
+      <circle cx="28" cy="28" r="8" fill="${col}" stroke="#fff" stroke-width="2"/>
+      <text x="44" y="33.5" font-size="16" font-weight="bold" fill="#fff">Vez: ${name}</text>
+      ${isVolt ? '' : `<text x="142" y="23" font-size="9" fill="#ddd" letter-spacing="1">PASSOS</text>
+        <rect x="142" y="28" width="74" height="7" rx="3.5" fill="#000" opacity=".5"/>
+        <rect x="144" y="29.5" width="${f1(walkW)}" height="4" rx="2" fill="#9be36a"/>`}
+      <rect x="330" y="8" width="140" height="34" rx="12" fill="#0d1b2a" opacity=".72"/>
+      <text x="400" y="21" text-anchor="middle" font-size="9" fill="#ddd" letter-spacing="1.5">${wind ? 'VENTO' : 'SEM VENTO'}</text>
+      <rect x="345" y="27" width="110" height="7" rx="3.5" fill="#000" opacity=".5"/>
+      <line x1="400" y1="25" x2="400" y2="36" stroke="#fff" stroke-width="1" opacity=".6"/>
+      ${wind ? `<rect x="${f1(wx)}" y="28.5" width="${f1(ww)}" height="4" rx="2" fill="#8fe0ff"/>
+                <path d="${arrow}" fill="#8fe0ff"/>` : ''}`;
+  }
+
+  function msgSvg() {
+    if (!msg) return '';
+    const w = Math.min(760, msg.length * 12.5 + 40);
+    return `<rect x="${f1(400 - w / 2)}" y="206" width="${f1(w)}" height="44" rx="14" fill="#000" opacity=".45"/>
+            <text x="400" y="235" text-anchor="middle" font-size="22" font-weight="bold" fill="#fff">${msg}</text>`;
   }
 
   function renderAll() {
     if (dirty) { renderTerrain(); dirty = false; }
+    renderWater();
+    renderClouds();
     const act = state === 'over' ? null : activeWorm();
 
     // o personagem da vez olha para o lado da mira
@@ -428,34 +793,56 @@
     if (state === 'aim' && act) {
       const a = angle * Math.PI / 180;
       const x1 = act.x + act.face * MOUTH_X, y1 = act.y + MOUTH_Y;
-      const x2 = x1 + Math.cos(a) * 42, y2 = y1 - Math.sin(a) * 42;
-      aim = `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"
-              stroke="#ffe14d" stroke-width="2.5" stroke-dasharray="5 4" stroke-linecap="round"/>
-             <circle cx="${x2.toFixed(1)}" cy="${y2.toFixed(1)}" r="3" fill="#ffe14d"/>`;
+      const x2 = x1 + Math.cos(a) * 46, y2 = y1 - Math.sin(a) * 46;
+      const rel = Math.round(act.face === 1 ? angle : 180 - angle);
+      aim = `<line x1="${f1(x1)}" y1="${f1(y1)}" x2="${f1(x2)}" y2="${f1(y2)}"
+              stroke="#fff" stroke-opacity=".85" stroke-width="2" stroke-dasharray="3 5" stroke-linecap="round"/>
+             <g transform="translate(${f1(x2)} ${f1(y2)})">
+               <circle r="6" fill="none" stroke="#ff4d4d" stroke-width="2"/>
+               <path d="M-10,0 L-4,0 M4,0 L10,0 M0,-10 L0,-4 M0,4 L0,10" stroke="#ff4d4d" stroke-width="2" stroke-linecap="round"/>
+             </g>
+             <text x="${f1(x2)}" y="${f1(y2 - 13)}" text-anchor="middle" font-size="10" font-weight="bold"
+                   fill="#fff" stroke="#000" stroke-width=".4">${rel}°</text>`;
     }
     $('aim').innerHTML = aim;
+
+    // lápides
+    $('graves').innerHTML = graves.map(g => `<g transform="translate(${f1(g.x)} ${f1(g.y)})">
+      <path d="M-7,0 L-7,-14 Q-7,-21 0,-21 Q7,-21 7,-14 L7,0 Z" fill="#b4b8be" stroke="#5c6067" stroke-width="1.2"/>
+      <path d="M0,-17 L0,-6 M-3.5,-13 L3.5,-13" stroke="#5c6067" stroke-width="1.6" stroke-linecap="round"/>
+      <rect x="-9" y="-1.5" width="18" height="3" rx="1" fill="#6b4a2b"/></g>`).join('');
 
     // personagens
     let wh = '';
     for (const w of worms) {
       if (!w.alive) continue;
       const t = teams[w.team];
-      wh += `<g transform="translate(${w.x.toFixed(1)} ${w.y.toFixed(1)})">`;
-      wh += `<ellipse cx="0" cy="0" rx="12" ry="3" fill="${t.color}" opacity=".85"/>`;   // anel do time
-      if (w === act) wh += `<circle cx="0" cy="-12" r="19" fill="none" stroke="#ffe14d"
-                              stroke-width="2" stroke-dasharray="4 3"/>`;
-      wh += `<g transform="scale(${w.face} 1)">${BODY[w.species](w)}</g>`;
-      wh += `<text x="0" y="-38" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff"
-                   stroke="#000" stroke-width=".6">${w.name} ${Math.max(0, Math.round(w.hp))}</text>`;
+      const bob = Math.sin(frameNo * 0.08 + w.x * 0.1) * 0.7;
+      const step = w.moving ? Math.sin(w.walkT * 0.5) * 1.6 : 0;
+      const flash = w.hurt > 0 && (w.hurt % 6 < 3);
+      const hp = clamp(w.hp, 0, 100);
+      wh += `<g transform="translate(${f1(w.x)} ${f1(w.y)})">
+        <ellipse cx="0" cy=".5" rx="11" ry="2.6" fill="#000" opacity=".25"/>
+        <g transform="scale(${w.face} 1)"${flash ? ' opacity=".45"' : ''}>${BODY[w.species](w, bob, step)}</g>
+        <g transform="translate(0 -46)">
+          <text x="0" y="0" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#fff"
+                stroke="#000" stroke-width=".6">${w.name}</text>
+          <rect x="-15" y="3" width="30" height="5.5" rx="2.75" fill="#000" opacity=".6"/>
+          <rect x="-14" y="4" width="${f1(28 * hp / 100)}" height="3.5" rx="1.75" fill="${t.color}"/>
+        </g>`;
+      if (w === act && state === 'aim') {
+        wh += `<path transform="translate(0 ${f1(-66 + Math.sin(frameNo * 0.15) * 3)})" d="M-6,0 L6,0 L0,8 Z"
+                     fill="${t.color}" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/>`;
+      }
       wh += `</g>`;
     }
     $('worms').innerHTML = wh;
 
     // Volt
     const vp = voltPos();
-    $('volt').innerHTML = `<g transform="translate(${vp.x} ${vp.y.toFixed(1)})">${voltSvg()}</g>
-      <text x="${vp.x}" y="${(vp.y - 46).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="bold"
-            fill="#fff" stroke="#000" stroke-width=".6">Volt</text>`;
+    $('volt').innerHTML = `<g transform="translate(${vp.x} ${f1(vp.y)})">${voltSvg()}</g>
+      <text x="${vp.x}" y="${f1(vp.y - 50)}" text-anchor="middle" font-size="10.5" font-weight="bold"
+            fill="#fff27a" stroke="#000" stroke-width=".6">Volt</text>`;
 
     // projéteis
     let ph = '';
@@ -463,60 +850,72 @@
       if (p.wk === 'fogo') {
         p.trail.forEach((tp, i) => {
           const k = (i + 1) / p.trail.length;
-          ph += `<circle cx="${tp.x.toFixed(1)}" cy="${tp.y.toFixed(1)}" r="${(2 + 5 * k).toFixed(1)}"
+          ph += `<circle cx="${f1(tp.x)}" cy="${f1(tp.y)}" r="${f1(2 + 5 * k)}"
                   fill="${k > 0.5 ? '#ffb020' : '#ff5a1f'}" opacity="${(k * 0.7).toFixed(2)}"/>`;
         });
-        const r = 7 + Math.sin(frameNo * 0.6) * 1.2;
-        ph += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${r.toFixed(1)}" fill="url(#fireball)"/>`;
+        ph += `<circle cx="${f1(p.x)}" cy="${f1(p.y)}" r="${f1(7 + Math.sin(frameNo * 0.6) * 1.2)}" fill="url(#fireball)"/>`;
       } else if (p.wk === 'planta') {
         const deg = Math.atan2(p.vy, p.vx) * 180 / Math.PI + Math.sin(frameNo * 0.4 + p.spin) * 25;
-        ph += `<g transform="translate(${p.x.toFixed(1)} ${p.y.toFixed(1)}) rotate(${deg.toFixed(1)})">
-                <path d="M-8,0 Q0,-6 8,0 Q0,6 -8,0 Z" fill="#5cc46a" stroke="#1d4a2a" stroke-width=".8"/>
+        ph += `<g transform="translate(${f1(p.x)} ${f1(p.y)}) rotate(${f1(deg)})">
+                <path d="M-8,0 Q0,-6 8,0 Q0,6 -8,0 Z" fill="url(#gGreen)" stroke="#1d4a2a" stroke-width=".8"/>
                 <line x1="-6" y1="0" x2="6" y2="0" stroke="#1d4a2a" stroke-width=".7"/></g>`;
       } else if (p.wk === 'agua') {
         p.trail.forEach((tp, i) => {
           const k = (i + 1) / p.trail.length;
-          ph += `<circle cx="${tp.x.toFixed(1)}" cy="${tp.y.toFixed(1)}" r="${(1.5 + 2 * k).toFixed(1)}"
-                  fill="#bfe9ff" opacity="${(k * 0.6).toFixed(2)}"/>`;
+          ph += `<circle cx="${f1(tp.x)}" cy="${f1(tp.y)}" r="${f1(1.5 + 2 * k)}" fill="#bfe9ff" opacity="${(k * 0.6).toFixed(2)}"/>`;
         });
-        ph += `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="5" fill="#7fd0ff" stroke="#1f6fb0" stroke-width="1"/>
-               <circle cx="${(p.x - 1.5).toFixed(1)}" cy="${(p.y - 1.5).toFixed(1)}" r="1.6" fill="#fff"/>`;
+        ph += `<circle cx="${f1(p.x)}" cy="${f1(p.y)}" r="5.2" fill="#7fd0ff" stroke="#1f6fb0" stroke-width="1"/>
+               <circle cx="${f1(p.x - 1.6)}" cy="${f1(p.y - 1.6)}" r="1.7" fill="#fff"/>`;
       } else { // raio do Volt, em ziguezague
         const pts = p.trail.concat([{ x: p.x, y: p.y }]);
-        const d = pts.map((tp, i) => `${i ? 'L' : 'M'}${tp.x.toFixed(1)},${(tp.y + (i % 2 ? 3 : -3)).toFixed(1)}`).join(' ');
-        ph += `<path d="${d}" fill="none" stroke="#fff27a" stroke-width="2.4" stroke-linejoin="round" opacity=".9"/>
-               <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" fill="#fff"/>`;
+        const d = pts.map((tp, i) => `${i ? 'L' : 'M'}${f1(tp.x)},${f1(tp.y + (i % 2 ? 3 : -3))}`).join(' ');
+        ph += `<path d="${d}" fill="none" stroke="#ffd000" stroke-width="4.5" stroke-linejoin="round" opacity=".45"/>
+               <path d="${d}" fill="none" stroke="#fffbd0" stroke-width="2" stroke-linejoin="round"/>
+               <circle cx="${f1(p.x)}" cy="${f1(p.y)}" r="4.5" fill="url(#zap)"/>`;
       }
     }
     $('proj').innerHTML = ph;
 
-    // explosões
+    // partículas
+    $('parts').innerHTML = parts.map(p => {
+      const k = p.life / p.max, op = Math.min(1, k * 1.5).toFixed(2);
+      if (p.kind === 'smoke') return `<circle cx="${f1(p.x)}" cy="${f1(p.y)}" r="${f1(p.r + (1 - k) * 10)}" fill="${p.col}" opacity="${(k * 0.45).toFixed(2)}"/>`;
+      if (p.kind === 'leaf') return `<ellipse cx="${f1(p.x)}" cy="${f1(p.y)}" rx="${f1(p.r)}" ry="${f1(p.r * 0.5)}"
+                                      transform="rotate(${(frameNo * 8 + p.max * 7) % 360} ${f1(p.x)} ${f1(p.y)})" fill="${p.col}" opacity="${op}"/>`;
+      return `<circle cx="${f1(p.x)}" cy="${f1(p.y)}" r="${f1(p.r)}" fill="${p.col}" opacity="${op}"/>`;
+    }).join('');
+
+    // explosões: clarão + onda de choque
     $('fx').innerHTML = fx.map(f => {
       const k = f.t / f.max;
-      return `<circle cx="${f.x.toFixed(1)}" cy="${f.y.toFixed(1)}" r="${(f.r * k).toFixed(1)}"
-               fill="${f.fill}" opacity="${(1 - k).toFixed(2)}"/>`;
+      return `<circle cx="${f1(f.x)}" cy="${f1(f.y)}" r="${f1(f.r * Math.min(1, k * 1.6))}" fill="${f.fill}" opacity="${(1 - k).toFixed(2)}"/>
+              <circle cx="${f1(f.x)}" cy="${f1(f.y)}" r="${f1(f.r * k * 1.4)}" fill="none" stroke="#fff"
+                      stroke-width="${f1(3 * (1 - k))}" opacity="${(0.8 * (1 - k)).toFixed(2)}"/>`;
     }).join('');
+
+    // números de dano
+    $('floaters').innerHTML = floaters.map(f => `<text x="${f1(f.x)}" y="${f1(f.y - f.t * 0.5)}" text-anchor="middle"
+        font-size="15" font-weight="bold" fill="${f.col}" stroke="#fff" stroke-width=".8"
+        opacity="${(1 - f.t / 60).toFixed(2)}">${f.text}</text>`).join('');
 
     // barra de força
     $('powerbar').innerHTML = charging
-      ? `<rect x="10" y="62" width="204" height="14" fill="#000" opacity=".5" rx="3"/>
-         <rect x="12" y="64" width="${(power * 2).toFixed(0)}" height="10" fill="#ffb347" rx="2"/>`
+      ? `<rect x="10" y="54" width="208" height="14" rx="7" fill="#000" opacity=".45"/>
+         <rect x="12" y="56" width="${f1(power * 2.04)}" height="10" rx="5" fill="url(#pow)"/>`
       : '';
 
-    // HUD
-    const t = teams[turnTeam];
-    const who = (state === 'volt' || lastShotVolt) ? 'Volt' : t.name;
-    const windTxt = wind === 0 ? 'calmo' : (wind > 0 ? '→ ' : '← ') + Math.abs(wind);
-    $('hud').textContent = state === 'over' ? '' :
-      `Vez: ${who} · Vento: ${windTxt} · Ângulo: ${Math.round(angle)}° · Caminhada: ${Math.max(0, Math.round(walkBudget))}`;
-
-    $('msg').textContent = msg || '';
+    $('hud').innerHTML = hudSvg();
+    $('msgbox').innerHTML = msgSvg();
   }
 
   // ---------- Loop ----------
   function frame() {
     frameNo++;
-    for (const w of worms) if (w.breath > 0) w.breath--;
+    for (const w of worms) {
+      if (w.breath > 0) w.breath--;
+      if (w.hurt > 0) w.hurt--;
+      w.moving = false;
+    }
 
     if (state === 'aim') {
       if (keys.up)   angle = Math.min(180, angle + 1.2);
@@ -531,9 +930,12 @@
     if (state === 'flying') stepProjs();
     if (state === 'volt' && --voltDelay <= 0) voltShoot();
     updateWorms();
+    stepParts();
     if (state === 'settle') settle();
     for (const f of fx) f.t++;
     fx = fx.filter(f => f.t < f.max);
+    for (const f of floaters) f.t++;
+    floaters = floaters.filter(f => f.t < 60);
     if (msgT > 0 && --msgT === 0) msg = '';
     renderAll();
     requestAnimationFrame(frame);

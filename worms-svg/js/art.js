@@ -258,7 +258,222 @@
       ${puff(c, [15, -25], '#8a5cff', '#d8c8ff')}`;
   }
 
-  const BODIES = { charmander, bulbasaur, squirtle, pikachu, rattata, pidgey, caterpie, starmie, magikarp, dratini };
+
+  // ---------- Evoluções (um estágio) e Onix ----------
+  function charmeleon(c) {
+    const sc = 1 + 0.14 * Math.sin(c.f * 0.35 + c.x);
+    return feet(c.step, 'url(#gCrimson)', '#5a160c') + `
+    <g transform="translate(0 ${f1(c.bob)})">
+      <path d="M-6,-9 C-17,-9 -20,-17 -16,-26" fill="none" stroke="#5a160c" stroke-width="7.4" stroke-linecap="round"/>
+      <path d="M-6,-9 C-17,-9 -20,-17 -16,-26" fill="none" stroke="#e0442e" stroke-width="5" stroke-linecap="round"/>
+      <circle cx="-16" cy="-34" r="11" fill="url(#fireball)" opacity=".55"/>
+      <g transform="translate(-16 -26) scale(1.15 ${(1.15 * sc).toFixed(2)})">
+        <path d="M0,0 C-6,-4 -5,-10 0,-15 C1,-11 4,-12 4,-9 C6,-5 4,-1 0,0 Z" fill="#ff8a1a"/>
+        <path d="M0,-1 C-3,-3 -2,-7 0,-10 C2,-7 3,-3 0,-1 Z" fill="#ffd34d"/>
+        <path d="M0,-2 C-1.2,-3 -1,-5 0,-6 C1,-5 1.2,-3 0,-2 Z" fill="#fffbe0"/>
+      </g>
+      <ellipse cx="0" cy="-13" rx="9.5" ry="11" fill="url(#gCrimson)" stroke="#5a160c" stroke-width="1.2"/>
+      <ellipse cx="1.5" cy="-10" rx="5.5" ry="7" fill="url(#gCream)"/>
+      <path d="M-4,-30 Q-14,-33 -15,-22 Q-10,-27 -3,-25 Z" fill="#c42f20" stroke="#5a160c" stroke-width="1" stroke-linejoin="round"/>
+      <path d="M4,-14 Q10,-14 10,-10" fill="none" stroke="#5a160c" stroke-width="4" stroke-linecap="round"/>
+      <path d="M4,-14 Q10,-14 10,-10" fill="none" stroke="#e0442e" stroke-width="2.4" stroke-linecap="round"/>
+      <path d="M9.4,-9 l1.4,-2 M8,-8.4 l.6,-2.2" stroke="#fff" stroke-width="1.1" stroke-linecap="round"/>
+      <ellipse cx="3" cy="-26" rx="9" ry="8.2" fill="url(#gCrimson)" stroke="#5a160c" stroke-width="1.2"/>
+      <path d="M8,-28 Q16,-27 14.5,-22 Q12,-19 7,-20 Z" fill="url(#gCrimson)" stroke="#5a160c" stroke-width="1.1" stroke-linejoin="round"/>
+      ${eye(5.5, -27.5, 3.2, '#1b2a5a', c.blink)}
+      <path d="M2.5,-31 L9,-29.4" stroke="#5a160c" stroke-width="1.5" stroke-linecap="round"/>
+      <circle cx="13" cy="-24.5" r=".8" fill="#5a160c"/>
+      <path d="M7,-21 Q11,-19.5 14,-21.5" fill="none" stroke="#5a160c" stroke-width="1" stroke-linecap="round"/>
+      ${puff(c, [13, -21], '#ff7a1a', '#fff3a0')}
+    </g>`;
+  }
+
+  function ivysaur(c) {
+    return feet(c.step, 'url(#gGreen)', '#1d4a2a') + `
+    <g transform="translate(0 ${f1(c.bob)})">
+      <ellipse cx="0" cy="-12" rx="10.2" ry="9.8" fill="url(#gGreen)" stroke="#1d4a2a" stroke-width="1.2"/>
+      <ellipse cx="2" cy="-8.5" rx="5.2" ry="5" fill="url(#gCreamGreen)"/>
+      <circle cx="-5" cy="-14" r="1.6" fill="#2b6b3a" opacity=".7"/><circle cx="-2" cy="-17.5" r="1.3" fill="#2b6b3a" opacity=".7"/>
+      <ellipse cx="-6" cy="-23" rx="10" ry="8.6" fill="url(#gBulb)" stroke="#1d4a2a" stroke-width="1.2"/>
+      <path d="M-9,-29 Q-10,-33 -7,-36" fill="none" stroke="#1d4a2a" stroke-width=".7" opacity=".6"/>
+      <path d="M-6,-30 Q-18,-34 -19,-42 Q-9,-40 -6,-30 Z" fill="#e8607a" stroke="#8a2a40" stroke-width=".9" stroke-linejoin="round"/>
+      <path d="M-6,-30 Q-2,-40 6,-40 Q4,-33 -6,-30 Z" fill="#f08aa0" stroke="#8a2a40" stroke-width=".9" stroke-linejoin="round"/>
+      <path d="M-6,-30 Q-9,-42 -6,-46 Q-1,-40 -6,-30 Z" fill="#ff9ab0" stroke="#8a2a40" stroke-width=".9" stroke-linejoin="round"/>
+      <circle cx="-6" cy="-31" r="2" fill="#ffe27a"/>
+      <path d="M0,-26 L2,-32 L5,-27.5 Z M7,-26.5 L10.5,-31 L11,-25.5 Z" fill="url(#gGreen)" stroke="#1d4a2a" stroke-width=".9" stroke-linejoin="round"/>
+      <ellipse cx="5" cy="-21" rx="8.8" ry="7.4" fill="url(#gGreen)" stroke="#1d4a2a" stroke-width="1.2"/>
+      <path d="M-.5,-27 Q2,-26 3,-23.5" fill="none" stroke="#2b6b3a" stroke-width="1.6" opacity=".7"/>
+      ${eye(7, -22, 2.9, '#c0392b', c.blink)}
+      <path d="M7.5,-16.5 Q10.5,-15 12,-17" fill="none" stroke="#1d4a2a" stroke-width="1" stroke-linecap="round"/>
+      <ellipse cx="6.5" cy="-12" rx="3.4" ry="1.9" fill="url(#gGreen)" stroke="#1d4a2a" stroke-width="1"/>
+      ${puff(c, [12, -19], '#5cc46a', '#e6ffd0')}
+    </g>`;
+  }
+
+  function wartortle(c) {
+    return feet(c.step, 'url(#gBlue)', '#1d4a6b') + `
+    <g transform="translate(0 ${f1(c.bob)})">
+      <path d="M-8,-8 Q-20,-8 -19,-20 Q-18,-28 -12,-26" fill="none" stroke="#1d4a6b" stroke-width="8.4" stroke-linecap="round"/>
+      <path d="M-8,-8 Q-20,-8 -19,-20 Q-18,-28 -12,-26" fill="none" stroke="#e6f6ff" stroke-width="6" stroke-linecap="round"/>
+      <path d="M-8,-8 Q-20,-8 -19,-20" fill="none" stroke="#8fd3ef" stroke-width="2" stroke-linecap="round" opacity=".7"/>
+      <ellipse cx="0" cy="-12" rx="10" ry="9.8" fill="url(#gBlue)" stroke="#1d4a6b" stroke-width="1.2"/>
+      <ellipse cx="2.5" cy="-8" rx="5.4" ry="4.4" fill="url(#gCream)" stroke="#b89a5a" stroke-width=".6"/>
+      <path d="M-11,-11 Q-12,-25 0,-25 Q10,-25 9,-13 Q8,-6 -1,-6 Q-11,-6 -11,-11 Z" fill="url(#gShell)" stroke="#4a2a10" stroke-width="1.2"/>
+      <path d="M-6,-21 L-1,-17.5 L4,-21 M-1,-17.5 L-1,-11 M-8,-12.5 L-1,-11 L6,-12.5" fill="none" stroke="#6b4016" stroke-width="1"/>
+      <path d="M-11,-10 Q-1,-3.5 9,-11.5" fill="none" stroke="#f3e2b0" stroke-width="1.8"/>
+      <ellipse cx="6.5" cy="-10" rx="3.2" ry="1.9" fill="url(#gBlue)" stroke="#1d4a6b" stroke-width="1"/>
+      <path d="M2,-27 Q-6,-40 -14,-33 Q-7,-33 -4,-26 Z" fill="#e6f6ff" stroke="#1d4a6b" stroke-width="1" stroke-linejoin="round"/>
+      <path d="M5,-27.5 Q0,-42 -7,-38 Q-1,-35 1,-27 Z" fill="#cfeaff" stroke="#1d4a6b" stroke-width="1" stroke-linejoin="round"/>
+      <circle cx="7" cy="-21" r="7.6" fill="url(#gBlue)" stroke="#1d4a6b" stroke-width="1.2"/>
+      ${eye(9.6, -22.4, 2.7, '#6b3a1a', c.blink)}
+      <path d="M8.5,-16.4 Q11.5,-15 12,-17.2" fill="none" stroke="#1d4a6b" stroke-width="1" stroke-linecap="round"/>
+      ${puff(c, [12, -17], '#6ad0ff', '#e6f8ff')}
+    </g>`;
+  }
+
+  function raticate(c) {
+    const tw = Math.sin(c.f * 0.1) * 2;
+    return feet(c.step, 'url(#gTan)', '#5a3a1c', 5) + `
+    <g transform="translate(0 ${f1(c.bob)})">
+      <path d="M-9,-8 C-21,-8 -23,-17 -18,${f1(-23 + tw)} C-16,-27 -21,-30 -17,${f1(-33 + tw)}" fill="none" stroke="#8a5a40" stroke-width="3.8" stroke-linecap="round"/>
+      <path d="M-9,-8 C-21,-8 -23,-17 -18,${f1(-23 + tw)} C-16,-27 -21,-30 -17,${f1(-33 + tw)}" fill="none" stroke="#e8b8a0" stroke-width="2.2" stroke-linecap="round"/>
+      <ellipse cx="-1" cy="-10" rx="11.5" ry="9" fill="url(#gTan)" stroke="#5a3a1c" stroke-width="1.2"/>
+      <path d="M-4,-10 Q4,-4 10,-10 Q7,-2.5 -3,-3 Z" fill="url(#gCream)"/>
+      <path d="M2.5,-24 L3,-32 L9,-26 Z" fill="url(#gTan)" stroke="#5a3a1c" stroke-width="1.1" stroke-linejoin="round"/>
+      <path d="M9,-25 L13.5,-32 L16,-23 Z" fill="url(#gTan)" stroke="#5a3a1c" stroke-width="1.1" stroke-linejoin="round"/>
+      <path d="M4,-25.5 L4.5,-30 L7.5,-26.5 Z M10.5,-25 L13,-29 L14,-24.5 Z" fill="#c07a60"/>
+      <ellipse cx="8" cy="-17" rx="9" ry="7.6" fill="url(#gTan)" stroke="#5a3a1c" stroke-width="1.2"/>
+      <ellipse cx="13" cy="-14" rx="5" ry="3.8" fill="url(#gCream)"/>
+      ${c.blink ? `<path d="M7.5,-19.4 Q9.7,-18 12,-19.4" fill="none" stroke="#222" stroke-width="1.1" stroke-linecap="round"/>`
+                : `<circle cx="10" cy="-19.4" r="1.9" fill="#222"/><circle cx="10.6" cy="-20" r=".6" fill="#fff"/>`}
+      <circle cx="16.8" cy="-15.6" r="1.2" fill="#222"/>
+      <path d="M12.6,-13.6 L12.6,-6.5 L16.2,-6.8 L15.8,-13.8 Z" fill="#fff" stroke="#6a5a4a" stroke-width=".8"/>
+      <path d="M14.2,-13.6 L14.2,-6.6" stroke="#6a5a4a" stroke-width=".5"/>
+      <path d="M14,-15.6 L22,-18 M14,-14.4 L22,-14.4 M14,-13.4 L21.5,-11" stroke="#5a3a1c" stroke-width=".6" stroke-linecap="round"/>
+      ${puff(c, [14, -16], '#d8d0c0', '#ffffff')}
+    </g>`;
+  }
+
+  function pidgeotto(c) {
+    const flap = (c.flap || c.breath > 0) ? Math.sin(c.f * 0.9) * 28 : Math.sin(c.f * 0.05) * 3;
+    return `
+      <path d="M-5,-5 L-4,-1 M3,-5 L4,-1" stroke="#d98a2a" stroke-width="1.8" stroke-linecap="round"/>
+      <path d="M-3,-1 l-2,1 M-3,-1 l2,1 M4,-1 l-2,1 M4,-1 l2,1" stroke="#d98a2a" stroke-width="1" stroke-linecap="round"/>
+    <g transform="translate(0 ${f1(c.bob)})">
+      <path d="M-9,-13 L-24,-19 L-21,-14 L-26,-12 L-21,-10 L-24,-6 L-9,-8 Z" fill="#d6563a" stroke="#6b3a1e" stroke-width=".9" stroke-linejoin="round"/>
+      <path d="M-24,-19 L-21,-14 L-26,-12 Z" fill="#f2c15a"/>
+      <ellipse cx="-1" cy="-13" rx="11.8" ry="9.6" fill="url(#gBrown)" stroke="#5e3b1c" stroke-width="1.2"/>
+      <ellipse cx="3.5" cy="-10.5" rx="7" ry="6.4" fill="url(#gCream)"/>
+      <g transform="translate(-5 -15) rotate(${f1(flap)})">
+        <path d="M0,0 Q-8,-3 -15,6 Q-7,8 -1,6 Z" fill="url(#gBrown)" stroke="#5e3b1c" stroke-width="1" stroke-linejoin="round"/>
+        <path d="M-3,2.5 L-11,5.4" stroke="#f0d0a0" stroke-width="1.2"/>
+      </g>
+      <circle cx="7" cy="-24" r="7.6" fill="url(#gBrown)" stroke="#5e3b1c" stroke-width="1.2"/>
+      <path d="M2,-30 Q-8,-41 -22,-36 Q-13,-35 -7,-27 Z" fill="#f2c15a" stroke="#8a5a1a" stroke-width=".9" stroke-linejoin="round"/>
+      <path d="M-4,-33 Q-12,-40 -22,-36" fill="none" stroke="#d94a2a" stroke-width="2" stroke-linecap="round"/>
+      <path d="M2,-30 Q3,-36 8,-33 Q7,-28 2,-30 Z" fill="#f2c15a" stroke="#8a5a1a" stroke-width=".8"/>
+      <path d="M11,-25 L19,-22.6 L11.5,-20.4 Z" fill="#f2a23a" stroke="#8a5a1a" stroke-width=".8" stroke-linejoin="round"/>
+      <path d="M8.5,-25.4 L-1,-26.6" stroke="#3a2410" stroke-width="2.4" stroke-linecap="round"/>
+      ${c.blink ? `<path d="M6.4,-25.6 Q8.4,-24.2 10.4,-25.6" fill="none" stroke="#222" stroke-width="1.1" stroke-linecap="round"/>`
+                : `<circle cx="8.6" cy="-25.2" r="2.4" fill="#fff" stroke="#5e3b1c" stroke-width=".7"/><circle cx="9.1" cy="-25.2" r="1.5" fill="#222"/>`}
+      ${puff(c, [16, -23], '#e8f0ff', '#ffffff')}
+    </g>`;
+  }
+
+  function butterfree(c) {
+    const bob = Math.sin(c.f * 0.07) * 2.5, fl = 1 - Math.abs(Math.sin(c.f * 0.22)) * 0.45;
+    return `
+      <ellipse cx="0" cy=".5" rx="${f1(11 - bob * 0.5)}" ry="2.4" fill="#000" opacity=".2"/>
+      <g transform="translate(0 ${f1(-24 + bob)})">
+        <g transform="scale(${fl.toFixed(2)} 1)">
+          <path d="M-2,-4 Q-4,-26 -17,-26 Q-27,-22 -22,-8 Q-17,-1 -2,0 Z" fill="url(#gWing)" stroke="#5a5498" stroke-width="1.3" stroke-linejoin="round"/>
+          <path d="M-3,2 Q-18,2 -21,10 Q-20,18 -12,17 Q-4,15 -2,5 Z" fill="url(#gWing)" stroke="#5a5498" stroke-width="1.3" stroke-linejoin="round"/>
+          <path d="M-4,-4 Q-10,-14 -16,-21 M-4,-2 Q-12,-6 -21,-8 M-3,4 Q-9,8 -15,14" fill="none" stroke="#5a5498" stroke-width=".8" opacity=".7"/>
+          <ellipse cx="-12" cy="-12" rx="3.2" ry="5" fill="#2a2a46" opacity=".75" transform="rotate(-25 -12 -12)"/>
+        </g>
+        <path d="M2,10 l-1,5 M4,10 l1,5" stroke="#4a4698" stroke-width="1.3" stroke-linecap="round"/>
+        <ellipse cx="1" cy="2" rx="5.4" ry="9.4" fill="url(#gBfly)" stroke="#2a2858" stroke-width="1.2"/>
+        <path d="M6,-1 Q10,1 8,5" fill="none" stroke="#2a2858" stroke-width="2.2" stroke-linecap="round"/>
+        <path d="M6,-1 Q10,1 8,5" fill="none" stroke="#7a74d0" stroke-width="1.2" stroke-linecap="round"/>
+        <path d="M3,-14 Q-1,-24 -6,-23 M5,-15 Q8,-25 13,-23" fill="none" stroke="#2a2858" stroke-width="1.4" stroke-linecap="round"/>
+        <circle cx="2.5" cy="-11" r="7.2" fill="url(#gBfly)" stroke="#2a2858" stroke-width="1.2"/>
+        ${c.blink ? `<path d="M3.4,-13.6 Q6,-12 8.6,-13.6" fill="none" stroke="#222" stroke-width="1.2" stroke-linecap="round"/>`
+                  : `<circle cx="6" cy="-12.6" r="3.8" fill="#e0243e" stroke="#2a2858" stroke-width=".8"/><circle cx="5.2" cy="-14" r="1.3" fill="#fff"/>`}
+        <path d="M6,-6.4 Q8.4,-5.4 9.6,-7" fill="none" stroke="#2a2858" stroke-width="1" stroke-linecap="round"/>
+      </g>
+      ${puff(c, [10, -30], '#e6e2ff', '#ffffff')}`;
+  }
+
+  function gyarados(c) {
+    const s = Math.sin(c.f * 0.06), s2 = Math.sin(c.f * 0.06 + 1.2);
+    const body = `M-20,-3 Q-24,-14 -12,-16 Q0,-18 -2,-28 Q-4,${f1(-38 + s)} ${f1(6 + s2)},-41`;
+    const hx = 12 + s2 * 1.4, hy = -43 + s * 1.2;
+    return `
+      <path d="${body}" fill="none" stroke="#1d3f7a" stroke-width="15" stroke-linecap="round"/>
+      <path d="${body}" fill="none" stroke="#3f74c8" stroke-width="12.4" stroke-linecap="round"/>
+      <path d="${body}" fill="none" stroke="#8cc0f6" stroke-width="2.6" stroke-linecap="round" transform="translate(-2 -3)" opacity=".7"/>
+      <path d="${body}" fill="none" stroke="#f3e6a0" stroke-width="3.6" stroke-linecap="round" stroke-dasharray="3 4.5" transform="translate(3 3)"/>
+      <path d="M-24,-12 L-30,-9 L-26,-17 Z M-5,-22 L-12,-19 L-7,-27 Z" fill="#f2c15a" stroke="#8a5a1a" stroke-width=".9" stroke-linejoin="round"/>
+      <g transform="translate(${f1(hx)} ${f1(hy)})">
+        <path d="M-6,-6 L-12,-18 L-3,-9 L-5,-21 L2,-10 Z" fill="#e8452a" stroke="#7a1c0c" stroke-width="1" stroke-linejoin="round"/>
+        <path d="M-9,2 Q-17,4 -20,12 Q-12,8 -7,6 Z" fill="#f3e6a0" stroke="#8a5a1a" stroke-width=".9" stroke-linejoin="round"/>
+        <ellipse cx="0" cy="0" rx="11.6" ry="8.4" fill="#3f74c8" stroke="#1d3f7a" stroke-width="1.4"/>
+        <path d="M2,-6.4 Q12,-6 13,-1 L3,-1 Z" fill="#5a8ee0"/>
+        <path d="M3,2 Q10,2 13,4.6 Q9,10 2,9 Q-3,7 -2,3 Z" fill="#7a1c1c" stroke="#1d3f7a" stroke-width="1.2" stroke-linejoin="round"/>
+        <path d="M5,3 l1.6,3 l1.6,-3 M9,3.4 l1.2,2.4 l1.4,-2.6" fill="#fff" stroke="#fff" stroke-width=".6"/>
+        <path d="M12,-2 Q22,0 21,6 M11,0 Q18,5 14,11" fill="none" stroke="#f3e6a0" stroke-width="1.6" stroke-linecap="round"/>
+        ${c.blink ? `<path d="M2,-3.6 Q5,-2 8,-3.6" fill="none" stroke="#222" stroke-width="1.3" stroke-linecap="round"/>`
+                  : `<path d="M1.6,-6 L8.6,-3.4" stroke="#1d3f7a" stroke-width="1.5"/><circle cx="5.2" cy="-2.6" r="2.7" fill="#fff" stroke="#1d3f7a" stroke-width=".8"/><circle cx="5.8" cy="-2.4" r="1.5" fill="#222"/>`}
+      </g>
+      ${puff(c, [20, -42], '#6ad0ff', '#e6f8ff')}`;
+  }
+
+  function dragonair(c) {
+    const s = Math.sin(c.f * 0.07), s2 = Math.sin(c.f * 0.07 + 1.3);
+    const body = `M-31,${f1(-3 + s)} Q-23,${f1(1 + s)} -17,-7 Q-11,-13 -5,-8 Q2,-3 3,-15 Q${f1(3 + s2)},-26 ${f1(7 + s2)},-33`;
+    const hx = 11 + s2 * 1.3, hy = -39 + s2 * 0.8;
+    return `
+      <path d="${body}" fill="none" stroke="#2a4f9a" stroke-width="11" stroke-linecap="round"/>
+      <path d="${body}" fill="none" stroke="url(#gDrai)" stroke-width="8.8" stroke-linecap="round"/>
+      <path d="${body}" fill="none" stroke="#f2f6ff" stroke-width="3" stroke-linecap="round" stroke-dasharray="4 5" transform="translate(1.5 3)" opacity=".9"/>
+      <circle cx="-31" cy="${f1(-3 + s)}" r="3.6" fill="#7ab4ff" stroke="#2a4f9a" stroke-width="1"/>
+      <circle cx="-31.8" cy="${f1(-4 + s)}" r="1.2" fill="#fff"/>
+      <circle cx="4" cy="-17" r="3" fill="#7ab4ff" stroke="#2a4f9a" stroke-width=".9"/><circle cx="3.4" cy="-17.8" r="1" fill="#fff"/>
+      <g transform="translate(${f1(hx)} ${f1(hy)})">
+        <path d="M-6,-3 Q-15,-12 -12,-1 Z" fill="#f2f6ff" stroke="#2a4f9a" stroke-width=".9" stroke-linejoin="round"/>
+        <path d="M-3,-5 Q-10,-16 -7,-4 Z" fill="#f2f6ff" stroke="#2a4f9a" stroke-width=".9" stroke-linejoin="round"/>
+        <ellipse cx="0" cy="0" rx="8.8" ry="7" fill="url(#gDrai)" stroke="#2a4f9a" stroke-width="1.3"/>
+        <ellipse cx="2.4" cy="3" rx="6.4" ry="3.2" fill="#f2f6ff" opacity=".9"/>
+        <path d="M-1,-6.6 L1.4,-12 L3.6,-6.6 Z" fill="#f2f6ff" stroke="#2a4f9a" stroke-width=".8" stroke-linejoin="round"/>
+        ${c.blink ? `<path d="M2,-2.4 Q4.2,-0.8 6.4,-2.4" fill="none" stroke="#222" stroke-width="1.1" stroke-linecap="round"/>`
+                  : `<circle cx="4.6" cy="-2" r="2.6" fill="#fff" stroke="#2a4f9a" stroke-width=".7"/><circle cx="5.1" cy="-2" r="1.7" fill="#6a2a9a"/><circle cx="5.6" cy="-2.7" r=".6" fill="#fff"/>`}
+        <path d="M5.4,3 Q8.6,3.6 8.8,1.4" fill="none" stroke="#2a4f9a" stroke-width=".9" stroke-linecap="round"/>
+      </g>
+      ${puff(c, [19, -39], '#8a5cff', '#d8c8ff')}`;
+  }
+
+  function onix(c) {
+    const sw = Math.sin(c.f * 0.05) * 1.6;
+    const seg = (x, y, r, k) => `<g transform="translate(${f1(x)} ${f1(y)})">
+      <circle r="${r}" fill="url(#gRock)" stroke="#3c3c46" stroke-width="1.3"/>
+      <path d="M${-r * 0.5},${-r * 0.2} l${r * 0.4},${r * 0.2} M${r * 0.1},${r * 0.4} l${r * 0.4},-${r * 0.1}" stroke="#4a4a56" stroke-width=".9" stroke-linecap="round" opacity=".7"/>
+      <circle cx="${f1(-r * 0.35)}" cy="${f1(-r * 0.4)}" r="${f1(r * 0.28)}" fill="#fff" opacity=".28"/></g>`;
+    return `
+      <ellipse cx="-4" cy="1" rx="20" ry="3" fill="#000" opacity=".25"/>
+      ${seg(-17, -8, 8.4)}${seg(-6, -9, 11)}${seg(2 + sw * 0.3, -21, 10.4)}${seg(-2 + sw * 0.6, -32, 10)}${seg(4 + sw, -43, 9.4)}
+      <g transform="translate(${f1(13 + sw * 1.2)} -53)">
+        <path d="M-6,-8 L-4,-17 L1,-9 L5,-16 L7,-7 Z" fill="url(#gRock)" stroke="#3c3c46" stroke-width="1.2" stroke-linejoin="round"/>
+        <path d="M-12,-1 Q-13,-10 -2,-11 Q11,-12 13,-2 Q12,8 0,9 Q-11,9 -12,-1 Z" fill="url(#gRock)" stroke="#3c3c46" stroke-width="1.4" stroke-linejoin="round"/>
+        <path d="M-6,-6 l3,2 M4,-8 l3,1.4 M-2,5 l4,-1" stroke="#4a4a56" stroke-width=".9" stroke-linecap="round" opacity=".7"/>
+        ${c.blink ? `<path d="M0,-1.2 L6,-1.2" stroke="#222" stroke-width="1.4" stroke-linecap="round"/>`
+                  : `<ellipse cx="3.6" cy="-1.6" rx="2.5" ry="1.9" fill="#111"/><circle cx="4.2" cy="-2.2" r=".7" fill="#fff"/><path d="M0,-5 L7,-2.6" stroke="#3c3c46" stroke-width="1.6" stroke-linecap="round"/>`}
+        <path d="M3,4.6 Q8,5.4 11,3" fill="none" stroke="#3c3c46" stroke-width="1.2" stroke-linecap="round"/>
+      </g>
+      ${puff(c, [18, -48], '#b8a898', '#e8e0d0')}`;
+  }
+
+  const BODIES = { charmander, bulbasaur, squirtle, pikachu, rattata, pidgey, caterpie, starmie, magikarp, dratini,
+    charmeleon, ivysaur, wartortle, raticate, pidgeotto, butterfree, gyarados, dragonair, onix };
 
   // ---------- Pokébola ----------
   function ball(r, rot = 0, open = 0) {

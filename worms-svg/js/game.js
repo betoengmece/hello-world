@@ -8,7 +8,7 @@
   const WALK_MAX = 120;       // distância máxima de caminhada por turno
   const VOLT_X = 400;         // posição do Pikachu no modo Versus
   const WEAK = 0.35;          // abaixo dessa fração de PV o inimigo pode ser capturado
-  const PLAYER_COL = '#3a9bff', WILD_COL = '#e0433a';
+  const PLAYER_COL = '#3a9bff', WILD_COL = '#e0433a', GUEST_COL = '#ffd34d';
   const SAVE_KEY = 'ms_campaign_v1';
 
   const $ = id => document.getElementById(id);
@@ -25,6 +25,7 @@
   let units = [], teams = [], turnTeam = 0, state = 'aim', wind = 0, power = 0, charging = false, angle = 45;
   let walkBudget = WALK_MAX, dirty = true, msg = '', msgT = 0, keys = {};
   let neutral = null, lastShotVolt = false, voltDelay = 0, voltSide = 1;
+  let guest = null, gCool = 1, gMode = '', gT = 0, gSide = 1, gDelay = 100, lastShotGuest = false, splashU = null, evo = null;
   let ballMode = false, ai = null, cap = null, panel = null, pendingPanel = null;
   let campaign = null, stageIdx = 0, stageCaught = [], intro = null, teamSel = null;
   let uiList = [], uiSel = 0, themeKey = 'campo';
@@ -52,6 +53,7 @@
       tx = p.x; ty = p.y; tz = scene === 'intro' ? 1.2 : 1.35; k = 0.12;
     } else if (state === 'settle') { tx = focus.x; ty = focus.y; tz = 1.25; }
     else if (state === 'volt' && neutral) { tx = neutral.x; ty = neutral.y - 30; tz = 1.7; }
+    else if (state === 'guest' && guest) { tx = guest.x; ty = guest.y - 40; tz = 1.45; }
     else if ((state === 'aim' || state === 'ai') && charging && scene === 'battle') {
       const u = activeUnit(); if (u) { tx = u.x; ty = u.y - 30; tz = 1.15; k = 0.04; }
     }
@@ -74,7 +76,7 @@
   }
 
   const FX_FILL = { fire: 'url(#boom)', leaf: 'url(#leafBoom)', water: 'url(#splash)', thunder: 'url(#zap)',
-                    normal: 'url(#hitBoom)', gust: 'url(#gustBoom)', web: 'url(#webBoom)', dragon: 'url(#dragBoom)' };
+                    normal: 'url(#hitBoom)', gust: 'url(#gustBoom)', web: 'url(#webBoom)', dragon: 'url(#dragBoom)', rock: 'url(#rockBoom)' };
 
   // ---------- Geração do mundo ----------
   function hillPath(pts) {
@@ -213,6 +215,7 @@
     fx = []; projs = []; parts = []; floaters = []; graves = [];
     power = 0; charging = false; ballMode = false; ai = null; cap = null; panel = null; pendingPanel = null;
     lastShotVolt = false; voltDelay = 0; neutral = null; keys = {};
+    guest = null; gCool = 1; gMode = ''; lastShotGuest = false; splashU = null; evo = null;
     cam.x = 400; cam.y = 250; cam.z = 1; cam.shake = 0;
     Sfx.chargeStop();
   }
@@ -221,7 +224,7 @@
     const S = SPECIES[sp], maxhp = Math.round(S.maxhp * hpMult);
     return { sp, name: S.name, team, x, y: gy(x), hp: maxhp, maxhp, alive: true, face: face || 1, breath: 0, hurt: 0,
              walkT: 0, moving: false, blinkOff: Math.floor(rnd(0, 230)), webbed: false, stuck: false, hidden: false, capScale: 1,
-             scale: S.scale || 1, hop: 0 };
+             scale: S.scale || 1, hop: 0, dealt: 0, rid: -1, turnsLeft: 0 };
   }
 
   // ---------- Menu ----------
@@ -260,22 +263,25 @@
     try {
       const s = JSON.parse(localStorage.getItem(SAVE_KEY));
       if (s && Array.isArray(s.roster) && s.roster.length && s.roster.every(r => SPECIES[r]) &&
-          Number.isInteger(s.stage) && s.stage >= 0 && s.stage < STAGES.length) return s;
+          Number.isInteger(s.stage) && s.stage >= 0 && s.stage < STAGES.length) {
+        s.xp = s.roster.map((_, i) => (Array.isArray(s.xp) && +s.xp[i] > 0) ? Math.round(+s.xp[i]) : 0);
+        return s;
+      }
     } catch (_) {}
     return null;
   }
   function saveGame() {
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ roster: campaign.roster, stage: campaign.stage, balls: campaign.balls, weakStart: campaign.weakStart })); } catch (_) {}
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ roster: campaign.roster, xp: campaign.xp, stage: campaign.stage, balls: campaign.balls, weakStart: campaign.weakStart })); } catch (_) {}
   }
   function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch (_) {} }
 
   function newCampaign(starter) {
-    campaign = { roster: [starter], stage: 0, balls: 0, weakStart: SPECIES[starter].maxhp < 100, sel: [0] };
+    campaign = { roster: [starter], xp: [0], stage: 0, balls: 0, weakStart: SPECIES[starter].maxhp < 100, sel: [0] };
     beginStage(0);
   }
   function continueCampaign() {
     const s = loadSave(); if (!s) return;
-    campaign = { roster: s.roster.slice(), stage: s.stage, balls: s.balls || 0, weakStart: !!s.weakStart, sel: [0] };
+    campaign = { roster: s.roster.slice(), xp: s.xp.slice(), stage: s.stage, balls: s.balls || 0, weakStart: !!s.weakStart, sel: [0] };
     beginStage(s.stage);
   }
 
@@ -284,7 +290,9 @@
     campaign.balls = Math.min(9, campaign.balls + (STAGES[si].boss ? 5 : 3));
     campaign.ballsStart = campaign.balls;
     campaign.rosterStart = campaign.roster.slice();
+    campaign.xpStart = campaign.xp.slice();
     if (campaign.roster.length <= 3) {
+      campaign.partyIdx = campaign.roster.map((_, i) => i);
       campaign.party = campaign.roster.slice();
       initStage(si);
     } else {
@@ -308,9 +316,10 @@
       { name: 'Você', color: PLAYER_COL, units: [], cur: 0, ai: false },
       { name: 'Selvagens', color: WILD_COL, units: [], cur: 0, ai: true }
     ];
-    campaign.party.forEach((sp, i) => {
-      const u = mkUnit(sp, px[i] + rnd(-5, 5), 0, 1); units.push(u); teams[0].units.push(u);
+    campaign.partyIdx.forEach((ri, i) => {
+      const u = mkUnit(campaign.roster[ri], px[i] + rnd(-5, 5), 0, 1); u.rid = ri; units.push(u); teams[0].units.push(u);
     });
+    gCool = 1 + Math.floor(Math.random() * 2);
     st.enemies.forEach((sp, i) => {
       const u = mkUnit(sp, ex[i] + rnd(-5, 5), 1, -1, st.hpMult * mercy); units.push(u); teams[1].units.push(u);
     });
@@ -323,29 +332,112 @@
 
   function restartStage() {
     campaign.roster = campaign.rosterStart.slice();
+    campaign.xp = campaign.xpStart.slice();
     campaign.balls = campaign.ballsStart;
     initStage(stageIdx);
   }
 
+  // XP ganho ao vencer a fase; devolve as linhas do painel e as evoluções que aconteceram
+  function awardXp() {
+    const lines = [], evos = [];
+    campaign.partyIdx.forEach(ri => {
+      const sp = campaign.roster[ri], S = SPECIES[sp];
+      if (!S.evo) return;
+      const u = units.find(x => x.rid === ri);
+      const gain = 50 + 15 * stageIdx + Math.min(70, Math.round((u ? u.dealt : 0) * 0.5));
+      campaign.xp[ri] += gain;
+      if (campaign.xp[ri] >= S.evoXp) {
+        evos.push({ ri, from: sp, to: S.evo });
+        campaign.roster[ri] = S.evo;
+        lines.push(`${S.name}: +${gain} XP — evoluiu para ${SPECIES[S.evo].name}!`);
+      } else lines.push(`${S.name}: +${gain} XP (${campaign.xp[ri]}/${S.evoXp})`);
+    });
+    return { lines, evos };
+  }
+
   function stageClear() {
-    state = 'over';
+    state = 'over'; guest = null; units = units.filter(u => u.team !== 2);
     const last = stageIdx >= STAGES.length - 1;
     Sfx.win();
+    const xp = awardXp();
     if (!last) { campaign.stage = stageIdx + 1; saveGame(); } else clearSave();
     const buttons = last
       ? [{ label: 'Menu principal', fn: initMenu }]
       : [{ label: 'Próxima fase ▶', fn: () => beginStage(stageIdx + 1) }, { label: 'Menu', fn: initMenu }];
-    pendingPanel = { t: 70, panel: {
+    pendingPanel = { t: 70, evos: xp.evos, panel: {
       title: last ? '🏆 Você é o Campeão!' : 'Fase concluída!',
       sub: last ? `Você terminou a campanha com ${campaign.roster.length} Pokémon.` : `${STAGES[stageIdx].name} superada.`,
-      caught: stageCaught.slice(), buttons } };
+      lines: xp.lines, caught: stageCaught.slice(), buttons } };
     showMsg(last ? 'Campeão!' : 'Fase concluída!', 70);
   }
 
+  // ---------- Cena de evolução ----------
+  function startEvolutions(list, after) {
+    evo = { list, i: 0, t: 0, after, played: false, done: false };
+    state = 'evolve'; msg = ''; msgT = 0; syncButtons();
+  }
+  function stepEvolve() {
+    const e = evo; if (!e) return;
+    e.t++;
+    if (e.t === 40) Sfx.evolve();
+    if (e.t === 258) Sfx.evolveDone();
+    if (e.t >= 270 && e.t === 270) { flash.a = 0.9; flash.col = '#ffffff'; }
+    if (e.t >= 400) nextEvolution();
+  }
+  function nextEvolution() {
+    const e = evo; if (!e) return;
+    Sfx.chargeStop();
+    if (++e.i < e.list.length) { e.t = 0; return; }
+    panel = e.after; evo = null; state = 'over'; uiSel = 0; syncButtons();
+  }
+  function skipEvolve() {
+    if (!evo) return;
+    if (evo.t < 258) { evo.t = 258; Sfx.evolveDone(); flash.a = 0.9; flash.col = '#ffffff'; }   // pula direto para o resultado
+    else if (evo.t >= 290) nextEvolution();
+  }
+
+  function evolveSvg() {
+    const e = evo, ev = e.list[e.i], t = e.t;
+    const A = SPECIES[ev.from], B = SPECIES[ev.to];
+    const ctx = { f: frameNo, blink: false, breath: 0, bob: Math.sin(frameNo * 0.08) * 0.7, step: 0, x: 0, flap: false };
+    const sprite = (sp, white, sc) => `<g transform="translate(400 372) scale(${f1(3.2 * sc)})"${white ? ' filter="url(#fWhite)"' : ''}>${Art.draw(sp, ctx)}</g>`;
+    let s = `<rect width="800" height="500" fill="#06101f" opacity=".9"/>`;
+    const glow = clamp((t - 40) / 200, 0, 1);
+    if (t >= 40 && t < 270) {
+      s += `<circle cx="400" cy="300" r="${f1(60 + glow * 110 + Math.sin(frameNo * 0.4) * 6)}" fill="#fff" opacity="${(0.1 + glow * 0.3).toFixed(2)}"/>`;
+      for (let i = 0; i < 14; i++) {
+        const a = i * (Math.PI * 2 / 14) + frameNo * 0.01, r1 = 70 + glow * 40, r2 = r1 + 30 + glow * 150;
+        s += `<line x1="${f1(400 + Math.cos(a) * r1)}" y1="${f1(300 + Math.sin(a) * r1)}" x2="${f1(400 + Math.cos(a) * r2)}" y2="${f1(300 + Math.sin(a) * r2)}" stroke="#bfe3ff" stroke-width="2.4" stroke-linecap="round" opacity="${(0.15 + glow * 0.45).toFixed(2)}"/>`;
+      }
+    }
+    let title = '', sub = '';
+    if (t < 40) { s += sprite(ev.from, false, A.scale || 1); title = 'O quê?'; sub = `${A.name} está evoluindo!`; }
+    else if (t < 258) {
+      // alterna entre as duas silhuetas, cada vez mais rápido
+      const period = Math.max(3, Math.round(22 - glow * 19));
+      const k = Math.floor((t - 40) / period) % 2 === 0;
+      s += sprite(k ? ev.from : ev.to, true, (k ? A.scale : B.scale) || 1);
+      title = 'O quê?'; sub = `${A.name} está evoluindo!`;
+    } else if (t < 270) { s += sprite(ev.to, true, B.scale || 1); }
+    else {
+      s += sprite(ev.to, false, B.scale || 1);
+      title = 'Parabéns!'; sub = `${A.name} evoluiu para ${B.name}!`;
+      for (let i = 0; i < 6; i++) {
+        const a = frameNo * 0.05 + i * 1.05;
+        s += `<text x="${f1(400 + Math.cos(a) * 120)}" y="${f1(270 + Math.sin(a) * 60)}" font-size="16" text-anchor="middle" fill="#ffd34d" opacity=".9">★</text>`;
+      }
+    }
+    s += `<text x="400" y="86" text-anchor="middle" font-size="34" font-weight="800" fill="#ffd34d" stroke="#6a3a00" stroke-width="5" paint-order="stroke">${title}</text>
+          <text x="400" y="122" text-anchor="middle" font-size="22" font-weight="bold" fill="#fff">${sub}</text>`;
+    if (t >= 290) s += `<text x="400" y="470" text-anchor="middle" font-size="13" fill="#fff" opacity="${(0.55 + 0.4 * Math.sin(frameNo * 0.1)).toFixed(2)}">toque ou tecle ENTER para continuar</text>`;
+    else if (t > 50) s += `<text x="400" y="470" text-anchor="middle" font-size="11" fill="#fff" opacity=".45">toque / ENTER para pular</text>`;
+    return s;
+  }
+
   function stageLose() {
-    state = 'over'; Sfx.lose();
+    state = 'over'; guest = null; units = units.filter(u => u.team !== 2); Sfx.lose();
     pendingPanel = { t: 70, panel: {
-      title: 'Seus Pokémon desmaiaram...', sub: 'Tente de novo com outra estratégia.', caught: [],
+      title: 'Seus Pokémon desmaiaram...', sub: 'Tente de novo com outra estratégia.', lines: [], caught: [],
       buttons: [{ label: 'Tentar de novo', fn: restartStage }, { label: 'Menu', fn: initMenu }] } };
     showMsg('Derrota...', 70);
   }
@@ -535,7 +627,7 @@
     if (scene !== 'battle' || kind !== 'campaign' || state !== 'aim' || charging) return;
     if (ballMode) { ballMode = false; Sfx.click(); showMsg('Pokébola guardada.', 60); return; }
     if (campaign.balls <= 0) { showMsg('Você está sem Pokébolas!', 90); Sfx.ballFail(); return; }
-    if (!teams[1].units.some(u => u.alive && u.hp / u.maxhp <= WEAK)) {
+    if (!teams[1].units.concat(guest ? [guest] : []).some(u => u.alive && !u.hidden && u.hp / u.maxhp <= WEAK)) {
       showMsg('Nenhum inimigo está fraco o bastante!', 100); Sfx.ballFail(); return;
     }
     ballMode = true; Sfx.select();
@@ -562,7 +654,7 @@
     dirty = true;
   }
 
-  const sideColor = u => (teams[u.team] ? teams[u.team].color : '#fff');
+  const sideColor = u => (u.team === 2 ? GUEST_COL : teams[u.team] ? teams[u.team].color : '#fff');
 
   function explode(x, y, p) {
     const wp = p.wp, style = wp.style;
@@ -570,7 +662,7 @@
     focus = { x, y };
     cam.shake = Math.max(cam.shake, wp.boom / 6);
     Sfx.boom(style);
-    if (wp.boom >= 40 || style === 'thunder') { flash.a = Math.min(0.5, wp.boom / 100); flash.col = { fire: '#ffd9a0', dragon: '#c8b0ff', thunder: '#fffbb0' }[style] || '#ffffff'; }
+    if (wp.boom >= 40 || style === 'thunder') { flash.a = Math.min(0.5, wp.boom / 100); flash.col = { fire: '#ffd9a0', dragon: '#c8b0ff', thunder: '#fffbb0', rock: '#e8dcc0' }[style] || '#ffffff'; }
     carve(x, y, wp.carve);
     fx.push({ x, y, t: 0, max: 36, r: wp.boom, fill: FX_FILL[style] });
     burst(x, y, style);
@@ -582,11 +674,12 @@
       const dmg = Math.round(wp.dmg * k * mult);
       if (dmg > 0) {
         u.hp -= dmg; u.hurt = 24; anyHurt = true;
+        if (p.ownerUnit && p.ownerUnit.team === 0 && u.team > 0) p.ownerUnit.dealt += dmg;
         floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 18, t: 0, text: '-' + dmg, col: sideColor(u) });
         if (mult > 1 && k > 0.2) { sup = true; floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 34, t: 6, text: 'Super efetivo!', col: '#ff9a1a', size: 12 }); }
         else if (mult < 1 && k > 0.2) { weak = true; floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 34, t: 6, text: 'Pouco efetivo...', col: '#b8c0cc', size: 12 }); }
       }
-      if (wp.web && k > 0.15) { u.webbed = true; floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 34, t: 6, text: 'Preso! Perde a vez', col: '#ffffff', size: 12 }); }
+      if (wp.web && k > 0.15 && !(u.team === 2 && u.webbed)) { u.webbed = true; floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 34, t: 6, text: 'Preso! Perde a vez', col: '#ffffff', size: 12 }); }
       if (wp.push) {
         const dir = (u.x - x) >= 0 ? 1 : -1;
         u.x = clamp(u.x + dir * wp.push * k, 8, W - 8);
@@ -612,6 +705,12 @@
     const u = activeUnit(); if (!u) return;
     const S = spOf(u), a = angle * Math.PI / 180, sp = 3 + power * 0.075;
     u.face = Math.cos(a) >= 0 ? 1 : -1;
+    if (!ballMode && WEAPONS[S.weapon].none) {
+      u.hop = 1; splashU = u; state = 'skip'; skipT = 80; walkBudget = 0; charging = false; power = 0; ai = null;
+      Sfx.chargeStop(); Sfx.splash();
+      showMsg(`${u.name} usou Splash! Mas nada aconteceu...`, 80);
+      return;
+    }
     if (ballMode) {
       launch('ball', u.x + u.face * 8 * u.scale, u.y - S.h * 0.6 * u.scale, a, sp, 'player', u);
       campaign.balls--; ballMode = false; Sfx.ballThrow();
@@ -635,7 +734,7 @@
   }
 
   // ---------- Efeitos do tiro ----------
-  const STYLE_COL = { fire: '#ffb020', leaf: '#7be07b', water: '#9fe0ff', thunder: '#fff27a', normal: '#fff6c8', gust: '#ffffff', web: '#ffffff', dragon: '#9a6aff' };
+  const STYLE_COL = { rock: '#c8b898', fire: '#ffb020', leaf: '#7be07b', water: '#9fe0ff', thunder: '#fff27a', normal: '#fff6c8', gust: '#ffffff', web: '#ffffff', dragon: '#9a6aff' };
 
   function muzzle(x, y, style, a) {
     const col = STYLE_COL[style] || '#fff';
@@ -675,6 +774,9 @@
         break;
       case 'web':
         if (e) addPart({ x, y, vx: rnd(-0.2, 0.2), vy: rnd(0, 0.3), g: 0.02, life: 44, max: 44, r: 1.2, col: '#ffffff', kind: 'drop' });
+        break;
+      case 'rock':
+        if (e) addPart({ x: x + rnd(-3, 3), y: y + rnd(-3, 3), vx: rnd(-0.4, 0.4), vy: rnd(-0.2, 0.5), g: 0.05, life: 28, max: 28, r: rnd(1.4, 2.6), col: pick(['#b8a898', '#8c8f94', '#d8c8b0']), kind: 'ember' });
         break;
     }
   }
@@ -736,7 +838,8 @@
     startCapture(u, p.x, p.y, ok, success => {
       if (success) {
         u.alive = false; u.captured = true; u.hp = 0;
-        campaign.roster.push(u.sp); stageCaught.push(u.sp);
+        campaign.roster.push(u.sp); campaign.xp.push(0); stageCaught.push(u.sp);
+        if (u === guest) { guest = null; gCool = 1 + Math.floor(Math.random() * 3); units = units.filter(v => v !== u); }
       }
       state = 'settle';
     });
@@ -841,11 +944,16 @@
       }
     }
     teams.forEach(fixCur);
+    if (guest && !guest.alive) { guest = null; gCool = 1 + Math.floor(Math.random() * 3); }
+    units = units.filter(u => u.team !== 2 || u.alive);
 
     if (kind === 'campaign') {
       if (!teamAlive(teams[1])) { stageClear(); return; }
       if (!teamAlive(teams[0])) { stageLose(); return; }
-      turnTeam = 1 - turnTeam;
+      if (lastShotGuest) { lastShotGuest = false; turnTeam = 0; startTurn(); return; }
+      const next = 1 - turnTeam;
+      turnTeam = next;
+      if (next === 0 && roundEnd()) return;     // fim da rodada: o visitante pode aparecer, atacar ou sumir
       startTurn();
       return;
     }
@@ -873,6 +981,75 @@
     startTurn();
   }
 
+  // ---------- Visitantes neutros (atacam qualquer lado, podem ser capturados) ----------
+  function roundEnd() {
+    const defs = STAGES[stageIdx].guests || [];
+    if (guest && guest.alive) {
+      const g = guest; gT = 0;
+      if (g.turnsLeft <= 0) {
+        gMode = 'leave'; state = 'guest';
+        showMsg(`${g.name} foi embora...`, 80); Sfx.weakEff();
+        return true;
+      }
+      g.turnsLeft--;
+      if (g.webbed) {
+        g.webbed = false; g.stuck = true; gMode = 'stuck'; state = 'guest';
+        showMsg(`${g.name} está preso na teia!`, 70); Sfx.weakEff();
+        return true;
+      }
+      gMode = 'warn'; gDelay = 100; gSide = Math.random() < 0.5 ? -1 : 1; g.face = gSide; state = 'guest';
+      showMsg(`${g.name} vai atacar a ${gSide < 0 ? 'ESQUERDA' : 'DIREITA'}!`, 100); Sfx.voltWarn();
+      return true;
+    }
+    if (!defs.length) return false;
+    if (gCool > 0) { gCool--; return false; }
+    // sorteio por raridade: quanto menor o número, mais difícil de aparecer
+    const def = defs.slice().sort(() => Math.random() - 0.5).find(d => Math.random() < d.rarity);
+    if (!def) return false;
+    let x = 400, tries = 0;
+    do { x = rnd(310, 490); tries++; } while (tries < 40 && (gy(x) > WATER - 40 || units.some(v => v.alive && Math.abs(v.x - x) < 42)));
+    if (gy(x) > WATER - 40) return false;
+    const g = mkUnit(def.sp, x, 2, Math.random() < 0.5 ? 1 : -1, 1);
+    g.capScale = 0; g.turnsLeft = 2 + (def.rarity >= 0.2 ? 1 : 0) + Math.floor(Math.random() * 2);
+    guest = g; units.push(g); gMode = 'appear'; gT = 0; state = 'guest';
+    showMsg(`${g.name} selvagem apareceu!`, 100); Sfx.ballCatch();
+    spray(x, g.y - 14, 14, '#fff27a', 3.2, 0.02, 40, 2, 'spark');
+    return true;
+  }
+
+  function guestShoot() {
+    const g = guest, S = spOf(g), wp = WEAPONS[S.weapon];
+    if (!g || wp.none) { lastShotGuest = true; state = 'settle'; return; }
+    const deg = rnd(35, 72), a = (gSide > 0 ? deg : 180 - deg) * Math.PI / 180;
+    const mx = g.x + gSide * S.mouth[0] * g.scale, my = g.y + S.mouth[1] * g.scale;
+    launch(S.weapon, mx, my, a, rnd(5.2, 8.4), 'guest', g);
+    g.breath = 18; lastShotGuest = true; state = 'flying'; Sfx.shoot(wp.style);
+    muzzle(mx, my, wp.style, a);
+  }
+
+  function stepGuest() {
+    const g = guest;
+    if (!g || !g.alive) { guest = null; startTurn(); return; }
+    gT++;
+    if (gMode === 'appear') {
+      g.capScale = Math.min(1, gT / 30);
+      if (gT >= 90) startTurn();
+    } else if (gMode === 'warn') {
+      g.face = gSide;
+      if (gT >= gDelay) guestShoot();
+    } else if (gMode === 'stuck') {
+      if (gT >= 70) { g.stuck = false; startTurn(); }
+    } else if (gMode === 'leave') {
+      g.capScale = Math.max(0.001, 1 - gT / 30);
+      if (gT === 30) { spray(g.x, g.y - 14, 14, '#ffffff', 3, 0.02, 36, 2, 'spark'); }
+      if (gT >= 40) {
+        units = units.filter(v => v !== g); guest = null;
+        gCool = 1 + Math.floor(Math.random() * 3);        // pode voltar depois (ou não)
+        startTurn();
+      }
+    }
+  }
+
   // ---------- IA dos selvagens ----------
   function simShot(wp, shooter, x0, y0, a, sp) {
     let x = x0, y = y0, vx = sp * wp.speed * Math.cos(a), vy = -sp * wp.speed * Math.sin(a);
@@ -882,7 +1059,7 @@
         if (x < -60 || x > W + 60 || y > H + 60 || y >= WATER) return null;
         if (x >= 0 && x < W && y >= heights[Math.round(x)]) return { x, y };
         for (const v of units) {
-          if (!v.alive || v.hidden || v === shooter) continue;
+          if (!v.alive || v.hidden || v === shooter || (wp.style === 'ball' && v.team === 0)) continue;
           const c = centerOf(v);
           if (Math.hypot(c.x - x, c.y - y) < hitRof(v)) return { x, y };
         }
@@ -898,6 +1075,7 @@
       const c = centerOf(v), d = Math.hypot(c.x - lx, c.y - ly);
       if (d >= wp.boom) continue;
       const dmg = wp.dmg * (1 - d / wp.boom) * typeMult(wp.type, spOf(v).types);
+      if (v.team === 2) continue;                                   // visitante neutro: a IA ignora
       if (v.team === shooter.team) sc -= dmg * 1.3;
       else sc += dmg + (dmg >= v.hp ? 30 : 0);
     }
@@ -906,7 +1084,7 @@
 
   function planShot(u) {
     const S = spOf(u), wp = WEAPONS[S.weapon];
-    const foes = units.filter(v => v.alive && !v.hidden && v.team !== u.team);
+    const foes = units.filter(v => v.alive && !v.hidden && v.team !== u.team && v.team !== 2);
     let best = null, bestS = -1e9, near = null, nearD = 1e9;
     for (let ang = 8; ang <= 172; ang += 3) {
       const a = ang * Math.PI / 180, face = Math.cos(a) >= 0 ? 1 : -1;
@@ -935,7 +1113,7 @@
 
   function nearestFoe(u) {
     let best = null, bd = 1e9;
-    for (const v of units) if (v.alive && !v.hidden && v.team !== u.team) { const d = Math.abs(v.x - u.x); if (d < bd) { bd = d; best = v; } }
+    for (const v of units) if (v.alive && !v.hidden && v.team !== u.team && v.team !== 2) { const d = Math.abs(v.x - u.x); if (d < bd) { bd = d; best = v; } }
     return best;
   }
 
@@ -999,6 +1177,8 @@
         spray(x, y, 14, '#ffffff', 3, 0.0, 44, 2.6, 'drop'); spray(x, y, 6, '#cfe0ff', 2, 0.0, 50, 3, 'drop'); break;
       case 'web':
         spray(x, y, 14, '#ffffff', 2.8, 0.03, 70, 1.6, 'drop'); break;
+      case 'rock':
+        spray(x, y, 18, '#8c8f94', 4, 0.17, 70, 3.4, 'chunk'); spray(x, y, 10, '#b8a898', 3, 0.15, 60, 2.6, 'chunk'); smoke(x, y, 6); break;
       case 'dragon':
         spray(x, y, 16, '#9a6aff', 4, 0.04, 50, 2.2, 'ember'); spray(x, y, 10, '#5b3a20', 3.6, 0.15, 60, 2.8, 'chunk'); smoke(x, y, 4); break;
       default:
@@ -1108,11 +1288,13 @@
       for (let i = 0; i < 5; i++) s += `<g opacity="${i < intro.balls ? 1 : 0.18}">${ballIcon(26 + i * 28, 36, 7)}</g>`;
       return s;
     }
-    if (scene !== 'battle' || state === 'over') return '';
-    const isVolt = state === 'volt' || lastShotVolt;
+    if (scene !== 'battle' || state === 'over' || state === 'evolve') return '';
+    const isVisit = !!guest && (state === 'guest' || lastShotGuest);
+    const isVolt = state === 'volt' || lastShotVolt || isVisit;
     const t = teams[turnTeam], u = activeUnit();
     let name, col;
-    if (isVolt) { name = 'Pikachu'; col = '#ffd83a'; }
+    if (isVisit) { name = guest.name + ' (visitante)'; col = GUEST_COL; }
+    else if (isVolt) { name = 'Pikachu'; col = '#ffd83a'; }
     else if (kind === 'campaign') { name = t.ai ? `${u.name} selvagem` : u.name; col = t.color; }
     else { name = t.name; col = t.color; }
     const walkW = (Math.max(0, walkBudget) / WALK_MAX) * 170;
@@ -1144,8 +1326,9 @@
   function msgSvg() {
     if (!msg) return '';
     const w = Math.min(780, msg.length * 12.5 + 40);
-    return `<rect x="${f1(400 - w / 2)}" y="206" width="${f1(w)}" height="44" rx="14" fill="#000" opacity=".45"/>
-            <text x="400" y="235" text-anchor="middle" font-size="22" font-weight="bold" fill="#fff">${msg}</text>`;
+    const my = state === 'guest' ? 84 : 206;       // durante o visitante a mensagem sobe para não cobri-lo
+    return `<rect x="${f1(400 - w / 2)}" y="${my}" width="${f1(w)}" height="44" rx="14" fill="#000" opacity=".45"/>
+            <text x="400" y="${my + 29}" text-anchor="middle" font-size="22" font-weight="bold" fill="#fff">${msg}</text>`;
   }
 
   function projSvg(p) {
@@ -1195,6 +1378,15 @@
           <path d="M-12,-5 Q4,-12 10,0 Q4,-5 -12,-2 Z" fill="#fff" stroke="#9ab8e8" stroke-width=".9"/>
           <path d="M-12,5 Q4,12 10,0 Q4,5 -12,2 Z" fill="#e3eeff" stroke="#9ab8e8" stroke-width=".9"/></g>`;
       }
+      case 'rock': {
+        p.trail.forEach((tp, i) => {
+          const k = (i + 1) / p.trail.length;
+          ph += `<circle cx="${f1(tp.x)}" cy="${f1(tp.y)}" r="${f1(1.5 + 3 * k)}" fill="#c8b898" opacity="${(k * 0.4).toFixed(2)}"/>`;
+        });
+        return ph + `<g transform="translate(${f1(p.x)} ${f1(p.y)}) rotate(${(frameNo * 9 + p.spin * 50) % 360})">
+          <path d="M-8,-3 L-3,-8 L5,-7 L9,-1 L6,6 L-3,8 L-9,3 Z" fill="url(#gRock)" stroke="#3c3c46" stroke-width="1.3" stroke-linejoin="round"/>
+          <path d="M-4,-2 L1,-4 M0,3 L4,1" stroke="#4a4a56" stroke-width=".9" stroke-linecap="round"/></g>`;
+      }
       case 'web':
         p.trail.forEach((tp, i) => {
           const k = (i + 1) / p.trail.length;
@@ -1240,8 +1432,8 @@
       if (u.hidden && !(cap && cap.u === u)) continue;
       if (u.hidden) continue;
       let extra = '';
-      const isFoe = kind === 'campaign' && u.team === 1;
-      let s = unitSvg(u);
+      const isFoe = kind === 'campaign' && u.team >= 1;
+      let s = unitSvg(u, u.team === 2 ? { extra: `<text x="0" y="-26" text-anchor="middle" font-size="8.5" font-weight="bold" fill="${GUEST_COL}" stroke="#000" stroke-width=".5" letter-spacing="1">VISITANTE</text>` } : {});
       if (isFoe && u.hp / u.maxhp <= WEAK && state !== 'capture') s = s.replace(/<\/g>$/, `${weakMarker(u)}</g>`);
       if (u === act && (state === 'aim' || state === 'ai') && !teams[turnTeam].ai) {
         s = s.replace(/<\/g>$/, `<path transform="translate(0 ${f1(-(spOf(u).h * u.scale + 34) + Math.sin(frameNo * 0.15) * 3)})" d="M-6,0 L6,0 L0,8 Z"
@@ -1435,10 +1627,12 @@
         ${typeChips(S.types, x + cw / 2, y + 118)}
         <text x="${x + cw / 2}" y="${y + 134}" text-anchor="middle" font-size="9.5" fill="#cde">${wp.label}</text>
         ${adv ? `<text x="${x + cw - 10}" y="${y + 20}" text-anchor="end" font-size="14" font-weight="bold" fill="#8fe070">▲</text>` : ''}
+        ${S.evo ? `<rect x="${x + 14}" y="${y + 140}" width="${cw - 28}" height="4" rx="2" fill="#000" opacity=".55"/><rect x="${x + 14}" y="${y + 140}" width="${f1((cw - 28) * clamp(campaign.xp[i] / S.evoXp, 0, 1))}" height="4" rx="2" fill="#6ad0ff"/>` : ''}
         ${picked ? `<text x="${x + 10}" y="${y + 20}" font-size="14" font-weight="bold" fill="#8fe070">✔</text>` : ''}</g>`;
     });
     s += `<text x="400" y="440" text-anchor="middle" font-size="13" fill="#fff">Escolhidos: ${campaign.sel.length}/3 &nbsp;·&nbsp; Pokébolas: ${campaign.balls}</text>`;
     s += uiBtn(280, 450, 240, 40, 'Começar ▶', () => {
+      campaign.partyIdx = campaign.sel.slice();
       campaign.party = campaign.sel.map(i => campaign.roster[i]);
       Sfx.select(); initStage(stageIdx);
     }, { fs: 18 });
@@ -1448,12 +1642,14 @@
 
   function panelSvg() {
     const P = panel;
-    const bx = 130, by = 90, bw = 540, bh = P.caught.length ? 320 : 250;
+    const nl = (P.lines || []).length, bx = 130, by = 90, bw = 540, bh = (P.caught.length ? 320 : 250) + nl * 20;
     let s = `<rect width="800" height="500" fill="#000" opacity=".5"/>
       <rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="20" fill="#13203a" fill-opacity=".96" stroke="#ffd34d" stroke-width="3"/>
       <text x="400" y="${by + 54}" text-anchor="middle" font-size="30" font-weight="800" fill="#ffd34d">${P.title}</text>
       <text x="400" y="${by + 82}" text-anchor="middle" font-size="15" fill="#fff">${P.sub}</text>`;
     let y = by + 100;
+    (P.lines || []).forEach((ln, i) => { s += `<text x="400" y="${y + 6 + i * 20}" text-anchor="middle" font-size="13.5" fill="${ln.includes('evoluiu') ? '#6ad0ff' : '#cfe'}" font-weight="${ln.includes('evoluiu') ? 'bold' : 'normal'}">${ln}</text>`; });
+    y += nl * 20;
     if (P.caught.length) {
       s += `<text x="400" y="${y + 18}" text-anchor="middle" font-size="13" fill="#8fe070" font-weight="bold">Capturados nesta fase</text>`;
       const n = P.caught.length, step = 90, sx = 400 - (n - 1) * step / 2;
@@ -1473,6 +1669,7 @@
     let s = '';
     if (scene === 'menu') s = menuSvg();
     else if (scene === 'team') s = teamSvg();
+    if (evo) s = evolveSvg();
     if (panel) { uiList = []; s += panelSvg(); }
     if (uiSel >= uiList.length) uiSel = Math.max(0, uiList.length - 1);
     $('overlay').innerHTML = s;
@@ -1484,8 +1681,8 @@
   else { $('soundBtn').setAttribute('transform', 'translate(124 0)'); $('menuBtn').setAttribute('transform', 'translate(124 0)'); }
 
   function syncButtons() {
-    const b = scene === 'battle' && !panel, i = scene === 'intro';
-    const camp = scene === 'battle' && kind === 'campaign' && !panel;
+    const b = scene === 'battle' && !panel && state !== 'evolve', i = scene === 'intro';
+    const camp = b && kind === 'campaign';
     const show = { left: b, right: b, up: b || i, down: b || i, fire: b || i, switch: b, restart: b || i,
                    ball: camp, menu: b || i, sound: true };
     // na fase da cidade os botões vão para a esquerda, para não cobrir a lagoa e os alvos da direita
@@ -1554,6 +1751,7 @@
   function uiHit(p) { return uiList.findIndex(b => p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h); }
   $('game').addEventListener('pointerdown', e => {
     if (e.target.closest && e.target.closest('.btn')) return;
+    if (evo) { Sfx.unlock(); skipEvolve(); return; }
     if (!uiList.length) return;
     const i = uiHit(svgPoint(e));
     if (i >= 0 && !uiList[i].disabled) { uiSel = i; Sfx.unlock(); activate(i); }
@@ -1577,6 +1775,11 @@
 
   addEventListener('keydown', e => {
     if (e.key === 'm' || e.key === 'M') { toggleSound(); return; }
+    if (evo) {
+      if (e.key === 'Escape') initMenu();
+      else if (e.key === 'Enter' || e.code === 'Space') { e.preventDefault(); if (!e.repeat) skipEvolve(); }
+      return;
+    }
     // menus, seleção de time e painéis
     if (scene === 'menu' || scene === 'team' || panel) {
       const n = uiList.length; if (!n) return;
@@ -1618,13 +1821,18 @@
       }
     }
     if (state === 'ai') stepAI();
-    if (state === 'skip' && --skipT <= 0) state = 'settle';
+    if (state === 'skip' && splashU) splashU.hop++;
+    if (state === 'skip' && --skipT <= 0) { if (splashU) { splashU.hop = 0; splashU = null; } state = 'settle'; }
+    if (state === 'guest') stepGuest();
+    if (state === 'evolve') stepEvolve();
     if (state === 'flying') stepProjs();
     if (state === 'volt' && --voltDelay <= 0) voltShoot();
     if (state === 'capture' && cap) stepCapture();
     if (state === 'settle') settle();
     if (pendingPanel && --pendingPanel.t <= 0) {
-      panel = pendingPanel.panel; pendingPanel = null; uiSel = 0; syncButtons();
+      const pp = pendingPanel; pendingPanel = null;
+      if (pp.evos && pp.evos.length) startEvolutions(pp.evos, pp.panel);
+      else { panel = pp.panel; uiSel = 0; syncButtons(); }
     }
   }
 
@@ -1652,7 +1860,9 @@
 
   // para testes automatizados
   MS.debug = {
-    get: () => ({ scene, kind, state, stageIdx, units, teams, campaign, cap, intro, panel, angle, power, wind, ballMode, turnTeam, ai }),
+    get: () => ({ scene, kind, state, stageIdx, units, teams, campaign, cap, intro, panel, angle, power, wind, ballMode, turnTeam, ai, guest, gCool, gMode, evo }),
+    forceGuest: sp => { gCool = 0; STAGES[stageIdx].guests = [{ sp, rarity: 1 }]; },
+    skipEvolve, stageClear,
     initMenu, initVersus, initIntro, initStage, newCampaign, beginStage, fire, toggleBall, pickTarget,
     setAngle: a => { angle = a; }, setPower: p => { power = p; },
     // procura (ângulo, força) para acertar um alvo com a arma 'wk' a partir do personagem da vez
@@ -1666,7 +1876,7 @@
           const r = simShot(wp, u, x0, y0, a, 3 + pw * 0.075);
           if (!r) continue;
           const c = centerOf(target);
-          if (Math.hypot(c.x - r.x, c.y - r.y) < 12) return { ang, pw };
+          if (Math.hypot(c.x - r.x, c.y - r.y) < Math.max(12, hitRof(target) + 1)) return { ang, pw };
         }
       }
       return null;

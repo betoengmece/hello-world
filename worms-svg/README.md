@@ -10,9 +10,11 @@ Jogo de artilharia por turnos feito inteiramente com SVG. Personagens, terreno d
 1. **Fase inicial (cidade):** você é o treinador e tem **5 Pokébolas**. Acerte uma em quem quiser como parceiro.
    Os 3 iniciais (Charmander no terraço, Bulbasaur atrás do muro, Squirtle na lagoa) são difíceis de acertar; Pidgey, Rattata e Caterpie são fáceis. Quem a bola acertar primeiro vira o seu parceiro (se as bolas acabarem, um dos fracos decide te acompanhar).
 2. **5 fases** em cenários diferentes: Rota 1, Floresta de Viridian, Praia, Caverna e o Covil do Dragão (chefe).
-3. Cada fase é uma batalha por turnos, no mesmo estilo de tiro: você contra os Pokémon selvagens, que miram sozinhos (a IA calcula o tiro e erra menos a cada fase).
+3. Cada fase é uma batalha por turnos, no mesmo estilo de tiro: você contra os Pokémon selvagens, que mirem sozinhos (a IA calcula o tiro e erra menos a cada fase).
 4. **Captura:** quando um inimigo fica fraco (≤ 35% de PV) aparece uma Pokébola sobre ele. Aperte **B** (ou o botão **BOLA**), mire e arremesse. Se acertar um inimigo fraco, a chance de captura depende da espécie e de quão machucado ele está (aparece em % quando a bola está ativa). Acertar um inimigo ainda forte desperdiça a bola.
-5. Seus Pokémon se curam entre as fases. Quando seu time passa de 3, você escolhe quais 3 levar. O progresso é salvo no navegador ao concluir cada fase.
+5. **Evolução:** ao vencer uma fase, quem lutou ganha XP (mais se causou dano). Ao encher a barra (aparece na tela de escolha do time) o Pokémon evolui, com uma cena de evolução: Charmander → Charmeleon, Bulbasaur → Ivysaur, Squirtle → Wartortle, Rattata → Raticate, Pidgey → Pidgeotto, Caterpie → Butterfree, Magikarp → Gyarados, Dratini → Dragonair. Gyarados e as evoluções são bem mais fortes.
+6. **Visitantes neutros:** em cada fase um Pokémon neutro pode aparecer no meio do campo ("VISITANTE"), ficar por 2 a 4 rodadas atacando um lado sorteado (avisa antes qual), e depois ir embora e voltar mais tarde, ou não. Cada cenário tem os seus, com raridades diferentes (na Caverna, o Onix é o mais comum). Dá para derrubá-lo ou, melhor, enfraquecer e capturar com a Pokébola.
+7. Seus Pokémon se curam entre as fases. Quando seu time passa de 3, você escolhe quais 3 levar. O progresso é salvo no navegador ao concluir cada fase.
 
 ### Versus
 Três times (Fogo, Planta, Água) jogam por turnos no mesmo aparelho, com um Pikachu neutro no meio do campo que, ao fim de cada rodada, atira para um lado sorteado.
@@ -29,12 +31,18 @@ Ataques com o tipo certo causam **o dobro de dano** ("Super efetivo!"); com o ti
 | Pikachu | Elétrico | Trovoada: raio em ziguezague |
 | Rattata | Normal | Investida |
 | Pidgey | Normal/Voador | Ventania: duas rajadas que empurram |
-| Caterpie | Inseto | Teia: dano baixo, mas o atingido fica preso e perde a vez no próximo turno do seu time |
+| Caterpie | Inseto | Teia: o atingido perde a caminhada no próximo turno |
 | Starmie | Água/Psíquico | Hidro Pulso: dois jatos |
 | Magikarp | Água | Splash: não faz nada (mas é fácil de capturar) |
 | Dratini | Dragão | Fúria do Dragão (chefe da campanha) |
+| Onix | Pedra/Terra | Lançar Pedra: pedra pesada que abre cratera (aparece como visitante na Caverna e no Covil) |
+| Charmeleon / Ivysaur / Wartortle | Fogo / Planta / Água | versões mais fortes dos ataques iniciais |
+| Raticate / Pidgeotto | Normal / Normal+Voador | Hiperpresa / Furacão |
+| Butterfree | Inseto/Voador | Vento Prateado: três rajadas |
+| Gyarados | Água/Voador | Hidro Bomba |
+| Dragonair | Dragão | Cometa Dragão |
 
-Relações usadas: Fogo > Planta, Inseto · Água > Fogo · Planta > Água · Elétrico > Água, Voador · Inseto > Planta, Psíquico · Voador > Planta, Inseto · Dragão > Dragão. Os pares inversos (por exemplo Fogo contra Água) causam metade do dano.
+Relações usadas: Pedra > Fogo, Voador, Inseto · Terra > Fogo, Elétrico, Pedra · Água/Planta > Terra, Pedra · Fogo > Planta, Inseto · Água > Fogo · Planta > Água · Elétrico > Água, Voador · Inseto > Planta, Psíquico · Voador > Planta, Inseto · Dragão > Dragão (e resistências inversas, como Fogo < Água e Planta < Fogo).
 
 ## Controles
 
@@ -51,11 +59,8 @@ Relações usadas: Fogo > Planta, Inseto · Água > Fogo · Planta > Água · El
 
 **No celular:** botões na tela (◀ ▶ andar, ▲ ▼ mirar, segure TIRO para carregar e solte para atirar, BOLA, ⇄ troca, ↻ reinicia, ☰ menu, 🔊 som). Jogue com o celular deitado. Menus funcionam por toque.
 
-O ângulo da mira é lembrado: o último usado continua no turno seguinte e ao reiniciar a fase.
-
 ## Visual 2.5D e som
 
-- Cada ataque tem seu efeito: clarão na boca, rastro de partículas no voo (brasas, gotas, folhas, faíscas, rajadas, fios de teia) e clarão de tela nas explosões fortes.
 - Câmera com zoom que acompanha os tiros e a captura, treme nas explosões e tem camadas de parallax (céu, montanhas, prédios/pinheiros, terreno e capim em primeiro plano).
 - Terreno com espessura, camadas de rocha e grama chamuscada nas crateras; cada fase tem seu tema (campo, floresta, praia, caverna, montanha).
 - Todo o som é sintetizado no navegador (Web Audio), sem arquivos.

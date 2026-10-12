@@ -103,6 +103,9 @@
           case 'web':
             tone({ type: 'square', f: 1500, f2: 700, t: 0.18, vol: 0.05 });
             noise({ t: 0.25, vol: 0.12, ftype: 'highpass', f: 4500 }); break;
+          case 'rock':
+            tone({ type: 'square', f: 140, f2: 60, t: 0.25, vol: 0.14 });
+            noise({ t: 0.3, vol: 0.3, ftype: 'lowpass', f: 900, f2: 200 }); break;
           case 'dragon':
             noise({ t: 0.7, vol: 0.35, ftype: 'lowpass', f: 1200, f2: 150 });
             tone({ type: 'sawtooth', f: 130, f2: 55, t: 0.6, vol: 0.14 });
@@ -132,6 +135,10 @@
           case 'web':
             noise({ t: 0.25, vol: 0.2, ftype: 'highpass', f: 3500 });
             tone({ f: 200, f2: 90, t: 0.15, vol: 0.15 }); break;
+          case 'rock':
+            noise({ t: 0.9, vol: 0.65, f: 1100, f2: 70 });
+            tone({ type: 'square', f: 90, f2: 30, t: 0.5, vol: 0.4 });
+            for (let i = 0; i < 4; i++) noise({ t: 0.08, vol: 0.2, ftype: 'bandpass', f: 600, q: 2, delay: 0.15 + i * 0.09 }); break;
           case 'dragon':
             noise({ t: 1.1, vol: 0.65, f: 1200, f2: 60 });
             tone({ type: 'sawtooth', f: 100, f2: 28, t: 0.8, vol: 0.5 }); break;
@@ -169,6 +176,19 @@
       ballShake() { tone({ type: 'square', f: 420, t: 0.05, vol: 0.1 }); tone({ type: 'square', f: 560, t: 0.05, vol: 0.1, delay: 0.09 }); },
       ballCatch() { [660, 880, 1100, 1320, 1760].forEach((f, i) => tone({ type: 'triangle', f, t: 0.25, vol: 0.14, delay: i * 0.1 })); },
       ballFail()  { tone({ type: 'sawtooth', f: 500, f2: 150, t: 0.4, vol: 0.1 }); noise({ t: 0.3, vol: 0.12, f: 1800, f2: 400 }); },
+
+      // evolução: brilho que sobe por ~3,5 s e fanfarra no fim
+      evolve() {
+        for (let i = 0; i < 28; i++) {
+          const f = 330 + i * 38 + (i % 2) * 40;
+          tone({ type: 'triangle', f, t: 0.16, vol: 0.09, delay: i * (0.17 - i * 0.003) });
+        }
+        tone({ type: 'sine', f: 300, f2: 1400, t: 3.4, vol: 0.05 });
+      },
+      evolveDone() {
+        [523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((f, i) => tone({ type: 'triangle', f, t: 0.5, vol: 0.14, delay: i * 0.12 }));
+        [523.25, 659.25, 783.99].forEach(f => tone({ type: 'sine', f, t: 1.2, vol: 0.1, delay: 0.7 }));
+      },
 
       chargeStart() {
         if (!ready()) return;

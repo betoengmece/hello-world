@@ -29,20 +29,20 @@
   <defs>
     <!-- céu e cenário -->
     <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#3a78c2"/><stop offset=".55" stop-color="#8cc4ea"/><stop offset="1" stop-color="#f3e2b8"/>
+      <stop id="skyS0" offset="0" stop-color="#3a78c2"/><stop id="skyS1" offset=".55" stop-color="#8cc4ea"/><stop id="skyS2" offset="1" stop-color="#f3e2b8"/>
     </linearGradient>
     <radialGradient id="sunGlow">
       <stop offset="0" stop-color="#fff6c8" stop-opacity=".9"/><stop offset=".4" stop-color="#ffe7a0" stop-opacity=".35"/>
       <stop offset="1" stop-color="#ffe7a0" stop-opacity="0"/>
     </radialGradient>
     <linearGradient id="mtFar" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#9db8d6"/><stop offset="1" stop-color="#c9d9e6"/>
+      <stop id="farS0" offset="0" stop-color="#9db8d6"/><stop id="farS1" offset="1" stop-color="#c9d9e6"/>
     </linearGradient>
     <linearGradient id="mtNear" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#6f9f84"/><stop offset="1" stop-color="#a8c7a0"/>
+      <stop id="nearS0" offset="0" stop-color="#6f9f84"/><stop id="nearS1" offset="1" stop-color="#a8c7a0"/>
     </linearGradient>
     <linearGradient id="dirt" gradientUnits="userSpaceOnUse" x1="0" y1="160" x2="0" y2="500">
-      <stop offset="0" stop-color="#9a6a3c"/><stop offset=".45" stop-color="#6e4526"/><stop offset="1" stop-color="#3a2414"/>
+      <stop id="dirtS0" offset="0" stop-color="#9a6a3c"/><stop id="dirtS1" offset=".45" stop-color="#6e4526"/><stop id="dirtS2" offset="1" stop-color="#3a2414"/>
     </linearGradient>
     <pattern id="dirtTex" width="48" height="40" patternUnits="userSpaceOnUse">
       <ellipse cx="8" cy="9" rx="3.5" ry="2.2" fill="#2e1b0e" opacity=".35"/>
@@ -55,10 +55,10 @@
       <circle cx="34" cy="36" r=".8" fill="#d9b88d" opacity=".4"/>
     </pattern>
     <linearGradient id="seaBack" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#3b86c4"/><stop offset="1" stop-color="#1b4a7a"/>
+      <stop id="seaBS0" offset="0" stop-color="#3b86c4"/><stop id="seaBS1" offset="1" stop-color="#1b4a7a"/>
     </linearGradient>
     <linearGradient id="seaFront" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#4aa3e0" stop-opacity=".92"/><stop offset="1" stop-color="#123a63"/>
+      <stop id="seaFS0" offset="0" stop-color="#4aa3e0" stop-opacity=".92"/><stop id="seaFS1" offset="1" stop-color="#123a63"/>
     </linearGradient>
     <clipPath id="tclip"><path id="tclipPath"/></clipPath>
 
@@ -94,6 +94,50 @@
       <stop offset="0" stop-color="#fff9b0" stop-opacity=".9"/><stop offset="1" stop-color="#ffe600" stop-opacity="0"/>
     </radialGradient>
 
+
+    <radialGradient id="gPurple" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#d9b4ee"/><stop offset=".55" stop-color="#a468c8"/><stop offset="1" stop-color="#6e3d96"/>
+    </radialGradient>
+    <radialGradient id="gBrown" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#ecbf84"/><stop offset=".55" stop-color="#bf8444"/><stop offset="1" stop-color="#7f5328"/>
+    </radialGradient>
+    <radialGradient id="gCat" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#c8f08a"/><stop offset=".55" stop-color="#7cc84a"/><stop offset="1" stop-color="#4a9a2e"/>
+    </radialGradient>
+    <radialGradient id="gFish" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#ffb08a"/><stop offset=".55" stop-color="#ee5a30"/><stop offset="1" stop-color="#aa2c14"/>
+    </radialGradient>
+    <linearGradient id="gDrat" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8fc4ff"/><stop offset=".6" stop-color="#4f8ae0"/><stop offset="1" stop-color="#3566bd"/>
+    </linearGradient>
+    <radialGradient id="gStar" cx=".4" cy=".35" r=".8">
+      <stop offset="0" stop-color="#e2b8ff"/><stop offset=".6" stop-color="#a36ad8"/><stop offset="1" stop-color="#6a3aa8"/>
+    </radialGradient>
+    <radialGradient id="gRed" cx=".35" cy=".3" r=".8">
+      <stop offset="0" stop-color="#ff9aa8"/><stop offset=".5" stop-color="#e0243e"/><stop offset="1" stop-color="#8a1030"/>
+    </radialGradient>
+    <radialGradient id="hitBoom">
+      <stop offset="0" stop-color="#ffffff"/><stop offset=".45" stop-color="#ffe9b0"/>
+      <stop offset="1" stop-color="#c8a060" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="gustBoom">
+      <stop offset="0" stop-color="#ffffff"/><stop offset=".6" stop-color="#d8e8ff"/>
+      <stop offset="1" stop-color="#9ab8e8" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="webBoom">
+      <stop offset="0" stop-color="#ffffff"/><stop offset=".6" stop-color="#f0f0f0"/>
+      <stop offset="1" stop-color="#bbbbbb" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="dragBoom">
+      <stop offset="0" stop-color="#f0e8ff"/><stop offset=".4" stop-color="#9a6aff"/>
+      <stop offset=".8" stop-color="#4a2ab0"/><stop offset="1" stop-color="#2a1070" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="dragFire">
+      <stop offset="0" stop-color="#f4eaff"/><stop offset=".45" stop-color="#8a5cff"/>
+      <stop offset="1" stop-color="#3a1aa0" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="pondClip"><rect x="600" y="200" width="120" height="233"/></clipPath>
+
     <!-- tiros e efeitos -->
     <radialGradient id="fireball">
       <stop offset="0" stop-color="#fff6b0"/><stop offset=".45" stop-color="#ffa000"/>
@@ -123,13 +167,13 @@
   <!-- fundo -->
   <rect width="800" height="500" fill="url(#sky)"/>
   <g id="Lsky">
-    <circle cx="660" cy="92" r="90" fill="url(#sunGlow)"/>
-    <circle cx="660" cy="92" r="26" fill="#fff3c4"/>
+    <g id="sun"><circle id="sunGlowC" cx="660" cy="92" r="90" fill="url(#sunGlow)"/>
+    <circle id="sunC" cx="660" cy="92" r="26" fill="#fff3c4"/></g>
     <g id="clouds"></g>
   </g>
   <g id="Lfar"><path id="mtFarPath" fill="url(#mtFar)"/></g>
   <g id="Lnear"><path id="mtNearPath" fill="url(#mtNear)" opacity=".9"/></g>
-  <g id="Lmid"><path id="treeline" fill="#4f7f5c" opacity=".9"/></g>
+  <g id="Lmid"><path id="treeline" fill="#4f7f5c" opacity=".9"/><path id="tlWin" fill="#ffe9a0" opacity=".75"/></g>
 
   <!-- mundo (segue a câmera) -->
   <g id="Lworld">
@@ -152,11 +196,13 @@
   <path id="edgeGrassHi" fill="none" stroke="#8fd14f" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" transform="translate(0 -2.5)"/>
   <path id="tufts" fill="none" stroke="#5aa834" stroke-width="1.3" stroke-linecap="round"/>
   <g id="decor"></g>
+  <g id="introBack"></g>
 
   <!-- jogo -->
   <g id="graves"></g>
   <g id="aim"></g>
   <g id="worms"></g>
+  <g id="intro"></g>
   <g id="volt"></g>
   <g id="pshadow"></g>
   <g id="proj"></g>
@@ -182,1088 +228,22 @@
     <g class="btn" data-act="switch"><rect x="676" y="8" width="56" height="44" rx="10"/><text x="704" y="39" style="font-size:22px">⇄</text></g>
     <g class="btn" data-act="restart"><rect x="738" y="8" width="54" height="44" rx="10"/><text x="765" y="39" style="font-size:22px">↻</text></g>
   </g>
+  <g class="btn" id="ballBtn" data-act="ball"><circle cx="766" cy="352" r="28"/><text x="766" y="359" style="font-size:14px">BOLA</text></g>
+  <g class="btn" id="menuBtn" data-act="menu"><rect x="552" y="8" width="56" height="44" rx="10"/><text x="580" y="38" style="font-size:22px">☰</text></g>
   <g class="btn" id="soundBtn" data-act="sound"><rect x="614" y="8" width="56" height="44" rx="10"/><text id="soundIcon" x="642" y="38" style="font-size:20px">🔊</text></g>
+  <g id="overlay" style="pointer-events:none"></g>
 </svg>
 <div id="help">
   <kbd>←</kbd> <kbd>→</kbd> andar &nbsp;·&nbsp; <kbd>↑</kbd> <kbd>↓</kbd> mirar &nbsp;·&nbsp;
-  segure <kbd>ESPAÇO</kbd> para força e solte para atirar &nbsp;·&nbsp;
-  <kbd>TAB</kbd> troca de personagem &nbsp;·&nbsp; <kbd>R</kbd> reinicia &nbsp;·&nbsp; <kbd>M</kbd> som
+  segure <kbd>ESPAÇO</kbd> para força e solte para atirar &nbsp;·&nbsp; <kbd>B</kbd> Pokébola (inimigo fraco) &nbsp;·&nbsp;
+  <kbd>TAB</kbd> troca de parceiro &nbsp;·&nbsp; <kbd>R</kbd> reinicia &nbsp;·&nbsp; <kbd>M</kbd> som &nbsp;·&nbsp; <kbd>ESC</kbd> menu
 </div>
 <div id="rotate">📱 Gire o celular para o modo paisagem (deitado) para jogar melhor.</div>
 </div>
 
-<script>
-(() => {
-  const W = 800, H = 500, WATER = 480;
-  const GRAV = 0.2;          // gravidade base (px/frame²)
-  const WALK_MAX = 120;      // distância máxima de caminhada por turno
-  const MOUTH_X = 11, MOUTH_Y = -18; // boca do personagem
-  const VOLT_X = 400;        // posição do Volt, no meio do campo
-
-  const $ = id => document.getElementById(id);
-  const f1 = v => (+v).toFixed(1);
-
-  // ---------- Som (sintetizado com Web Audio, sem arquivos) ----------
-  const Sfx = (() => {
-    let ctx = null, master = null, musicBus = null, noiseBuf = null, enabled = true;
-    let chargeOsc = null, chargeGain = null, musicNext = 0, musicStep = 0;
-    const r = (a, b) => a + Math.random() * (b - a);
-
-    function unlock() {
-      if (!ctx) {
-        const AC = window.AudioContext || window.webkitAudioContext;
-        if (!AC) return;
-        ctx = new AC();
-        master = ctx.createGain(); master.gain.value = enabled ? 0.55 : 0; master.connect(ctx.destination);
-        musicBus = ctx.createGain(); musicBus.gain.value = 0.09; musicBus.connect(master);
-        noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
-        const d = noiseBuf.getChannelData(0);
-        for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-        musicNext = ctx.currentTime + 0.3;
-        setInterval(scheduleMusic, 30);
-      }
-      if (ctx.state === 'suspended') ctx.resume();
-    }
-    const ready = () => ctx && enabled;
-
-    function tone({ type = 'sine', f = 440, f2 = 0, t = 0.2, vol = 0.3, delay = 0, attack = 0.005, dest = master, at }) {
-      if (!ready()) return;
-      const t0 = at !== undefined ? at : ctx.currentTime + delay;
-      const osc = ctx.createOscillator(), g = ctx.createGain();
-      osc.type = type;
-      osc.frequency.setValueAtTime(f, t0);
-      if (f2) osc.frequency.exponentialRampToValueAtTime(f2, t0 + t);
-      g.gain.setValueAtTime(0.0001, t0);
-      g.gain.exponentialRampToValueAtTime(vol, t0 + attack);
-      g.gain.exponentialRampToValueAtTime(0.0001, t0 + t);
-      osc.connect(g); g.connect(dest || master);
-      osc.start(t0); osc.stop(t0 + t + 0.05);
-    }
-
-    function noise({ t = 0.3, vol = 0.3, ftype = 'lowpass', f = 1000, f2 = 0, q = 1, delay = 0, attack = 0.005 }) {
-      if (!ready()) return;
-      const t0 = ctx.currentTime + delay;
-      const src = ctx.createBufferSource(); src.buffer = noiseBuf; src.loop = true;
-      const flt = ctx.createBiquadFilter(); flt.type = ftype; flt.Q.value = q;
-      flt.frequency.setValueAtTime(f, t0);
-      if (f2) flt.frequency.exponentialRampToValueAtTime(f2, t0 + t);
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(0.0001, t0);
-      g.gain.exponentialRampToValueAtTime(vol, t0 + attack);
-      g.gain.exponentialRampToValueAtTime(0.0001, t0 + t);
-      src.connect(flt); flt.connect(g); g.connect(master);
-      src.start(t0, Math.random() * 0.5); src.stop(t0 + t + 0.05);
-    }
-
-    // musiquinha de fundo: arpejo em 4 acordes + baixo
-    const CHORDS = [[261.63, 329.63, 392.0, 523.25], [220.0, 261.63, 329.63, 440.0],
-                    [174.61, 220.0, 261.63, 349.23], [196.0, 246.94, 293.66, 392.0]];
-    const ARP = [0, 1, 2, 3, 2, 1, 2, 1], STEP = 0.24;
-    function scheduleMusic() {
-      if (!ctx) return;
-      if (musicNext < ctx.currentTime) musicNext = ctx.currentTime + 0.05;
-      while (musicNext < ctx.currentTime + 0.15) {
-        const chord = CHORDS[Math.floor(musicStep / 8) % 4];
-        tone({ type: 'triangle', f: chord[ARP[musicStep % 8]], t: 0.22, vol: 0.5, dest: musicBus, at: musicNext });
-        if (musicStep % 8 === 0) tone({ f: chord[0] / 2, t: STEP * 7.5, vol: 0.7, dest: musicBus, at: musicNext, attack: 0.02 });
-        musicNext += STEP; musicStep++;
-      }
-    }
-
-    const api = {
-      unlock,
-      toggle() {
-        enabled = !enabled;
-        if (master) master.gain.setTargetAtTime(enabled ? 0.55 : 0, ctx.currentTime, 0.02);
-        if (!enabled) api.chargeStop();
-        return enabled;
-      },
-      shoot(wk) {
-        if (wk === 'fogo') {
-          noise({ t: 0.4, vol: 0.35, ftype: 'bandpass', f: 900, f2: 250, q: 0.8 });
-          tone({ type: 'sawtooth', f: 180, f2: 70, t: 0.3, vol: 0.08 });
-        } else if (wk === 'planta') {
-          for (let i = 0; i < 3; i++) noise({ t: 0.14, vol: 0.16, ftype: 'highpass', f: 2500, delay: i * 0.06 });
-          tone({ type: 'triangle', f: 700, f2: 1300, t: 0.12, vol: 0.07 });
-        } else if (wk === 'agua') {
-          tone({ f: 700, f2: 220, t: 0.25, vol: 0.18 });
-          for (let i = 0; i < 4; i++) { const f = r(500, 1000); tone({ f, f2: f * 1.5, t: 0.06, vol: 0.08, delay: 0.05 + i * 0.05 }); }
-        } else {
-          noise({ t: 0.45, vol: 0.3, ftype: 'bandpass', f: 3000, q: 3 });
-          for (let i = 0; i < 6; i++) noise({ t: 0.05, vol: 0.25, ftype: 'highpass', f: 2000, delay: i * 0.06 });
-          tone({ type: 'square', f: 1400, f2: 200, t: 0.35, vol: 0.05 });
-        }
-      },
-      boom(wk) {
-        if (wk === 'fogo') {
-          noise({ t: 1.0, vol: 0.7, f: 1500, f2: 80 });
-          tone({ f: 110, f2: 35, t: 0.6, vol: 0.6 });
-        } else if (wk === 'volt') {
-          noise({ t: 0.7, vol: 0.5, f: 2500, f2: 120 });
-          tone({ f: 90, f2: 30, t: 0.5, vol: 0.45 });
-          noise({ t: 0.3, vol: 0.2, ftype: 'highpass', f: 3000 });
-        } else if (wk === 'planta') {
-          noise({ t: 0.35, vol: 0.28, ftype: 'bandpass', f: 1800, f2: 700, q: 0.7 });
-          tone({ f: 160, f2: 70, t: 0.2, vol: 0.15 });
-        } else {
-          noise({ t: 0.6, vol: 0.35, ftype: 'bandpass', f: 1400, f2: 300, q: 0.6 });
-          for (let i = 0; i < 5; i++) { const f = r(300, 800); tone({ f, f2: f * 1.6, t: 0.07, vol: 0.07, delay: 0.08 + i * 0.06 }); }
-        }
-      },
-      splash() {
-        noise({ t: 0.5, vol: 0.3, ftype: 'bandpass', f: 1000, f2: 250, q: 0.7 });
-        tone({ f: 400, f2: 120, t: 0.25, vol: 0.12 });
-      },
-      hurt()  { tone({ type: 'square', f: 620, f2: 280, t: 0.14, vol: 0.06 }); },
-      death() { tone({ type: 'triangle', f: 520, f2: 110, t: 0.7, vol: 0.14 }); },
-      turn()  { tone({ f: 660, t: 0.12, vol: 0.12 }); tone({ f: 990, t: 0.18, vol: 0.12, delay: 0.1 }); },
-      step()  { tone({ type: 'triangle', f: r(150, 200), t: 0.04, vol: 0.035 }); },
-      click() { tone({ f: 900, t: 0.04, vol: 0.06 }); },
-      voltWarn() {
-        tone({ type: 'square', f: 250, f2: 1100, t: 1.2, vol: 0.045 });
-        for (let i = 0; i < 5; i++) noise({ t: 0.04, vol: 0.12, ftype: 'highpass', f: 4000, delay: 0.1 + i * 0.2 });
-      },
-      win() { [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone({ type: 'triangle', f, t: 0.3, vol: 0.15, delay: i * 0.14 })); },
-      chargeStart() {
-        if (!ready()) return;
-        api.chargeStop();
-        chargeOsc = ctx.createOscillator(); chargeOsc.type = 'triangle'; chargeOsc.frequency.value = 220;
-        chargeGain = ctx.createGain();
-        chargeGain.gain.setValueAtTime(0.0001, ctx.currentTime);
-        chargeGain.gain.exponentialRampToValueAtTime(0.05, ctx.currentTime + 0.05);
-        chargeOsc.connect(chargeGain); chargeGain.connect(master); chargeOsc.start();
-      },
-      chargeSet(p) { if (chargeOsc) chargeOsc.frequency.setTargetAtTime(220 + p * 7, ctx.currentTime, 0.03); },
-      chargeStop() {
-        if (!chargeOsc) return;
-        chargeGain.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.02);
-        chargeOsc.stop(ctx.currentTime + 0.1);
-        chargeOsc = null; chargeGain = null;
-      }
-    };
-    return api;
-  })();
-
-  // ---------- Câmera 2.5D: zoom, acompanhamento, tremor e parallax ----------
-  const cam = { x: 400, y: 250, z: 1, shake: 0, sx: 0, sy: 0 };
-  let focus = { x: 400, y: 250 };
-
-  function updateCamera() {
-    let tx = 400, ty = 250, tz = 1, k = 0.06;
-    if (state === 'flying' && projs.length) {
-      const p = projs[Math.floor(projs.length / 2)];
-      tx = p.x; ty = p.y; tz = 1.35; k = 0.12;
-    } else if (state === 'settle') {
-      tx = focus.x; ty = focus.y; tz = 1.25;
-    } else if (state === 'volt') {
-      const vp = voltPos(); tx = vp.x; ty = vp.y - 30; tz = 1.7;
-    } else if (state === 'aim' && charging) {
-      const w = activeWorm(); tx = w.x; ty = w.y - 30; tz = 1.15; k = 0.04;
-    }
-    cam.z += (tz - cam.z) * k * 0.8;
-    cam.x += (tx - cam.x) * k;
-    cam.y += (ty - cam.y) * k;
-    const vw = W / cam.z / 2, vh = H / cam.z / 2;
-    cam.x = clamp(cam.x, vw, W - vw);
-    cam.y = clamp(cam.y, vh, H - vh);
-    cam.sx = cam.shake ? rnd(-cam.shake, cam.shake) : 0;
-    cam.sy = cam.shake ? rnd(-cam.shake, cam.shake) : 0;
-    cam.shake = cam.shake > 0.3 ? cam.shake * 0.88 : 0;
-  }
-
-  // f = profundidade da camada (0 = infinito, 1 = mundo, >1 = primeiro plano)
-  function camT(f) {
-    const z = 1 + (cam.z - 1) * f;
-    const cx = 400 + (cam.x + cam.sx - 400) * f, cy = 250 + (cam.y + cam.sy - 250) * f;
-    return `translate(400 250) scale(${z.toFixed(3)}) translate(${f1(-cx)} ${f1(-cy)})`;
-  }
-
-  // Tipos de tiro. speed/grav são multiplicadores; push empurra os atingidos.
-  const WEAPONS = {
-    fogo:   { count: 1, spread: 0, speed: 1.0,  grav: 1.0, boom: 46, carve: 28, dmg: 60 },
-    planta: { count: 3, spread: 6, speed: 0.95, grav: 0.5, boom: 24, carve: 10, dmg: 26 },
-    agua:   { count: 1, spread: 0, speed: 0.95, grav: 1.0, boom: 42, carve: 0,  dmg: 30, push: 9 },
-    volt:   { count: 1, spread: 0, speed: 1.2,  grav: 1.0, boom: 30, carve: 14, dmg: 45 }
-  };
-  const SPECIES = {
-    fogo:   { weapon: 'fogo',   breath: ['#ff7a1a', '#fff3a0'] },
-    planta: { weapon: 'planta', breath: ['#5cc46a', '#e6ffd0'] },
-    agua:   { weapon: 'agua',   breath: ['#6ad0ff', '#e6f8ff'] }
-  };
-  const FX_FILL = { fogo: 'url(#boom)', planta: 'url(#leafBoom)', agua: 'url(#splash)', volt: 'url(#zap)' };
-
-  const TEAM_DEF = [
-    { name: 'Fogo',   color: '#e0433a', species: 'fogo',   names: ['Chama', 'Brasa'],    spawn: [60, 140]  },
-    { name: 'Planta', color: '#3fae5a', species: 'planta', names: ['Musgo', 'Folhinha'], spawn: [660, 740] },
-    { name: 'Água',   color: '#3a7de0', species: 'agua',   names: ['Casco', 'Bolha'],    spawn: [230, 310] }
-  ];
-
-  let frameNo = 0;
-  let heights, grass, tuft, decor, graves, parts, floaters, clouds, cloudEls;
-  let worms, teams, turnTeam, state, projs, fx, wind, power, charging,
-      angle, walkBudget, dirty, msg, msgT, keys = {};
-  let lastShotVolt = false, voltDelay = 0, voltSide = 1;
-
-  const rnd = (a, b) => a + Math.random() * (b - a);
-  const pick = arr => arr[Math.floor(Math.random() * arr.length)];
-  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-  const gy = x => heights[clamp(Math.round(x), 0, W - 1)];
-  const activeWorm = () => { const t = teams[turnTeam]; return t.worms[t.cur]; };
-  const showMsg = (text, frames) => { msg = text; msgT = frames; };
-  const teamAlive = t => t.worms.some(w => w.alive);
-
-  // ---------- Geração do mundo ----------
-  function hillPath(pts) {
-    let d = `M0,${H} L${pts[0].x},${f1(pts[0].y)}`;
-    for (let i = 0; i < pts.length - 1; i++) {
-      const mx = (pts[i].x + pts[i + 1].x) / 2, my = (pts[i].y + pts[i + 1].y) / 2;
-      d += ` Q${pts[i].x},${f1(pts[i].y)} ${f1(mx)},${f1(my)}`;
-    }
-    const last = pts[pts.length - 1];
-    return d + ` L${last.x},${f1(last.y)} L${W},${H} Z`;
-  }
-
-  function bandPath(off) {
-    let d = `M0,${H}`;
-    for (let x = 0; x <= W; x += 4) d += ` L${x},${f1(heights[Math.min(x, W - 1)] + off(x))}`;
-    return d + ` L${W},${H} Z`;
-  }
-
-  function genWorld() {
-    const p1 = rnd(0, 6.3), p2 = rnd(0, 6.3), p3 = rnd(0, 6.3);
-    const bumps = Array.from({ length: 5 }, () => ({ c: rnd(40, 760), w: rnd(35, 100), h: rnd(-75, 55) }));
-    heights = new Float32Array(W); grass = new Uint8Array(W).fill(1); tuft = new Float32Array(W);
-    for (let x = 0; x < W; x++) {
-      let h = 285 + 26 * Math.sin(x * 0.011 + p1) + 14 * Math.sin(x * 0.029 + p2) + 5 * Math.sin(x * 0.07 + p3);
-      for (const b of bumps) h += b.h * Math.exp(-(((x - b.c) / b.w) ** 2));
-      heights[x] = clamp(h, 150, 440);
-      tuft[x] = rnd(4, 9);
-    }
-    // camadas de rocha (fixas; o recorte do terreno as revela nas crateras)
-    $('strata1').setAttribute('d', bandPath(x => 48 + 8 * Math.sin(x * 0.05 + p2)));
-    $('strata2').setAttribute('d', bandPath(x => 115 + 12 * Math.sin(x * 0.03 + p1)));
-
-    // montanhas ao fundo
-    const far = [], near = [];
-    for (let x = -20; x <= W + 40; x += 60) far.push({ x, y: rnd(150, 215) });
-    for (let x = -20; x <= W + 40; x += 45) near.push({ x, y: rnd(212, 262) });
-    $('mtFarPath').setAttribute('d', hillPath(far));
-    $('mtNearPath').setAttribute('d', hillPath(near));
-
-    // fileira de pinheiros distantes
-    let tl = `M-60,${H}`;
-    for (let x = -60; x <= W + 60; x += rnd(9, 17)) {
-      const base = 262 + 10 * Math.sin(x * 0.01 + p3), h = rnd(14, 32), hw = rnd(5, 9);
-      tl += ` L${f1(x - hw)},${f1(base)} L${f1(x)},${f1(base - h)} L${f1(x + hw)},${f1(base)}`;
-    }
-    $('treeline').setAttribute('d', tl + ` L${W + 60},${H} Z`);
-
-    // touceiras de capim em primeiro plano, nos cantos
-    const clump = (cx, base, n, hmax) => {
-      let d = '';
-      for (let i = 0; i < n; i++) {
-        const x = cx + rnd(-34, 34), h = rnd(hmax * 0.5, hmax), lean = rnd(-9, 9);
-        d += `M${f1(x - 3)},${base} Q${f1(x + lean * 0.5)},${f1(base - h * 0.6)} ${f1(x + lean)},${f1(base - h)} ` +
-             `Q${f1(x + lean * 0.3 + 1)},${f1(base - h * 0.5)} ${f1(x + 3)},${base} Z `;
-      }
-      return d;
-    };
-    $('fore').setAttribute('d', clump(-14, 520, 16, 72) + clump(814, 520, 16, 72));
-
-    // decoração: árvores, pinheiros, pedras, arbustos e flores (destrutíveis)
-    decor = [];
-    const avoid = TEAM_DEF.flatMap(t => t.spawn).concat([VOLT_X]);
-    for (let tries = 0; decor.length < 11 && tries < 300; tries++) {
-      const x = Math.round(rnd(15, 785));
-      if (avoid.some(a => Math.abs(a - x) < 26)) continue;
-      if (decor.some(d => Math.abs(d.x - x) < 26)) continue;
-      decor.push({ x, base: heights[x], type: pick(['pine', 'tree', 'rock', 'bush', 'flower', 'flower']),
-                   s: rnd(0.8, 1.15), col: pick(['#ff6b8a', '#ffd84d', '#ffffff', '#b98cff']) });
-    }
-  }
-
-  function genClouds() {
-    clouds = Array.from({ length: 5 }, () => ({ x: rnd(-50, 850), y: rnd(36, 140), s: rnd(0.55, 1.15), sp: rnd(0.04, 0.12) }));
-    const CLOUD = `<g opacity=".92">
-      <ellipse cx="0" cy="8" rx="46" ry="10" fill="#d9e6f2"/>
-      <circle cx="-22" cy="0" r="16" fill="#fff"/><circle cx="0" cy="-9" r="22" fill="#fff"/>
-      <circle cx="24" cy="0" r="15" fill="#fff"/><rect x="-38" y="0" width="78" height="12" rx="6" fill="#fff"/></g>`;
-    $('clouds').innerHTML = clouds.map(() => `<g>${CLOUD}</g>`).join('');
-    cloudEls = [...$('clouds').children];
-  }
-
-  function fixCur(t) {
-    if (!t.worms[t.cur] || !t.worms[t.cur].alive) {
-      const i = t.worms.findIndex(w => w.alive);
-      if (i >= 0) t.cur = i;
-    }
-  }
-
-  function init() {
-    genWorld();
-    genClouds();
-    dirty = true; fx = []; projs = []; parts = []; floaters = []; graves = [];
-    power = 0; charging = false; lastShotVolt = false; voltDelay = 0;
-    wind = Math.round(rnd(-3, 3)); walkBudget = WALK_MAX;
-    worms = []; teams = TEAM_DEF.map(d => ({ ...d, worms: [], cur: 0 }));
-    teams.forEach((t, ti) => {
-      t.spawn.forEach((x0, i) => {
-        const x = x0 + rnd(-6, 6);
-        const face = x < VOLT_X ? 1 : -1;
-        const w = { team: ti, species: t.species, name: t.names[i], x, y: gy(x),
-                    hp: 100, alive: true, face, breath: 0, hurt: 0, walkT: 0, moving: false,
-                    blinkOff: Math.floor(rnd(0, 230)) };
-        worms.push(w); t.worms.push(w);
-      });
-    });
-    turnTeam = 0; state = 'aim';
-    angle = 45;
-    cam.x = 400; cam.y = 250; cam.z = 1; cam.shake = 0;
-    showMsg('Vez de ' + teams[0].name + '!', 120);
-  }
-
-  // ---------- Física e regras ----------
-  function carve(cx, cy, r) {
-    if (r <= 0) return;
-    for (let x = Math.max(0, Math.floor(cx - r)); x <= Math.min(W - 1, Math.ceil(cx + r)); x++) {
-      const dd = r * r - (x - cx) * (x - cx);
-      if (dd <= 0) continue;
-      const dy = Math.sqrt(dd), top = cy - dy, bot = cy + dy;
-      if (top <= heights[x] && bot > heights[x]) { heights[x] = bot; grass[x] = 0; }
-    }
-    // grama chamuscada em volta da cratera
-    for (let x = Math.max(0, Math.floor(cx - r - 8)); x <= Math.min(W - 1, Math.ceil(cx + r + 8)); x++) {
-      if (Math.hypot(x - cx, heights[x] - cy) < r + 8) grass[x] = 0;
-    }
-    // decoração atingida é destruída
-    decor = decor.filter(d => {
-      const hit = gy(d.x) > d.base + 2 || Math.hypot(d.x - cx, d.base - 10 - cy) < r;
-      if (hit) burstDecor(d);
-      return !hit;
-    });
-    dirty = true;
-  }
-
-  function explode(x, y, wk) {
-    const wp = WEAPONS[wk];
-    let anyHurt = false;
-    focus = { x, y };
-    cam.shake = Math.max(cam.shake, wp.boom / 6);
-    Sfx.boom(wk);
-    carve(x, y, wp.carve);
-    fx.push({ x, y, t: 0, max: 36, r: wp.boom, fill: FX_FILL[wk] });
-    burst(x, y, wk);
-    for (const w of worms) {
-      if (!w.alive) continue;
-      const d = Math.hypot(w.x - x, (w.y - 8) - y);
-      if (d >= wp.boom) continue;
-      const k = 1 - d / wp.boom;
-      const dmg = Math.round(wp.dmg * k);
-      if (dmg > 0) {
-        w.hp -= dmg; w.hurt = 24; anyHurt = true;
-        floaters.push({ x: w.x, y: w.y - 52, t: 0, text: '-' + dmg, col: teams[w.team].color });
-      }
-      if (wp.push) {
-        const dir = (w.x - x) >= 0 ? 1 : -1;
-        w.x = clamp(w.x + dir * wp.push * k, 8, W - 8);
-      }
-    }
-    if (anyHurt) Sfx.hurt();
-  }
-
-  // Cria os projéteis de uma arma (planta atira três folhas em leque)
-  function launch(wk, x, y, a, sp, owner) {
-    const wp = WEAPONS[wk];
-    for (let i = 0; i < wp.count; i++) {
-      const off = wp.count === 1 ? 0 : (i - (wp.count - 1) / 2) * wp.spread * Math.PI / 180;
-      const aa = a + off, s = sp * wp.speed;
-      projs.push({ wk, wp, owner, x, y, vx: s * Math.cos(aa), vy: -s * Math.sin(aa),
-                   trail: [], spin: rnd(0, 6) });
-    }
-  }
-
-  function fire() {
-    if (state !== 'aim') return;
-    const w = activeWorm(), a = angle * Math.PI / 180, sp = 3 + power * 0.075;
-    launch(SPECIES[w.species].weapon, w.x + w.face * MOUTH_X, w.y + MOUTH_Y, a, sp, 'player');
-    w.breath = 18;
-    Sfx.chargeStop();
-    Sfx.shoot(SPECIES[w.species].weapon);
-    power = 0; charging = false; state = 'flying';
-  }
-
-  function voltPos() { return { x: VOLT_X, y: gy(VOLT_X) }; }
-
-  function voltShoot() {
-    // Volt atira para o lado sorteado, com ângulo e força aleatórios
-    const deg = rnd(40, 75);
-    const a = (voltSide > 0 ? deg : 180 - deg) * Math.PI / 180;
-    const vp = voltPos();
-    launch('volt', vp.x, vp.y - 34, a, rnd(5, 6.5), 'volt');
-    lastShotVolt = true;
-    state = 'flying';
-    Sfx.shoot('volt');
-  }
-
-  function stepProjs() {
-    for (let i = projs.length - 1; i >= 0; i--) {
-      const p = projs[i];
-      p.trail.push({ x: p.x, y: p.y });
-      if (p.trail.length > 14) p.trail.shift();
-      let outcome = null;
-      for (let s = 0; s < 3 && !outcome; s++) {
-        p.vx += wind * 0.0012;
-        p.vy += GRAV * p.wp.grav / 3;
-        p.x += p.vx / 3;
-        p.y += p.vy / 3;
-        if (p.x < -60 || p.x > W + 60 || p.y > H + 60) { outcome = 'gone'; break; }
-        if (p.y >= WATER && p.wk !== 'agua') {               // caiu no mar
-          outcome = 'gone';
-          Sfx.splash();
-          for (let k = 0; k < 10; k++) addPart({ x: p.x, y: WATER, vx: rnd(-1.5, 1.5), vy: rnd(-3, -1), g: 0.15,
-                                                 life: 40, max: 40, r: rnd(1.2, 2.2), col: '#bfe9ff', kind: 'drop' });
-          break;
-        }
-        if (p.x >= 0 && p.x < W && p.y >= heights[Math.round(p.x)]) { outcome = 'hit'; break; }
-        if (worms.some(w => w.alive && Math.hypot(w.x - p.x, (w.y - 8) - p.y) < 11)) { outcome = 'hit'; break; }
-        if (p.owner !== 'volt') {
-          const vp = voltPos();
-          if (Math.hypot(vp.x - p.x, (vp.y - 14) - p.y) < 14) { outcome = 'hit'; break; }
-        }
-      }
-      if (outcome === 'gone') projs.splice(i, 1);
-      else if (outcome === 'hit') {
-        projs.splice(i, 1);
-        explode(p.x, Math.min(p.y, H), p.wk);
-      }
-    }
-    if (!projs.length && state === 'flying') state = 'settle';
-  }
-
-  function updateWorms() {
-    for (const w of worms) {
-      if (!w.alive) continue;
-      const g = gy(w.x);
-      if (w.y < g - 0.5) w.y = Math.min(g, w.y + 2.5);   // cai
-      else if (w.y > g + 0.5) w.y = g;                   // sobe até a superfície
-    }
-    for (let i = graves.length - 1; i >= 0; i--) {
-      const g = graves[i];
-      g.y = Math.min(gy(g.x), g.y + 2.5);
-      if (g.y > WATER) graves.splice(i, 1);
-    }
-  }
-
-  function walk(dir) {
-    const w = activeWorm();
-    if (!w || walkBudget <= 0) return;
-    const nx = clamp(w.x + dir * 1.5, 8, W - 8);
-    if (gy(nx) < w.y - 10) return;                       // parede alta demais
-    if (Math.abs(nx - VOLT_X) < 18) return;              // não pisa no Volt
-    w.x = nx;
-    w.moving = true; w.walkT++;
-    if (w.walkT % 10 === 0) Sfx.step();
-    walkBudget -= 1.5;
-  }
-
-  function startTurn() {
-    fixCur(teams[turnTeam]);
-    const w = activeWorm();
-    angle = w.face === 1 ? 45 : 135;
-    wind = Math.round(rnd(-3, 3));
-    walkBudget = WALK_MAX;
-    state = 'aim';
-    showMsg('Vez de ' + teams[turnTeam].name + '!', 110);
-    Sfx.turn();
-  }
-
-  function settle() {
-    if (projs.length) return;
-    if (worms.some(w => w.alive && w.y < gy(w.x) - 0.5)) return; // ainda caindo
-    for (const w of worms) {
-      if (!w.alive) continue;
-      const drowned = w.y > WATER - 6;
-      if (w.hp <= 0 || drowned) {
-        w.alive = false; w.hp = 0;
-        if (drowned) {
-          for (let k = 0; k < 16; k++) addPart({ x: w.x, y: WATER, vx: rnd(-2, 2), vy: rnd(-4, -1.5), g: 0.15,
-                                                 life: 45, max: 45, r: rnd(1.5, 2.5), col: '#bfe9ff', kind: 'drop' });
-        } else {
-          graves.push({ x: w.x, y: w.y - 30 });
-        }
-        if (drowned) Sfx.splash();
-        Sfx.death();
-        showMsg(w.name + ' ' + (drowned ? 'afogou!' : 'desmaiou!'), 100);
-      }
-    }
-    teams.forEach(fixCur);
-    const aliveTeams = teams.filter(teamAlive);
-    if (aliveTeams.length <= 1) {
-      state = 'over';
-      const winner = aliveTeams.length === 0 ? 'Empate' : aliveTeams[0].name;
-      showMsg('Fim de jogo! ' + winner + ' venceu! (toque em ↻ ou tecle R)', 1e9);
-      Sfx.win();
-      return;
-    }
-    if (lastShotVolt) { lastShotVolt = false; startTurn(); return; }
-
-    // próximo time vivo
-    const prev = turnTeam;
-    let n = prev;
-    do { n = (n + 1) % teams.length; } while (!teamAlive(teams[n]));
-    turnTeam = n;
-    if (n < prev) {
-      // rodada completa: o Volt atira num dos lados
-      voltSide = Math.random() < 0.5 ? -1 : 1;
-      voltDelay = 100;
-      state = 'volt';
-      showMsg('Volt vai atirar para a ' + (voltSide < 0 ? 'ESQUERDA' : 'DIREITA') + '!', 100);
-      Sfx.voltWarn();
-      return;
-    }
-    startTurn();
-  }
-
-  // ---------- Partículas ----------
-  function addPart(p) { if (parts.length < 320) parts.push(p); }
-
-  function spray(x, y, n, col, sp, g, life, r, kind) {
-    for (let i = 0; i < n; i++) {
-      const a = rnd(0.08, Math.PI - 0.08), s = rnd(sp * 0.35, sp);
-      addPart({ x, y, vx: Math.cos(a) * s, vy: -Math.sin(a) * s, g,
-                life: rnd(life * 0.6, life), max: life, r: rnd(r * 0.6, r), col, kind });
-    }
-  }
-
-  function smoke(x, y, n) {
-    for (let i = 0; i < n; i++) {
-      addPart({ x: x + rnd(-8, 8), y: y + rnd(-6, 4), vx: rnd(-0.3, 0.3) + wind * 0.05, vy: rnd(-0.7, -0.3),
-                g: 0, life: rnd(50, 80), max: 80, r: rnd(5, 9), col: '#5d5d5d', kind: 'smoke' });
-    }
-  }
-
-  function burst(x, y, wk) {
-    if (wk === 'fogo') {
-      spray(x, y, 14, '#5b3a20', 4, 0.15, 70, 3.2, 'chunk');
-      spray(x, y, 18, '#ffb020', 3.2, 0.04, 40, 1.8, 'ember');
-      smoke(x, y, 6);
-    } else if (wk === 'planta') {
-      spray(x, y, 10, '#5cc46a', 2.5, 0.03, 70, 3.4, 'leaf');
-      spray(x, y, 5, '#5b3a20', 2.5, 0.15, 50, 2, 'chunk');
-    } else if (wk === 'agua') {
-      spray(x, y, 24, '#9fe0ff', 3.8, 0.15, 50, 2.3, 'drop');
-    } else {
-      spray(x, y, 16, '#fff27a', 4.5, 0, 22, 1.4, 'spark');
-      spray(x, y, 8, '#5b3a20', 3, 0.15, 60, 2.6, 'chunk');
-      smoke(x, y, 3);
-    }
-  }
-
-  function burstDecor(d) {
-    const y = d.base - 10;
-    if (d.type === 'rock') spray(d.x, y, 8, '#8c8f94', 3, 0.15, 60, 2.6, 'chunk');
-    else spray(d.x, y, 8, d.type === 'flower' ? d.col : '#4f9a3a', 2.2, 0.03, 70, 3, 'leaf');
-  }
-
-  function stepParts() {
-    for (let i = parts.length - 1; i >= 0; i--) {
-      const p = parts[i];
-      p.vy += p.g; p.vx *= 0.985;
-      if (p.kind === 'leaf') { p.vx += Math.sin((frameNo + i) * 0.15) * 0.05; p.vy = Math.min(p.vy, 1.2); }
-      p.x += p.vx; p.y += p.vy;
-      if (p.g > 0.1 && p.x >= 0 && p.x < W && p.y >= heights[Math.round(p.x)]) {
-        p.y = heights[Math.round(p.x)]; p.vy *= -0.3; p.vx *= 0.5;
-      }
-      if (--p.life <= 0 || p.y > H + 20) parts.splice(i, 1);
-    }
-  }
-
-  // ---------- Desenho (tudo em SVG) ----------
-  const blink = w => ((frameNo + w.blinkOff) % 230) < 7;
-
-  function eye(cx, cy, r, pupil, closed) {
-    if (closed) return `<path d="M${f1(cx - r)},${f1(cy)} Q${f1(cx)},${f1(cy + r * 0.7)} ${f1(cx + r)},${f1(cy)}"
-                          fill="none" stroke="#222" stroke-width="1.1" stroke-linecap="round"/>`;
-    return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#fff" stroke="#222" stroke-width=".8"/>
-            <circle cx="${f1(cx + r * 0.3)}" cy="${cy}" r="${f1(r * 0.58)}" fill="${pupil}"/>
-            <circle cx="${f1(cx + r * 0.45)}" cy="${f1(cy - r * 0.3)}" r="${f1(r * 0.24)}" fill="#fff"/>`;
-  }
-
-  function feet(step, grad, stroke) {
-    return `<ellipse cx="${f1(-4 + step)}" cy="-2" rx="3.8" ry="2.6" fill="${grad}" stroke="${stroke}" stroke-width="1"/>
-            <ellipse cx="${f1(4 - step)}" cy="-2" rx="3.8" ry="2.6" fill="${grad}" stroke="${stroke}" stroke-width="1"/>`;
-  }
-
-  function breathFx(w, [col, hi]) {
-    if (!(w.breath > 0)) return '';
-    const j = Math.sin(frameNo * 1.7) * 2;
-    return `<g opacity="${(w.breath / 18).toFixed(2)}">
-      <path d="M${MOUTH_X},-20 Q22,${f1(-25 + j)} 36,-19 Q24,-14 ${MOUTH_X},-15 Z" fill="${col}"/>
-      <path d="M${MOUTH_X},-18 Q20,-20 30,-19 Q20,-16 ${MOUTH_X},-16 Z" fill="${hi}"/></g>`;
-  }
-
-  // Lagarto de fogo (pés em y=0, virado para +x)
-  function fogo(w, bob, step) {
-    const sc = 1 + 0.14 * Math.sin(frameNo * 0.35 + w.x);
-    return feet(step, 'url(#gOrange)', '#6b2a0e') + `
-    <g transform="translate(0 ${f1(bob)})">
-      <path d="M-6,-8 C-14,-8 -17,-15 -14,-22" fill="none" stroke="#6b2a0e" stroke-width="6.5" stroke-linecap="round"/>
-      <path d="M-6,-8 C-14,-8 -17,-15 -14,-22" fill="none" stroke="#f58a30" stroke-width="4.3" stroke-linecap="round"/>
-      <circle cx="-14" cy="-29" r="10" fill="url(#fireball)" opacity=".55"/>
-      <g transform="translate(-14 -22) scale(1 ${sc.toFixed(2)})">
-        <path d="M0,0 C-6,-4 -5,-10 0,-15 C1,-11 4,-12 4,-9 C6,-5 4,-1 0,0 Z" fill="#ff8a1a"/>
-        <path d="M0,-1 C-3,-3 -2,-7 0,-10 C2,-7 3,-3 0,-1 Z" fill="#ffd34d"/>
-        <path d="M0,-2 C-1.2,-3 -1,-5 0,-6 C1,-5 1.2,-3 0,-2 Z" fill="#fffbe0"/>
-      </g>
-      <ellipse cx="0" cy="-12" rx="9" ry="10" fill="url(#gOrange)" stroke="#6b2a0e" stroke-width="1.2"/>
-      <ellipse cx="1.5" cy="-9" rx="5.5" ry="6.5" fill="url(#gCream)"/>
-      <path d="M4,-13 Q9,-13 9,-10" fill="none" stroke="#6b2a0e" stroke-width="3.6" stroke-linecap="round"/>
-      <path d="M4,-13 Q9,-13 9,-10" fill="none" stroke="#f5892e" stroke-width="2.2" stroke-linecap="round"/>
-      <ellipse cx="3" cy="-22" rx="8.5" ry="7.8" fill="url(#gOrange)" stroke="#6b2a0e" stroke-width="1.2"/>
-      ${eye(5.5, -23.5, 3.3, '#1b2a5a', blink(w))}
-      <circle cx="9.8" cy="-20.5" r=".7" fill="#6b2a0e"/>
-      <path d="M5,-17.5 Q8.5,-15 ${MOUTH_X},-17.5" fill="none" stroke="#6b2a0e" stroke-width="1" stroke-linecap="round"/>
-      ${breathFx(w, SPECIES.fogo.breath)}
-    </g>`;
-  }
-
-  // Planta com bulbo nas costas
-  function planta(w, bob, step) {
-    return feet(step, 'url(#gGreen)', '#1d4a2a') + `
-    <g transform="translate(0 ${f1(bob)})">
-      <ellipse cx="0" cy="-12" rx="9.5" ry="9.5" fill="url(#gGreen)" stroke="#1d4a2a" stroke-width="1.2"/>
-      <ellipse cx="2" cy="-8.5" rx="5" ry="5" fill="url(#gCreamGreen)"/>
-      <path d="M-5,-15 l2,-1.5 l1,2 Z M-1,-18 l2,-1 l.6,2 Z M-6,-10 l2,-.5 l.3,1.8 Z" fill="#2b6b3a"/>
-      <ellipse cx="-6" cy="-22" rx="8" ry="7.5" fill="url(#gBulb)" stroke="#1d4a2a" stroke-width="1.1"/>
-      <path d="M-8,-27 Q-9,-31 -6,-34" fill="none" stroke="#1d4a2a" stroke-width=".7" opacity=".6"/>
-      <path d="M-6,-29 Q-11,-37 -17,-35 Q-13,-29 -6,-29 Z" fill="#2e9a4a" stroke="#1d4a2a" stroke-width=".8"/>
-      <path d="M-5,-29 Q-3,-37 2,-38 Q0,-31 -5,-29 Z" fill="#3fae5a" stroke="#1d4a2a" stroke-width=".8"/>
-      <path d="M0,-25 L1.5,-30.5 L4.5,-26.5 Z M6,-25.5 L9,-29.5 L10,-24.5 Z" fill="url(#gGreen)" stroke="#1d4a2a" stroke-width=".9" stroke-linejoin="round"/>
-      <ellipse cx="4.5" cy="-20" rx="8.2" ry="7" fill="url(#gGreen)" stroke="#1d4a2a" stroke-width="1.2"/>
-      ${eye(6.5, -21, 2.9, '#c0392b', blink(w))}
-      <path d="M7,-16 Q10,-14.5 ${MOUTH_X},-16.8" fill="none" stroke="#1d4a2a" stroke-width="1" stroke-linecap="round"/>
-      <ellipse cx="6" cy="-12" rx="3" ry="1.8" fill="url(#gGreen)" stroke="#1d4a2a" stroke-width="1"/>
-      ${breathFx(w, SPECIES.planta.breath)}
-    </g>`;
-  }
-
-  // Tartaruga com casco
-  function agua(w, bob, step) {
-    return feet(step, 'url(#gBlue)', '#1d4a6b') + `
-    <g transform="translate(0 ${f1(bob)})">
-      <path d="M-8,-7 Q-16,-8 -15,-2 Q-14,2 -10.5,.5" fill="none" stroke="#1d4a6b" stroke-width="5.5" stroke-linecap="round"/>
-      <path d="M-8,-7 Q-16,-8 -15,-2 Q-14,2 -10.5,.5" fill="none" stroke="#8fd3ef" stroke-width="3.5" stroke-linecap="round"/>
-      <ellipse cx="0" cy="-12" rx="9.5" ry="9.5" fill="url(#gBlue)" stroke="#1d4a6b" stroke-width="1.2"/>
-      <ellipse cx="2.5" cy="-8" rx="5" ry="4.2" fill="url(#gCream)" stroke="#b89a5a" stroke-width=".6"/>
-      <path d="M-10,-11 Q-11,-23 0,-23 Q9,-23 8,-13 Q7,-6 -1,-6 Q-10,-6 -10,-11 Z" fill="url(#gShell)" stroke="#4a2a10" stroke-width="1.2"/>
-      <path d="M-5,-19 L-1,-16 L3,-19 M-1,-16 L-1,-11 M-7,-12 L-1,-11 L5,-12" fill="none" stroke="#6b4016" stroke-width="1"/>
-      <path d="M-10,-10 Q-1,-4 8,-11" fill="none" stroke="#f3e2b0" stroke-width="1.6"/>
-      <ellipse cx="6" cy="-10" rx="3" ry="1.8" fill="url(#gBlue)" stroke="#1d4a6b" stroke-width="1"/>
-      <circle cx="6.5" cy="-19.5" r="7" fill="url(#gBlue)" stroke="#1d4a6b" stroke-width="1.2"/>
-      ${eye(9, -21, 2.6, '#6b3a1a', blink(w))}
-      <path d="M8,-15.5 Q11,-14 ${MOUTH_X},-16.5" fill="none" stroke="#1d4a6b" stroke-width="1" stroke-linecap="round"/>
-      ${breathFx(w, SPECIES.agua.breath)}
-    </g>`;
-  }
-
-  const BODY = { fogo, planta, agua };
-
-  // Volt: rato elétrico neutro no meio do campo
-  function voltSvg() {
-    const charge = state === 'volt';
-    const fl = charge ? (frameNo % 8 < 4 ? 1 : 0.35) : 0;
-    const bob = Math.sin(frameNo * 0.08) * 0.7;
-    const closed = ((frameNo + 37) % 260) < 7;
-    const darkEye = cx => closed
-      ? `<path d="M${cx - 2},-23 Q${cx},-21.6 ${cx + 2},-23" fill="none" stroke="#222" stroke-width="1.1" stroke-linecap="round"/>`
-      : `<circle cx="${cx}" cy="-23" r="2.1" fill="#222"/><circle cx="${f1(cx + 0.7)}" cy="-23.8" r=".75" fill="#fff"/>`;
-    const sparks = charge
-      ? `<path d="M-11,-22 l-5,-3 l2,-1 l-4,-3 M-11,-18 l-5,2 M11,-22 l5,-3 l-2,-1 l4,-3 M11,-18 l5,2"
-           fill="none" stroke="#fff27a" stroke-width="1.6" stroke-linecap="round" opacity="${fl}"/>` : '';
-    return `
-      <ellipse cx="0" cy=".5" rx="11" ry="2.6" fill="#000" opacity=".25"/>
-      ${charge ? `<circle cx="0" cy="-18" r="${f1(22 + fl * 5)}" fill="url(#voltGlow)" opacity="${fl}"/>` : ''}
-      <ellipse cx="-4" cy="-2" rx="3.4" ry="2.3" fill="url(#gYellow)" stroke="#5a4300" stroke-width="1"/>
-      <ellipse cx="4" cy="-2" rx="3.4" ry="2.3" fill="url(#gYellow)" stroke="#5a4300" stroke-width="1"/>
-      <g transform="translate(0 ${f1(bob)})">
-        <path d="M7,-7 L13,-11 L10,-14 L17,-22 L13,-23 L19,-32 L8,-24 L11,-22 L5,-15 L8,-13 Z"
-              fill="url(#gYellow)" stroke="#5a4300" stroke-width="1" stroke-linejoin="round"/>
-        <path d="M7,-7 L13,-11 L10,-14 L8,-13 Z" fill="#8a5a1a"/>
-        <ellipse cx="0" cy="-12" rx="9" ry="10.5" fill="url(#gYellow)" stroke="#5a4300" stroke-width="1.2"/>
-        <path d="M-5,-27 Q-11,-34 -12,-42 Q-6,-37 -1,-29 Z" fill="#222" stroke="#5a4300" stroke-width="1"/>
-        <path d="M-5,-27 Q-9.5,-32 -10.2,-36.5 Q-5.5,-34 -1,-29 Z" fill="url(#gYellow)"/>
-        <path d="M5,-27 Q11,-34 12,-42 Q6,-37 1,-29 Z" fill="#222" stroke="#5a4300" stroke-width="1"/>
-        <path d="M5,-27 Q9.5,-32 10.2,-36.5 Q5.5,-34 1,-29 Z" fill="url(#gYellow)"/>
-        <ellipse cx="0" cy="-21.5" rx="9.5" ry="8" fill="url(#gYellow)" stroke="#5a4300" stroke-width="1.2"/>
-        ${darkEye(-3.5)}${darkEye(3.5)}
-        <circle cx="-6.6" cy="-18.4" r="2.6" fill="#ef4b3c"/><circle cx="6.6" cy="-18.4" r="2.6" fill="#ef4b3c"/>
-        <circle cx="0" cy="-20.3" r=".6" fill="#222"/>
-        <path d="M-2,-17.6 Q-1,-16 0,-17.3 Q1,-16 2,-17.6" fill="none" stroke="#5a4300" stroke-width=".9" stroke-linecap="round"/>
-        <ellipse cx="-5" cy="-11" rx="2.6" ry="1.6" fill="url(#gYellow)" stroke="#5a4300" stroke-width=".9"/>
-        <ellipse cx="5" cy="-11" rx="2.6" ry="1.6" fill="url(#gYellow)" stroke="#5a4300" stroke-width=".9"/>
-        ${sparks}
-      </g>`;
-  }
-
-  function decorSvg(d) {
-    let s = '';
-    switch (d.type) {
-      case 'pine':
-        s = `<rect x="-1.6" y="-8" width="3.2" height="8" fill="#5b3a1e"/>
-             <path d="M0,-36 L-9,-18 L-5,-18 L-12,-6 L12,-6 L5,-18 L9,-18 Z" fill="#2f7d3a" stroke="#1d4f25" stroke-width="1" stroke-linejoin="round"/>
-             <path d="M0,-36 L-4,-27 L1,-27 Z" fill="#4fa35a" opacity=".7"/>`; break;
-      case 'tree':
-        s = `<path d="M-2,0 L-1.5,-15 L1.5,-15 L2,0 Z" fill="#6b4423"/>
-             <circle cx="-7" cy="-17" r="7" fill="url(#gTree)"/><circle cx="7" cy="-17" r="7" fill="url(#gTree)"/>
-             <circle cx="0" cy="-23" r="10" fill="url(#gTree)"/>`; break;
-      case 'rock':
-        s = `<path d="M-10,0 Q-11,-7 -4,-9 Q3,-12 8,-6 Q11,-2 10,0 Z" fill="#8c8f94" stroke="#55585c" stroke-width="1"/>
-             <path d="M-5,-7 Q0,-9.5 4,-7" fill="none" stroke="#c4c7cc" stroke-width="1.2" stroke-linecap="round"/>`; break;
-      case 'bush':
-        s = `<circle cx="-6" cy="-4" r="5.5" fill="url(#gTree)"/><circle cx="6" cy="-4" r="5.5" fill="url(#gTree)"/>
-             <circle cx="0" cy="-7" r="7" fill="url(#gTree)"/>`; break;
-      default:
-        s = `<path d="M0,0 Q1,-4 0,-8" fill="none" stroke="#3f8a2a" stroke-width="1.2"/>
-             <circle cx="-2" cy="-9" r="1.9" fill="${d.col}"/><circle cx="2" cy="-9" r="1.9" fill="${d.col}"/>
-             <circle cx="0" cy="-11" r="1.9" fill="${d.col}"/><circle cx="0" cy="-7" r="1.9" fill="${d.col}"/>
-             <circle cx="0" cy="-9" r="1.3" fill="#ffcf33"/>`;
-    }
-    return `<g transform="translate(${d.x} ${f1(d.base + 1)}) scale(${d.s.toFixed(2)})">${s}</g>`;
-  }
-
-  function renderTerrain() {
-    let d = 'M0,' + f1(heights[0]);
-    for (let x = 1; x < W; x++) d += ' L' + x + ',' + f1(heights[x]);
-    d += ` L${W},${f1(heights[W - 1])} L${W},${H} L0,${H} Z`;
-    $('tclipPath').setAttribute('d', d);
-    $('tback').setAttribute('d', 'M-12,' + f1(heights[0]) + d.replace(/^M/, ' L'));
-
-    // borda superior: grama onde intacto, terra queimada nas crateras
-    let g = '', b = '', inG = false, inB = false, tf = '';
-    for (let x = 0; x < W; x += 2) {
-      const y = f1(heights[x]);
-      if (grass[x]) { g += (inG ? ' L' : ' M') + x + ',' + y; inG = true; inB = false; }
-      else          { b += (inB ? ' L' : ' M') + x + ',' + y; inB = true; inG = false; }
-    }
-    for (let x = 3; x < W; x += 7) {
-      if (!grass[x]) continue;
-      const y = heights[x], t = tuft[x];
-      tf += `M${x},${f1(y)} l-2,${f1(-t * 0.7)} M${x},${f1(y)} l.6,${f1(-t)} M${x},${f1(y)} l2.6,${f1(-t * 0.6)} `;
-    }
-    $('edgeGrass').setAttribute('d', g);
-    $('edgeGrassHi').setAttribute('d', g);
-    $('edgeBurnt').setAttribute('d', b);
-    $('tbackGrass').setAttribute('d', g);
-    $('tbackBurnt').setAttribute('d', b);
-    $('tufts').setAttribute('d', tf);
-    $('decor').innerHTML = decor.map(decorSvg).join('');
-  }
-
-  function renderWater() {
-    let back = `M0,${H}`, front = `M0,${H}`;
-    for (let x = 0; x <= W; x += 10) {
-      back  += ` L${x},${f1(472 + 3 * Math.sin(x * 0.03 + frameNo * 0.04))}`;
-      front += ` L${x},${f1(481 + 3 * Math.sin(x * 0.045 - frameNo * 0.05) + 1.5 * Math.sin(x * 0.11 + frameNo * 0.08))}`;
-    }
-    $('waveBack').setAttribute('d', back + ` L${W},${H} Z`);
-    $('waveFront').setAttribute('d', front + ` L${W},${H} Z`);
-  }
-
-  function renderClouds() {
-    clouds.forEach((c, i) => {
-      c.x += c.sp + wind * 0.04;
-      if (c.x > W + 110) c.x = -110;
-      if (c.x < -110) c.x = W + 110;
-      cloudEls[i].setAttribute('transform', `translate(${f1(c.x)} ${f1(c.y)}) scale(${c.s.toFixed(2)})`);
-    });
-  }
-
-  function hudSvg() {
-    if (state === 'over') return '';
-    const isVolt = state === 'volt' || lastShotVolt;
-    const t = teams[turnTeam];
-    const name = isVolt ? 'Volt' : t.name;
-    const col = isVolt ? '#ffd83a' : t.color;
-    const walkW = (Math.max(0, walkBudget) / WALK_MAX) * 70;
-    const ww = Math.abs(wind) / 3 * 50;
-    const wx = wind >= 0 ? 400 : 400 - ww;
-    const arrow = wind > 0 ? `M${f1(400 + ww)},26.5 l6,4 l-6,4 Z` : `M${f1(400 - ww)},26.5 l-6,4 l6,4 Z`;
-    return `
-      <rect x="8" y="8" width="222" height="40" rx="12" fill="#0d1b2a" opacity=".72"/>
-      <circle cx="28" cy="28" r="8" fill="${col}" stroke="#fff" stroke-width="2"/>
-      <text x="44" y="33.5" font-size="16" font-weight="bold" fill="#fff">Vez: ${name}</text>
-      ${isVolt ? '' : `<text x="142" y="23" font-size="9" fill="#ddd" letter-spacing="1">PASSOS</text>
-        <rect x="142" y="28" width="74" height="7" rx="3.5" fill="#000" opacity=".5"/>
-        <rect x="144" y="29.5" width="${f1(walkW)}" height="4" rx="2" fill="#9be36a"/>`}
-      <rect x="330" y="8" width="140" height="34" rx="12" fill="#0d1b2a" opacity=".72"/>
-      <text x="400" y="21" text-anchor="middle" font-size="9" fill="#ddd" letter-spacing="1.5">${wind ? 'VENTO' : 'SEM VENTO'}</text>
-      <rect x="345" y="27" width="110" height="7" rx="3.5" fill="#000" opacity=".5"/>
-      <line x1="400" y1="25" x2="400" y2="36" stroke="#fff" stroke-width="1" opacity=".6"/>
-      ${wind ? `<rect x="${f1(wx)}" y="28.5" width="${f1(ww)}" height="4" rx="2" fill="#8fe0ff"/>
-                <path d="${arrow}" fill="#8fe0ff"/>` : ''}`;
-  }
-
-  function msgSvg() {
-    if (!msg) return '';
-    const w = Math.min(760, msg.length * 12.5 + 40);
-    return `<rect x="${f1(400 - w / 2)}" y="206" width="${f1(w)}" height="44" rx="14" fill="#000" opacity=".45"/>
-            <text x="400" y="235" text-anchor="middle" font-size="22" font-weight="bold" fill="#fff">${msg}</text>`;
-  }
-
-  function renderAll() {
-    if (dirty) { renderTerrain(); dirty = false; }
-    renderWater();
-    renderClouds();
-
-    // camadas em profundidades diferentes (parallax)
-    $('Lsky').setAttribute('transform', camT(0.08));
-    $('Lfar').setAttribute('transform', camT(0.25));
-    $('Lnear').setAttribute('transform', camT(0.5));
-    $('Lmid').setAttribute('transform', camT(0.65));
-    $('Lworld').setAttribute('transform', camT(1));
-    $('Lfore').setAttribute('transform', camT(1.3));
-    const act = state === 'over' ? null : activeWorm();
-
-    // o personagem da vez olha para o lado da mira
-    if (act && state === 'aim') act.face = Math.cos(angle * Math.PI / 180) >= 0 ? 1 : -1;
-
-    // mira
-    let aim = '';
-    if (state === 'aim' && act) {
-      const a = angle * Math.PI / 180;
-      const x1 = act.x + act.face * MOUTH_X, y1 = act.y + MOUTH_Y;
-      const x2 = x1 + Math.cos(a) * 46, y2 = y1 - Math.sin(a) * 46;
-      const rel = Math.round(act.face === 1 ? angle : 180 - angle);
-      aim = `<line x1="${f1(x1)}" y1="${f1(y1)}" x2="${f1(x2)}" y2="${f1(y2)}"
-              stroke="#fff" stroke-opacity=".85" stroke-width="2" stroke-dasharray="3 5" stroke-linecap="round"/>
-             <g transform="translate(${f1(x2)} ${f1(y2)})">
-               <circle r="6" fill="none" stroke="#ff4d4d" stroke-width="2"/>
-               <path d="M-10,0 L-4,0 M4,0 L10,0 M0,-10 L0,-4 M0,4 L0,10" stroke="#ff4d4d" stroke-width="2" stroke-linecap="round"/>
-             </g>
-             <text x="${f1(x2)}" y="${f1(y2 - 13)}" text-anchor="middle" font-size="10" font-weight="bold"
-                   fill="#fff" stroke="#000" stroke-width=".4">${rel}°</text>`;
-    }
-    $('aim').innerHTML = aim;
-
-    // lápides
-    $('graves').innerHTML = graves.map(g => `<g transform="translate(${f1(g.x)} ${f1(g.y)})">
-      <path d="M-7,0 L-7,-14 Q-7,-21 0,-21 Q7,-21 7,-14 L7,0 Z" fill="#b4b8be" stroke="#5c6067" stroke-width="1.2"/>
-      <path d="M0,-17 L0,-6 M-3.5,-13 L3.5,-13" stroke="#5c6067" stroke-width="1.6" stroke-linecap="round"/>
-      <rect x="-9" y="-1.5" width="18" height="3" rx="1" fill="#6b4a2b"/></g>`).join('');
-
-    // personagens
-    let wh = '';
-    for (const w of worms) {
-      if (!w.alive) continue;
-      const t = teams[w.team];
-      const bob = Math.sin(frameNo * 0.08 + w.x * 0.1) * 0.7;
-      const step = w.moving ? Math.sin(w.walkT * 0.5) * 1.6 : 0;
-      const flash = w.hurt > 0 && (w.hurt % 6 < 3);
-      const hp = clamp(w.hp, 0, 100);
-      wh += `<g transform="translate(${f1(w.x)} ${f1(w.y)})">
-        <ellipse cx="0" cy="${f1(gy(w.x) - w.y + 0.5)}" rx="11" ry="2.6" fill="#000" opacity=".25"/>
-        <g transform="scale(${w.face} 1)"${flash ? ' opacity=".45"' : ''}>${BODY[w.species](w, bob, step)}</g>
-        <g transform="translate(0 -46)">
-          <text x="0" y="0" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#fff"
-                stroke="#000" stroke-width=".6">${w.name}</text>
-          <rect x="-15" y="3" width="30" height="5.5" rx="2.75" fill="#000" opacity=".6"/>
-          <rect x="-14" y="4" width="${f1(28 * hp / 100)}" height="3.5" rx="1.75" fill="${t.color}"/>
-        </g>`;
-      if (w === act && state === 'aim') {
-        wh += `<path transform="translate(0 ${f1(-66 + Math.sin(frameNo * 0.15) * 3)})" d="M-6,0 L6,0 L0,8 Z"
-                     fill="${t.color}" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/>`;
-      }
-      wh += `</g>`;
-    }
-    $('worms').innerHTML = wh;
-
-    // Volt
-    const vp = voltPos();
-    $('volt').innerHTML = `<g transform="translate(${vp.x} ${f1(vp.y)})">${voltSvg()}</g>
-      <text x="${vp.x}" y="${f1(vp.y - 50)}" text-anchor="middle" font-size="10.5" font-weight="bold"
-            fill="#fff27a" stroke="#000" stroke-width=".6">Volt</text>`;
-
-    // projéteis
-    let ph = '';
-    for (const p of projs) {
-      if (p.wk === 'fogo') {
-        p.trail.forEach((tp, i) => {
-          const k = (i + 1) / p.trail.length;
-          ph += `<circle cx="${f1(tp.x)}" cy="${f1(tp.y)}" r="${f1(2 + 5 * k)}"
-                  fill="${k > 0.5 ? '#ffb020' : '#ff5a1f'}" opacity="${(k * 0.7).toFixed(2)}"/>`;
-        });
-        ph += `<circle cx="${f1(p.x)}" cy="${f1(p.y)}" r="${f1(7 + Math.sin(frameNo * 0.6) * 1.2)}" fill="url(#fireball)"/>`;
-      } else if (p.wk === 'planta') {
-        const deg = Math.atan2(p.vy, p.vx) * 180 / Math.PI + Math.sin(frameNo * 0.4 + p.spin) * 25;
-        ph += `<g transform="translate(${f1(p.x)} ${f1(p.y)}) rotate(${f1(deg)})">
-                <path d="M-8,0 Q0,-6 8,0 Q0,6 -8,0 Z" fill="url(#gGreen)" stroke="#1d4a2a" stroke-width=".8"/>
-                <line x1="-6" y1="0" x2="6" y2="0" stroke="#1d4a2a" stroke-width=".7"/></g>`;
-      } else if (p.wk === 'agua') {
-        p.trail.forEach((tp, i) => {
-          const k = (i + 1) / p.trail.length;
-          ph += `<circle cx="${f1(tp.x)}" cy="${f1(tp.y)}" r="${f1(1.5 + 2 * k)}" fill="#bfe9ff" opacity="${(k * 0.6).toFixed(2)}"/>`;
-        });
-        ph += `<circle cx="${f1(p.x)}" cy="${f1(p.y)}" r="5.2" fill="#7fd0ff" stroke="#1f6fb0" stroke-width="1"/>
-               <circle cx="${f1(p.x - 1.6)}" cy="${f1(p.y - 1.6)}" r="1.7" fill="#fff"/>`;
-      } else { // raio do Volt, em ziguezague
-        const pts = p.trail.concat([{ x: p.x, y: p.y }]);
-        const d = pts.map((tp, i) => `${i ? 'L' : 'M'}${f1(tp.x)},${f1(tp.y + (i % 2 ? 3 : -3))}`).join(' ');
-        ph += `<path d="${d}" fill="none" stroke="#ffd000" stroke-width="4.5" stroke-linejoin="round" opacity=".45"/>
-               <path d="${d}" fill="none" stroke="#fffbd0" stroke-width="2" stroke-linejoin="round"/>
-               <circle cx="${f1(p.x)}" cy="${f1(p.y)}" r="4.5" fill="url(#zap)"/>`;
-      }
-    }
-    $('proj').innerHTML = ph;
-
-    // sombra dos tiros no chão (menor e mais fraca quanto mais alto)
-    $('pshadow').innerHTML = projs.map(p => {
-      if (p.x < 0 || p.x >= W) return '';
-      const g = gy(p.x), k = clamp(1 - Math.max(0, g - p.y) / 260, 0.15, 1);
-      return `<ellipse cx="${f1(p.x)}" cy="${f1(g)}" rx="${f1(8 * k + 2)}" ry="${f1(2.4 * k + 0.6)}"
-               fill="#000" opacity="${(0.35 * k).toFixed(2)}"/>`;
-    }).join('');
-
-    // partículas
-    $('parts').innerHTML = parts.map(p => {
-      const k = p.life / p.max, op = Math.min(1, k * 1.5).toFixed(2);
-      if (p.kind === 'smoke') return `<circle cx="${f1(p.x)}" cy="${f1(p.y)}" r="${f1(p.r + (1 - k) * 10)}" fill="${p.col}" opacity="${(k * 0.45).toFixed(2)}"/>`;
-      if (p.kind === 'leaf') return `<ellipse cx="${f1(p.x)}" cy="${f1(p.y)}" rx="${f1(p.r)}" ry="${f1(p.r * 0.5)}"
-                                      transform="rotate(${(frameNo * 8 + p.max * 7) % 360} ${f1(p.x)} ${f1(p.y)})" fill="${p.col}" opacity="${op}"/>`;
-      return `<circle cx="${f1(p.x)}" cy="${f1(p.y)}" r="${f1(p.r)}" fill="${p.col}" opacity="${op}"/>`;
-    }).join('');
-
-    // explosões: clarão + onda de choque
-    $('fx').innerHTML = fx.map(f => {
-      const k = f.t / f.max;
-      return `<circle cx="${f1(f.x)}" cy="${f1(f.y)}" r="${f1(f.r * Math.min(1, k * 1.6))}" fill="${f.fill}" opacity="${(1 - k).toFixed(2)}"/>
-              <circle cx="${f1(f.x)}" cy="${f1(f.y)}" r="${f1(f.r * k * 1.4)}" fill="none" stroke="#fff"
-                      stroke-width="${f1(3 * (1 - k))}" opacity="${(0.8 * (1 - k)).toFixed(2)}"/>`;
-    }).join('');
-
-    // números de dano
-    $('floaters').innerHTML = floaters.map(f => `<text x="${f1(f.x)}" y="${f1(f.y - f.t * 0.5)}" text-anchor="middle"
-        font-size="15" font-weight="bold" fill="${f.col}" stroke="#fff" stroke-width=".8"
-        opacity="${(1 - f.t / 60).toFixed(2)}">${f.text}</text>`).join('');
-
-    // barra de força
-    $('powerbar').innerHTML = charging
-      ? `<rect x="10" y="54" width="208" height="14" rx="7" fill="#000" opacity=".45"/>
-         <rect x="12" y="56" width="${f1(power * 2.04)}" height="10" rx="5" fill="url(#pow)"/>`
-      : '';
-
-    $('hud').innerHTML = hudSvg();
-    $('msgbox').innerHTML = msgSvg();
-  }
-
-  // ---------- Loop ----------
-  function frame() {
-    frameNo++;
-    for (const w of worms) {
-      if (w.breath > 0) w.breath--;
-      if (w.hurt > 0) w.hurt--;
-      w.moving = false;
-    }
-
-    if (state === 'aim') {
-      if (keys.up)   angle = Math.min(180, angle + 1.2);
-      if (keys.down) angle = Math.max(0, angle - 1.2);
-      if (!charging) {
-        if (keys.left)  walk(-1);
-        if (keys.right) walk(1);
-      } else {
-        power = Math.min(100, power + 0.9);
-        Sfx.chargeSet(power);
-      }
-    }
-    if (state === 'flying') stepProjs();
-    if (state === 'volt' && --voltDelay <= 0) voltShoot();
-    updateWorms();
-    stepParts();
-    if (state === 'settle') settle();
-    for (const f of fx) f.t++;
-    fx = fx.filter(f => f.t < f.max);
-    for (const f of floaters) f.t++;
-    floaters = floaters.filter(f => f.t < 60);
-    if (msgT > 0 && --msgT === 0) msg = '';
-    updateCamera();
-    renderAll();
-    requestAnimationFrame(frame);
-  }
-
-  // ---------- Controles ----------
-  const ARROWS = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
-
-  addEventListener('keydown', e => {
-    if (e.key === 'r' || e.key === 'R') { Sfx.click(); init(); return; }
-    if (e.key === 'm' || e.key === 'M') { toggleSound(); return; }
-    if (state === 'over') return;
-    if (ARROWS[e.key]) { keys[ARROWS[e.key]] = true; e.preventDefault(); return; }
-    if (e.code === 'Space') {
-      e.preventDefault();
-      if (!e.repeat && state === 'aim') { charging = true; power = 0; Sfx.chargeStart(); }
-      return;
-    }
-    if (e.key === 'Tab') { e.preventDefault(); switchWorm(); }
-  });
-
-  function switchWorm() {
-    if (state !== 'aim' || charging) return;
-    const t = teams[turnTeam], n = t.worms.length;
-    for (let i = 1; i <= n; i++) {
-      const j = (t.cur + i) % n;
-      if (t.worms[j].alive) { t.cur = j; break; }
-    }
-  }
-
-  // ---------- Controles de toque (botões SVG) ----------
-  const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-  if (isTouch) document.body.classList.add('touch');
-  else $('soundBtn').setAttribute('transform', 'translate(124 0)');   // no PC, o botão de som vai para o canto
-
-  function toggleSound() {
-    Sfx.unlock();
-    $('soundIcon').textContent = Sfx.toggle() ? '🔊' : '🔇';
-  }
-  // o navegador só libera áudio depois de um toque ou tecla
-  ['keydown', 'pointerdown', 'pointerup', 'touchend', 'click'].forEach(ev =>
-    addEventListener(ev, () => Sfx.unlock(), { passive: true }));
-
-  document.querySelectorAll('.btn').forEach(btn => {
-    const act = btn.dataset.act;
-    const holdKey = { left: 'left', right: 'right', up: 'up', down: 'down' }[act];
-    const press = e => {
-      e.preventDefault();
-      try { btn.setPointerCapture(e.pointerId); } catch (_) {}
-      btn.classList.add('on');
-      if (holdKey) keys[holdKey] = true;
-      else if (act === 'fire') { if (state === 'aim' && !charging) { charging = true; power = 0; Sfx.unlock(); Sfx.chargeStart(); } }
-      else if (act === 'switch') { Sfx.click(); switchWorm(); }
-      else if (act === 'restart') { Sfx.click(); init(); }
-      else if (act === 'sound') toggleSound();
-    };
-    const release = e => {
-      e.preventDefault();
-      btn.classList.remove('on');
-      if (holdKey) keys[holdKey] = false;
-      else if (act === 'fire' && charging) fire();
-    };
-    btn.addEventListener('pointerdown', press);
-    btn.addEventListener('pointerup', release);
-    btn.addEventListener('pointercancel', release);
-  });
-
-  $('game').addEventListener('contextmenu', e => e.preventDefault());
-
-  addEventListener('keyup', e => {
-    if (ARROWS[e.key]) keys[ARROWS[e.key]] = false;
-    else if (e.code === 'Space' && charging) fire();
-  });
-
-  addEventListener('blur', () => { keys = {}; charging = false; power = 0; Sfx.chargeStop(); });
-
-  init();
-  requestAnimationFrame(frame);
-})();
-</script>
+<script src="js/sfx.js"></script>
+<script src="js/data.js"></script>
+<script src="js/art.js"></script>
+<script src="js/game.js"></script>
 </body>
 </html>

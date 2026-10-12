@@ -10,6 +10,13 @@
   const WEAK = 0.35;          // abaixo dessa fração de PV o inimigo pode ser capturado
   const PLAYER_COL = '#3a9bff', WILD_COL = '#e0433a', GUEST_COL = '#ffd34d';
   const SAVE_KEY = 'ms_campaign_v1';
+  // tipos de bola: a Great e a Ultra têm chance de captura maior e só aparecem como itens pelo campo
+  const BALLS = {
+    ball:  { name: 'Pokébola',   mul: 1,   col: '#e63b3b', key: 'balls' },
+    great: { name: 'Great Ball', mul: 1.5, col: '#2f7fe0', key: 'great' },
+    ultra: { name: 'Ultra Ball', mul: 2.3, col: '#f2c230', key: 'ultra' }
+  };
+  const BALL_ORDER = ['ball', 'great', 'ultra'];
 
   const $ = id => document.getElementById(id);
   const f1 = v => (+v).toFixed(1);
@@ -26,7 +33,7 @@
   let walkBudget = WALK_MAX, dirty = true, msg = '', msgT = 0, keys = {};
   let neutral = null, lastShotVolt = false, voltDelay = 0, voltSide = 1;
   let guest = null, gCool = 1, gMode = '', gT = 0, gSide = 1, gDelay = 100, lastShotGuest = false, splashU = null, evo = null;
-  let ballMode = false, ai = null, cap = null, panel = null, pendingPanel = null;
+  let ballMode = false, ballType = 'ball', pickups = [], ai = null, cap = null, panel = null, pendingPanel = null;
   let campaign = null, stageIdx = 0, stageCaught = [], intro = null, teamSel = null;
   let uiList = [], uiSel = 0, themeKey = 'campo';
   let focus = { x: 400, y: 250 };
@@ -213,7 +220,7 @@
 
   function resetCommon() {
     fx = []; projs = []; parts = []; floaters = []; graves = [];
-    power = 0; charging = false; ballMode = false; ai = null; cap = null; panel = null; pendingPanel = null;
+    power = 0; charging = false; ballMode = false; pickups = []; ai = null; cap = null; panel = null; pendingPanel = null;
     lastShotVolt = false; voltDelay = 0; neutral = null; keys = {};
     guest = null; gCool = 1; gMode = ''; lastShotGuest = false; splashU = null; evo = null;
     cam.x = 400; cam.y = 250; cam.z = 1; cam.shake = 0;
@@ -264,6 +271,7 @@
       const s = JSON.parse(localStorage.getItem(SAVE_KEY));
       if (s && Array.isArray(s.roster) && s.roster.length && s.roster.every(r => SPECIES[r]) &&
           Number.isInteger(s.stage) && s.stage >= 0 && s.stage < STAGES.length) {
+        s.great = Math.max(0, Math.min(9, +s.great || 0)); s.ultra = Math.max(0, Math.min(9, +s.ultra || 0));
         s.xp = s.roster.map((_, i) => (Array.isArray(s.xp) && +s.xp[i] > 0) ? Math.round(+s.xp[i]) : 0);
         return s;
       }
@@ -271,24 +279,24 @@
     return null;
   }
   function saveGame() {
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ roster: campaign.roster, xp: campaign.xp, stage: campaign.stage, balls: campaign.balls, weakStart: campaign.weakStart })); } catch (_) {}
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ roster: campaign.roster, xp: campaign.xp, great: campaign.great, ultra: campaign.ultra, stage: campaign.stage, balls: campaign.balls, weakStart: campaign.weakStart })); } catch (_) {}
   }
   function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch (_) {} }
 
   function newCampaign(starter) {
-    campaign = { roster: [starter], xp: [0], stage: 0, balls: 0, weakStart: SPECIES[starter].maxhp < 100, sel: [0] };
+    campaign = { roster: [starter], xp: [0], great: 0, ultra: 0, stage: 0, balls: 0, weakStart: SPECIES[starter].maxhp < 100, sel: [0] };
     beginStage(0);
   }
   function continueCampaign() {
     const s = loadSave(); if (!s) return;
-    campaign = { roster: s.roster.slice(), xp: s.xp.slice(), stage: s.stage, balls: s.balls || 0, weakStart: !!s.weakStart, sel: [0] };
+    campaign = { roster: s.roster.slice(), xp: s.xp.slice(), great: s.great, ultra: s.ultra, stage: s.stage, balls: s.balls || 0, weakStart: !!s.weakStart, sel: [0] };
     beginStage(s.stage);
   }
 
   function beginStage(si) {
     campaign.stage = si;
     campaign.balls = Math.min(9, campaign.balls + (STAGES[si].boss ? 5 : 3));
-    campaign.ballsStart = campaign.balls;
+    campaign.ballsStart = campaign.balls; campaign.greatStart = campaign.great; campaign.ultraStart = campaign.ultra;
     campaign.rosterStart = campaign.roster.slice();
     campaign.xpStart = campaign.xp.slice();
     if (campaign.roster.length <= 3) {
@@ -324,6 +332,7 @@
       const u = mkUnit(sp, ex[i] + rnd(-5, 5), 1, -1, st.hpMult * mercy); units.push(u); teams[1].units.push(u);
     });
     teams[1].cur = teams[1].units.length - 1;
+    spawnPickups();
     turnTeam = 0; state = 'aim';
     startTurn();
     showMsg(`Fase ${si + 1}: ${st.name}`, 150);
@@ -333,7 +342,7 @@
   function restartStage() {
     campaign.roster = campaign.rosterStart.slice();
     campaign.xp = campaign.xpStart.slice();
-    campaign.balls = campaign.ballsStart;
+    campaign.balls = campaign.ballsStart; campaign.great = campaign.greatStart; campaign.ultra = campaign.ultraStart;
     initStage(stageIdx);
   }
 
@@ -440,6 +449,50 @@
       title: 'Seus Pokémon desmaiaram...', sub: 'Tente de novo com outra estratégia.', lines: [], caught: [],
       buttons: [{ label: 'Tentar de novo', fn: restartStage }, { label: 'Menu', fn: initMenu }] } };
     showMsg('Derrota...', 70);
+  }
+
+  // ---------- Itens: Pokébolas espalhadas pelo campo (um motivo para andar) ----------
+  function spawnPickups() {
+    pickups = [];
+    const n = 4, x0 = 270, x1 = 530;
+    for (let i = 0; i < n; i++) {
+      const roll = Math.random();
+      const type = roll < 0.5 ? 'ball' : roll < 0.84 ? 'great' : 'ultra';
+      for (let tries = 0; tries < 30; tries++) {
+        const x = x0 + (x1 - x0) * (i / (n - 1)) + rnd(-22, 22);
+        if (gy(x) > WATER - 40 || units.some(u => Math.abs(u.x - x) < 26) || pickups.some(p => Math.abs(p.x - x) < 40)) continue;
+        pickups.push({ x, type, ph: rnd(0, 6) }); break;
+      }
+    }
+  }
+
+  function stepPickups() {
+    for (let i = pickups.length - 1; i >= 0; i--) {
+      const p = pickups[i], y = gy(p.x);
+      if (y > WATER - 10) { pickups.splice(i, 1); continue; }                 // caiu na água
+      const who = teams[0] && teams[0].units.find(u => u.alive && !u.hidden && Math.abs(u.x - p.x) < 14 && Math.abs(u.y - y) < 30);
+      if (!who) continue;
+      const B = BALLS[p.type], key = B.key;
+      campaign[key] = Math.min(9, campaign[key] + 1);
+      pickups.splice(i, 1);
+      Sfx.ballCatch();
+      spray(p.x, y - 10, 12, '#fff27a', 3, 0.02, 34, 2, 'spark');
+      floaters.push({ x: p.x, y: y - 34, t: 0, text: p.type === 'ball' ? '+1 Pokébola' : `+1 ${B.name}!`, col: B.col === '#e63b3b' ? '#ffd34d' : B.col, size: 15 });
+    }
+  }
+
+  function pickupsSvg() {
+    return pickups.map(p => {
+      const B = BALLS[p.type], y = gy(p.x), bob = Math.sin(frameNo * 0.08 + p.ph) * 3, k = 0.5 + 0.5 * Math.sin(frameNo * 0.1 + p.ph);
+      const big = p.type !== 'ball';
+      return `<g transform="translate(${f1(p.x)} ${f1(y)})">
+        <ellipse cx="0" cy="1" rx="${f1(6 - bob * 0.4)}" ry="1.8" fill="#000" opacity=".25"/>
+        <circle cx="0" cy="${f1(-12 + bob)}" r="${f1(11 + k * 3)}" fill="${B.col}" opacity="${(0.18 + k * 0.14).toFixed(2)}"/>
+        <g transform="translate(0 ${f1(-12 + bob)})">${Art.ball(big ? 7.5 : 6.5, frameNo * (big ? 2 : 0), 0, B.col)}</g>
+        <path transform="translate(0 ${f1(-30 + bob)})" d="M-3.5,0 L3.5,0 L0,5 Z" fill="${big ? B.col : '#fff'}" stroke="#000" stroke-width=".8" stroke-linejoin="round"/>
+        ${big ? `<text x="0" y="${f1(-35 + bob)}" text-anchor="middle" font-size="8.5" font-weight="bold" fill="${B.col}" stroke="#000" stroke-width=".6" paint-order="stroke">${p.type === 'great' ? 'GREAT' : 'ULTRA'}</text>` : ''}
+      </g>`;
+    }).join('');
   }
 
   // ---------- Fase inicial: arremessar Pokébolas na cidade ----------
@@ -619,19 +672,25 @@
     }
   }
 
-  function captureChance(u) {
-    return clamp(spOf(u).catch * (1.05 - (u.hp / u.maxhp) * 0.9), 0.05, 0.95);
+  function captureChance(u, mul = BALLS[ballType].mul) {
+    return clamp(spOf(u).catch * mul * (1.05 - (u.hp / u.maxhp) * 0.9), 0.05, 0.95);
   }
 
   function toggleBall() {
     if (scene !== 'battle' || kind !== 'campaign' || state !== 'aim' || charging) return;
-    if (ballMode) { ballMode = false; Sfx.click(); showMsg('Pokébola guardada.', 60); return; }
-    if (campaign.balls <= 0) { showMsg('Você está sem Pokébolas!', 90); Sfx.ballFail(); return; }
+    const avail = BALL_ORDER.filter(k => campaign[BALLS[k].key] > 0);
+    if (ballMode) {            // B de novo: troca para a próxima bola (Great, Ultra) e por fim guarda
+      const i = avail.indexOf(ballType);
+      if (i >= 0 && i < avail.length - 1) { ballType = avail[i + 1]; Sfx.select(); showMsg(`${BALLS[ballType].name} pronta! (chance maior)`, 90); }
+      else { ballMode = false; Sfx.click(); showMsg('Pokébola guardada.', 60); }
+      return;
+    }
+    if (!avail.length) { showMsg('Você está sem Pokébolas!', 90); Sfx.ballFail(); return; }
     if (!teams[1].units.concat(guest ? [guest] : []).some(u => u.alive && !u.hidden && u.hp / u.maxhp <= WEAK)) {
       showMsg('Nenhum inimigo está fraco o bastante!', 100); Sfx.ballFail(); return;
     }
-    ballMode = true; Sfx.select();
-    showMsg('Pokébola pronta! Acerte um inimigo fraco.', 110);
+    ballMode = true; ballType = avail[0]; Sfx.select();
+    showMsg(avail.length > 1 ? 'Pokébola pronta! (B troca de bola)' : 'Pokébola pronta! Acerte um inimigo fraco.', 110);
   }
 
   // ---------- Física e regras ----------
@@ -713,7 +772,8 @@
     }
     if (ballMode) {
       launch('ball', u.x + u.face * 8 * u.scale, u.y - S.h * 0.6 * u.scale, a, sp, 'player', u);
-      campaign.balls--; ballMode = false; Sfx.ballThrow();
+      projs[projs.length - 1].bt = ballType;
+      campaign[BALLS[ballType].key]--; ballMode = false; Sfx.ballThrow();
     } else {
       const mx = u.x + u.face * S.mouth[0] * u.scale, my = u.y + S.mouth[1] * u.scale;
       launch(S.weapon, mx, my, a, sp, 'unit', u);
@@ -834,7 +894,7 @@
       showMsg(`${u.name} ainda está forte demais!`, 100);
       return;
     }
-    const ok = Math.random() < captureChance(u);
+    const ok = Math.random() < captureChance(u, BALLS[p.bt || 'ball'].mul);
     startCapture(u, p.x, p.y, ok, success => {
       if (success) {
         u.alive = false; u.captured = true; u.hp = 0;
@@ -843,6 +903,7 @@
       }
       state = 'settle';
     });
+    if (cap) cap.col = BALLS[p.bt || 'ball'].col;
   }
 
   function updateUnits() {
@@ -1317,8 +1378,13 @@
         ${ballIcon(258, 28, 9)}
         <text x="274" y="33" font-size="16" font-weight="bold" fill="#fff">×${campaign.balls}</text>
         <text x="312" y="43" text-anchor="end" font-size="8" fill="#bbb">[B]</text>`;
-      if (ballMode) s += `<rect x="238" y="54" width="170" height="22" rx="11" fill="#e63b3b" opacity=".9"/>
-        <text x="323" y="69" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">POKÉBOLA ATIVA</text>`;
+      if (campaign.great > 0 || campaign.ultra > 0) {
+        s += `<rect x="238" y="52" width="150" height="22" rx="11" fill="#0d1b2a" opacity=".72"/>
+          <g transform="translate(252 63)">${Art.ball(6, 0, 0, BALLS.great.col)}</g><text x="262" y="67" font-size="12" font-weight="bold" fill="#fff">×${campaign.great}</text>
+          <g transform="translate(312 63)">${Art.ball(6, 0, 0, BALLS.ultra.col)}</g><text x="322" y="67" font-size="12" font-weight="bold" fill="#fff">×${campaign.ultra}</text>`;
+      }
+      if (ballMode) s += `<rect x="238" y="78" width="170" height="22" rx="11" fill="${BALLS[ballType].col}" opacity=".92"/>
+        <text x="323" y="93" text-anchor="middle" font-size="11" font-weight="bold" fill="${ballType === 'ultra' ? '#2a1a00' : '#fff'}">${BALLS[ballType].name.toUpperCase()} ATIVA</text>`;
     }
     return s;
   }
@@ -1339,7 +1405,7 @@
         const k = (i + 1) / p.trail.length;
         ph += `<circle cx="${f1(tp.x)}" cy="${f1(tp.y)}" r="${f1(1 + 2 * k)}" fill="#fff" opacity="${(k * 0.4).toFixed(2)}"/>`;
       });
-      return ph + `<g transform="translate(${f1(p.x)} ${f1(p.y)})">${Art.ball(6, frameNo * 14)}</g>`;
+      return ph + `<g transform="translate(${f1(p.x)} ${f1(p.y)})">${Art.ball(6, frameNo * 14, 0, BALLS[p.bt || 'ball'].col)}</g>`;
     }
     switch (st) {
       case 'fire':
@@ -1409,7 +1475,7 @@
     const c = cap;
     let s = '';
     if (c.t <= 22) s += `<circle cx="${f1(c.x)}" cy="${f1(c.y)}" r="${f1(6 + c.t * 1.2)}" fill="#fff" opacity="${(1 - c.t / 22).toFixed(2)}"/>`;
-    s += `<g opacity="${c.alpha.toFixed(2)}"><g transform="translate(${f1(c.x)} ${f1(c.by)}) rotate(${f1(c.rot)})">${Art.ball(8, 0, c.open)}</g></g>`;
+    s += `<g opacity="${c.alpha.toFixed(2)}"><g transform="translate(${f1(c.x)} ${f1(c.by)}) rotate(${f1(c.rot)})">${Art.ball(8, 0, c.open, c.col || '#e63b3b')}</g></g>`;
     if (c.stars) for (let i = 0; i < 3; i++) {
       const a = frameNo * 0.08 + i * 2.1;
       s += `<text x="${f1(c.x + Math.cos(a) * 14)}" y="${f1(c.by - 16 - Math.abs(Math.sin(a)) * 8)}" font-size="12" text-anchor="middle" fill="#ffd34d" opacity="${c.alpha.toFixed(2)}">★</text>`;
@@ -1513,6 +1579,7 @@
       $('aim').innerHTML = aim;
     }
 
+    if (scene === 'battle') $('introBack').innerHTML = kind === 'campaign' ? pickupsSvg() : '';
     $('graves').innerHTML = graves.map(g => `<g transform="translate(${f1(g.x)} ${f1(g.y)})">
       <path d="M-7,0 L-7,-14 Q-7,-21 0,-21 Q7,-21 7,-14 L7,0 Z" fill="#b4b8be" stroke="#5c6067" stroke-width="1.2"/>
       <path d="M0,-17 L0,-6 M-3.5,-13 L3.5,-13" stroke="#5c6067" stroke-width="1.6" stroke-linecap="round"/>
@@ -1829,6 +1896,7 @@
     if (state === 'volt' && --voltDelay <= 0) voltShoot();
     if (state === 'capture' && cap) stepCapture();
     if (state === 'settle') settle();
+    if (kind === 'campaign' && state !== 'over' && state !== 'evolve') stepPickups();
     if (pendingPanel && --pendingPanel.t <= 0) {
       const pp = pendingPanel; pendingPanel = null;
       if (pp.evos && pp.evos.length) startEvolutions(pp.evos, pp.panel);
@@ -1861,6 +1929,7 @@
   // para testes automatizados
   MS.debug = {
     get: () => ({ scene, kind, state, stageIdx, units, teams, campaign, cap, intro, panel, angle, power, wind, ballMode, turnTeam, ai, guest, gCool, gMode, evo }),
+    get pickups() { return pickups; }, BALLS,
     forceGuest: sp => { gCool = 0; STAGES[stageIdx].guests = [{ sp, rarity: 1 }]; },
     skipEvolve, stageClear,
     initMenu, initVersus, initIntro, initStage, newCampaign, beginStage, fire, toggleBall, pickTarget,

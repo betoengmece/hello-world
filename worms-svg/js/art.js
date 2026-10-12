@@ -476,11 +476,11 @@
     charmeleon, ivysaur, wartortle, raticate, pidgeotto, butterfree, gyarados, dragonair, onix };
 
   // ---------- Pokébola ----------
-  function ball(r, rot = 0, open = 0) {
+  function ball(r, rot = 0, open = 0, col = '#e63b3b') {
     const gap = open ? `<circle r="${f1(r * 1.4)}" fill="url(#zap)" opacity="${open}"/>` : '';
     return `${gap}<g transform="rotate(${f1(rot)})">
       <circle r="${r}" fill="#fff" stroke="#222" stroke-width="${f1(Math.max(1, r * 0.18))}"/>
-      <path d="M${-r},0 A${r},${r} 0 0 1 ${r},0 Z" fill="#e63b3b" stroke="#222" stroke-width="${f1(Math.max(1, r * 0.1))}" stroke-linejoin="round"/>
+      <path d="M${-r},0 A${r},${r} 0 0 1 ${r},0 Z" fill="${col}" stroke="#222" stroke-width="${f1(Math.max(1, r * 0.1))}" stroke-linejoin="round"/>
       <path d="M${f1(-r * 0.7)},${f1(-r * 0.5)} A${f1(r * 0.85)},${f1(r * 0.85)} 0 0 1 ${f1(-r * 0.1)},${f1(-r * 0.85)}" fill="none" stroke="#fff" stroke-width="${f1(Math.max(.8, r * 0.14))}" stroke-linecap="round" opacity=".6"/>
       <rect x="${-r}" y="${f1(-r * 0.13)}" width="${2 * r}" height="${f1(r * 0.26)}" fill="#222"/>
       <circle r="${f1(r * 0.34)}" fill="#fff" stroke="#222" stroke-width="${f1(Math.max(1, r * 0.14))}"/>

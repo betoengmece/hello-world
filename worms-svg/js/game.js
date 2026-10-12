@@ -29,6 +29,8 @@
   let campaign = null, stageIdx = 0, stageCaught = [], intro = null, teamSel = null;
   let uiList = [], uiSel = 0, themeKey = 'campo';
   let focus = { x: 400, y: 250 };
+  let flash = { a: 0, col: '#fff' }, skipT = 0;
+  const lastAngles = {};      // último ângulo usado por cada lado (vale também ao recomeçar)
 
   const activeUnit = () => { const t = teams[turnTeam]; return t ? t.units[t.cur] : undefined; };
   const showMsg = (text, frames) => { msg = text; msgT = frames; };
@@ -218,7 +220,7 @@
   function mkUnit(sp, x, team, face, hpMult = 1) {
     const S = SPECIES[sp], maxhp = Math.round(S.maxhp * hpMult);
     return { sp, name: S.name, team, x, y: gy(x), hp: maxhp, maxhp, alive: true, face: face || 1, breath: 0, hurt: 0,
-             walkT: 0, moving: false, blinkOff: Math.floor(rnd(0, 230)), webbed: false, hidden: false, capScale: 1,
+             walkT: 0, moving: false, blinkOff: Math.floor(rnd(0, 230)), webbed: false, stuck: false, hidden: false, capScale: 1,
              scale: S.scale || 1, hop: 0 };
   }
 
@@ -375,7 +377,8 @@
         mk('caterpie', 410, 420, { hard: 1, hrMul: 1.5, home: 410 })
       ]
     };
-    wind = 0; angle = 45; state = 'aim';
+    wind = 0; state = 'aim';
+    { const m = lastAngles.campaign0; angle = m === undefined ? 45 : clamp(m > 90 ? 180 - m : m, 4, 88); }
     showMsg('Acerte a Pokébola no Pokémon que você quer como parceiro!', 260);
     syncButtons();
   }
@@ -426,7 +429,7 @@
     const a = angle * Math.PI / 180, sp = (3 + power * 0.075) * 1.3;
     projs.push({ wk: 'ball', wp: WEAPONS.ball, owner: 'trainer', x: TRAINER.x + 16, y: TRAINER.y - 52,
                  vx: sp * Math.cos(a), vy: -sp * Math.sin(a), trail: [], spin: 0, age: 0 });
-    intro.balls--; intro.swing = 10;
+    intro.balls--; intro.swing = 10; lastAngles.campaign0 = angle;
     Sfx.chargeStop(); Sfx.ballThrow();
     power = 0; charging = false; state = 'flying';
   }
@@ -567,6 +570,7 @@
     focus = { x, y };
     cam.shake = Math.max(cam.shake, wp.boom / 6);
     Sfx.boom(style);
+    if (wp.boom >= 40 || style === 'thunder') { flash.a = Math.min(0.5, wp.boom / 100); flash.col = { fire: '#ffd9a0', dragon: '#c8b0ff', thunder: '#fffbb0' }[style] || '#ffffff'; }
     carve(x, y, wp.carve);
     fx.push({ x, y, t: 0, max: 36, r: wp.boom, fill: FX_FILL[style] });
     burst(x, y, style);
@@ -582,7 +586,7 @@
         if (mult > 1 && k > 0.2) { sup = true; floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 34, t: 6, text: 'Super efetivo!', col: '#ff9a1a', size: 12 }); }
         else if (mult < 1 && k > 0.2) { weak = true; floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 34, t: 6, text: 'Pouco efetivo...', col: '#b8c0cc', size: 12 }); }
       }
-      if (wp.web && k > 0.15) { u.webbed = true; floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 34, t: 6, text: 'Preso na teia!', col: '#ffffff', size: 12 }); }
+      if (wp.web && k > 0.15) { u.webbed = true; floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 34, t: 6, text: 'Preso! Perde a vez', col: '#ffffff', size: 12 }); }
       if (wp.push) {
         const dir = (u.x - x) >= 0 ? 1 : -1;
         u.x = clamp(u.x + dir * wp.push * k, 8, W - 8);
@@ -612,10 +616,13 @@
       launch('ball', u.x + u.face * 8 * u.scale, u.y - S.h * 0.6 * u.scale, a, sp, 'player', u);
       campaign.balls--; ballMode = false; Sfx.ballThrow();
     } else {
-      launch(S.weapon, u.x + u.face * S.mouth[0] * u.scale, u.y + S.mouth[1] * u.scale, a, sp, 'unit', u);
+      const mx = u.x + u.face * S.mouth[0] * u.scale, my = u.y + S.mouth[1] * u.scale;
+      launch(S.weapon, mx, my, a, sp, 'unit', u);
       u.breath = 18; Sfx.shoot(WEAPONS[S.weapon].style);
+      muzzle(mx, my, WEAPONS[S.weapon].style, a);
     }
     Sfx.chargeStop();
+    lastAngles[kind + turnTeam] = angle;
     power = 0; charging = false; state = 'flying'; ai = null;
   }
 
@@ -624,11 +631,58 @@
     const a = (voltSide > 0 ? deg : 180 - deg) * Math.PI / 180;
     launch('volt', neutral.x, neutral.y - 34, a, rnd(5, 6.5), 'volt', null);
     lastShotVolt = true; state = 'flying'; Sfx.shoot('thunder');
+    muzzle(neutral.x, neutral.y - 34, 'thunder', a);
+  }
+
+  // ---------- Efeitos do tiro ----------
+  const STYLE_COL = { fire: '#ffb020', leaf: '#7be07b', water: '#9fe0ff', thunder: '#fff27a', normal: '#fff6c8', gust: '#ffffff', web: '#ffffff', dragon: '#9a6aff' };
+
+  function muzzle(x, y, style, a) {
+    const col = STYLE_COL[style] || '#fff';
+    fx.push({ x, y, t: 0, max: 16, r: 20, fill: FX_FILL[style] });
+    for (let i = 0; i < 12; i++) {
+      const s = rnd(1, 3.2), da = rnd(-0.5, 0.5);
+      addPart({ x, y, vx: Math.cos(a + da) * s, vy: -Math.sin(a + da) * s, g: 0, life: 20, max: 20, r: rnd(1.2, 2.6), col, kind: 'ember' });
+    }
+    if (style === 'fire' || style === 'dragon' || style === 'thunder') cam.shake = Math.max(cam.shake, 2);
+  }
+
+  // rastro de partículas que sai do projétil (cada ataque tem o seu)
+  function trailFx(p) {
+    if (p.wk === 'ball') return;
+    const st = p.wp.style, x = p.x, y = p.y, e = frameNo % 2 === 0;
+    switch (st) {
+      case 'fire':
+        if (e) addPart({ x: x + rnd(-2, 2), y: y + rnd(-2, 2), vx: rnd(-0.3, 0.3), vy: rnd(-0.8, -0.2), g: -0.01, life: 26, max: 26, r: rnd(1.4, 2.8), col: pick(['#ffb020', '#ff7a1a', '#ffe27a']), kind: 'ember' });
+        break;
+      case 'dragon':
+        addPart({ x: x + rnd(-3, 3), y: y + rnd(-3, 3), vx: rnd(-0.4, 0.4), vy: rnd(-0.6, 0.2), g: 0, life: 30, max: 30, r: rnd(1.4, 3), col: pick(['#9a6aff', '#c8b0ff', '#5a8aff']), kind: 'ember' });
+        break;
+      case 'water':
+        addPart({ x: x + rnd(-2, 2), y: y + rnd(-2, 2), vx: rnd(-0.4, 0.4), vy: rnd(-0.3, 0.3), g: 0.12, life: 30, max: 30, r: rnd(1.2, 2.2), col: '#bfe9ff', kind: 'drop' });
+        break;
+      case 'leaf':
+        if (frameNo % 3 === 0) addPart({ x, y, vx: rnd(-0.4, 0.4), vy: rnd(-0.2, 0.4), g: 0.02, life: 44, max: 44, r: rnd(2, 3), col: '#5cc46a', kind: 'leaf' });
+        break;
+      case 'thunder':
+        addPart({ x, y, vx: rnd(-1.6, 1.6), vy: rnd(-1.6, 1.6), g: 0, life: 12, max: 12, r: rnd(1, 1.8), col: '#fff27a', kind: 'spark' });
+        break;
+      case 'normal':
+        if (frameNo % 3 === 0) addPart({ x, y, vx: rnd(-0.3, 0.3), vy: rnd(-0.3, 0.3), g: 0, life: 18, max: 18, r: rnd(1.4, 2.4), col: '#fff6c8', kind: 'ember' });
+        break;
+      case 'gust':
+        if (e) addPart({ x: x + rnd(-3, 3), y: y + rnd(-3, 3), vx: rnd(-0.5, 0.2), vy: rnd(-0.3, 0.3), g: 0, life: 22, max: 22, r: rnd(1.4, 2.4), col: '#ffffff', kind: 'drop' });
+        break;
+      case 'web':
+        if (e) addPart({ x, y, vx: rnd(-0.2, 0.2), vy: rnd(0, 0.3), g: 0.02, life: 44, max: 44, r: 1.2, col: '#ffffff', kind: 'drop' });
+        break;
+    }
   }
 
   function stepProjs() {
     for (let i = projs.length - 1; i >= 0; i--) {
       const p = projs[i], isBall = p.wk === 'ball';
+      trailFx(p);
       p.trail.push({ x: p.x, y: p.y });
       if (p.trail.length > 14) p.trail.shift();
       let outcome = null, target = null;
@@ -723,34 +777,50 @@
     if (!t.units[t.cur] || !t.units[t.cur].alive) { const i = t.units.findIndex(u => u.alive); if (i >= 0) t.cur = i; }
   }
 
+  function nextFree(t, from) {
+    const n = t.units.length;
+    for (let i = 1; i <= n; i++) { const j = (((from + i) % n) + n) % n; const v = t.units[j]; if (v.alive && !v.stuck) return j; }
+    return from;
+  }
+
   function startTurn() {
     const t = teams[turnTeam];
-    if (t.ai) t.cur = nextAlive(t, t.cur); else fixCur(t);
+    // teia: quem foi preso fica sem agir neste turno do seu time
+    for (const v of t.units) { v.stuck = v.alive && v.webbed; v.webbed = false; }
+    const free = t.units.filter(v => v.alive && !v.stuck);
+    ai = null; charging = false; power = 0; ballMode = false;
+    if (!free.length) {
+      const who = kind === 'campaign' ? (t.ai ? 'Os selvagens' : 'Seu time') : `Time ${t.name}`;
+      state = 'skip'; skipT = 100; walkBudget = 0;
+      showMsg(`${who}: preso na teia, perde a vez!`, 100);
+      Sfx.weakEff();
+      return;
+    }
+    if (t.ai) t.cur = nextFree(t, t.cur);
+    else if (!t.units[t.cur] || !t.units[t.cur].alive || t.units[t.cur].stuck) t.cur = t.units.indexOf(free[0]);
     const u = activeUnit();
     const wmax = kind === 'campaign' ? STAGES[stageIdx].wind : 3;
     wind = Math.round(rnd(-wmax, wmax));
-    walkBudget = WALK_MAX; ballMode = false; power = 0; charging = false;
-    if (u.webbed) {
-      walkBudget = 0; u.webbed = false;
-      floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 30, t: 0, text: 'Preso na teia!', col: '#fff', size: 13 });
-    }
+    walkBudget = WALK_MAX;
+    const mem = lastAngles[kind + turnTeam];        // mantém o último ângulo usado
     if (t.ai) {
       state = 'ai'; ai = { phase: 'think0', t: 0 };
-      angle = 135;
+      angle = mem !== undefined ? mem : 135;
       showMsg(`${u.name} selvagem ataca!`, 90);
     } else {
-      state = 'aim'; ai = null;
-      angle = u.face === 1 ? 45 : 135;
+      state = 'aim';
+      angle = mem !== undefined ? mem : (u.face === 1 ? 45 : 135);
       showMsg(kind === 'campaign' ? `Sua vez: ${u.name}!` : `Vez de ${t.name}!`, 110);
     }
+    if (u.stuck) u.stuck = false;
     Sfx.turn();
   }
 
   function switchUnit() {
     if (scene !== 'battle' || state !== 'aim' || charging) return;
     const t = teams[turnTeam];
-    const j = nextAlive(t, t.cur);
-    if (j !== t.cur) { t.cur = j; Sfx.click(); ballMode = false; angle = t.units[j].face === 1 ? 45 : 135; }
+    const j = nextFree(t, t.cur);
+    if (j !== t.cur) { t.cur = j; Sfx.click(); ballMode = false; }
   }
 
   function settle() {
@@ -973,14 +1043,17 @@
         ${Art.typeDots(S.types, 0, -12, TYPE_COLOR)}
         ${opt.noBar ? '' : `<rect x="-15" y="3" width="30" height="5.5" rx="2.75" fill="#000" opacity=".6"/>
         <rect x="-14" y="4" width="${f1(28 * hp)}" height="3.5" rx="1.75" fill="${col}"/>`}
-        ${u.webbed ? `<g transform="translate(21 -2)" stroke="#fff" stroke-width="1" fill="none"><circle r="4.5"/><circle r="2"/><path d="M-5,0H5M0,-5V5M-3.5,-3.5L3.5,3.5M3.5,-3.5L-3.5,3.5" stroke-width=".7"/></g>` : ''}
+        ${(u.webbed || u.stuck) ? `<g transform="translate(21 -2)" stroke="#fff" stroke-width="1" fill="none"><circle r="4.5"/><circle r="2"/><path d="M-5,0H5M0,-5V5M-3.5,-3.5L3.5,3.5M3.5,-3.5L-3.5,3.5" stroke-width=".7"/></g>` : ''}
       </g>`;
     }
+    const web = (u.webbed || u.stuck) ? `<g transform="translate(0 ${f1(-S.hitY * u.scale)})" stroke="#fff" stroke-width="1" fill="rgba(255,255,255,.18)" opacity=".9">
+      <circle r="${f1(15 * u.scale)}"/><circle r="${f1(8 * u.scale)}"/>
+      <path d="M-15,0H15M0,-15V15M-10.6,-10.6L10.6,10.6M10.6,-10.6L-10.6,10.6" stroke-width=".8" transform="scale(${f1(u.scale)})"/></g>` : '';
     const shadow = opt.noShadow ? '' : `<ellipse cx="0" cy="${f1(gy(u.x) - u.y + 0.5)}" rx="${f1(11 * u.scale)}" ry="${f1(2.6 * u.scale)}" fill="#000" opacity=".25"/>`;
     return `<g transform="translate(${f1(u.x)} ${f1(u.y + hop)})">
       ${shadow}
       <g transform="scale(${f1(u.face * sc)} ${f1(sc)})"${flash ? ' opacity=".45"' : ''}>${Art.draw(u.sp, ctx)}</g>
-      ${label}</g>`;
+      ${web}${label}</g>`;
   }
 
   function renderTerrain() {
@@ -1294,7 +1367,7 @@
          <rect x="12" y="${scene === 'battle' && kind === 'campaign' ? 84 : 56}" width="${f1(power * 2.04)}" height="10" rx="5" fill="url(#pow)"/>`
       : '';
 
-    $('hud').innerHTML = hudSvg();
+    $('hud').innerHTML = (flash.a > 0.01 ? `<rect width="800" height="500" fill="${flash.col}" opacity="${flash.a.toFixed(2)}"/>` : '') + hudSvg();
     $('msgbox').innerHTML = msgSvg();
     renderOverlay();
   }
@@ -1545,6 +1618,7 @@
       }
     }
     if (state === 'ai') stepAI();
+    if (state === 'skip' && --skipT <= 0) state = 'settle';
     if (state === 'flying') stepProjs();
     if (state === 'volt' && --voltDelay <= 0) voltShoot();
     if (state === 'capture' && cap) stepCapture();
@@ -1565,6 +1639,7 @@
     else if (scene === 'intro') stepIntro();
     updateUnits();
     stepParts();
+    flash.a *= 0.86;
     for (const f of fx) f.t++;
     fx = fx.filter(f => f.t < f.max);
     for (const f of floaters) f.t++;

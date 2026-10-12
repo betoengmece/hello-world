@@ -29,7 +29,7 @@ Ataques com o tipo certo causam **o dobro de dano** ("Super efetivo!"); com o ti
 | Pikachu | Elétrico | Trovoada: raio em ziguezague |
 | Rattata | Normal | Investida |
 | Pidgey | Normal/Voador | Ventania: duas rajadas que empurram |
-| Caterpie | Inseto | Teia: o atingido perde a caminhada no próximo turno |
+| Caterpie | Inseto | Teia: dano baixo, mas o atingido fica preso e perde a vez no próximo turno do seu time |
 | Starmie | Água/Psíquico | Hidro Pulso: dois jatos |
 | Magikarp | Água | Splash: não faz nada (mas é fácil de capturar) |
 | Dratini | Dragão | Fúria do Dragão (chefe da campanha) |
@@ -51,8 +51,11 @@ Relações usadas: Fogo > Planta, Inseto · Água > Fogo · Planta > Água · El
 
 **No celular:** botões na tela (◀ ▶ andar, ▲ ▼ mirar, segure TIRO para carregar e solte para atirar, BOLA, ⇄ troca, ↻ reinicia, ☰ menu, 🔊 som). Jogue com o celular deitado. Menus funcionam por toque.
 
+O ângulo da mira é lembrado: o último usado continua no turno seguinte e ao reiniciar a fase.
+
 ## Visual 2.5D e som
 
+- Cada ataque tem seu efeito: clarão na boca, rastro de partículas no voo (brasas, gotas, folhas, faíscas, rajadas, fios de teia) e clarão de tela nas explosões fortes.
 - Câmera com zoom que acompanha os tiros e a captura, treme nas explosões e tem camadas de parallax (céu, montanhas, prédios/pinheiros, terreno e capim em primeiro plano).
 - Terreno com espessura, camadas de rocha e grama chamuscada nas crateras; cada fase tem seu tema (campo, floresta, praia, caverna, montanha).
 - Todo o som é sintetizado no navegador (Web Audio), sem arquivos.

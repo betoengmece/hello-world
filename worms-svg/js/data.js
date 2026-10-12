@@ -36,7 +36,7 @@
     volt:      { label: 'Trovoada',        type: 'electric', style: 'thunder', count: 1, spread: 0, speed: 1.2,  grav: 1.0, boom: 30, carve: 14, dmg: 45 },
     investida: { label: 'Investida',       type: 'normal',   style: 'normal',  count: 1, spread: 0, speed: 1.15, grav: 0.8, boom: 30, carve: 12, dmg: 34 },
     ventania:  { label: 'Ventania',        type: 'flying',   style: 'gust',    count: 2, spread: 5, speed: 1.0,  grav: 0.6, boom: 22, carve: 6,  dmg: 19, push: 4 },
-    teia:      { label: 'Teia',            type: 'bug',      style: 'web',     count: 1, spread: 0, speed: 0.9,  grav: 1.0, boom: 28, carve: 4,  dmg: 24, web: true },
+    teia:      { label: 'Teia',            type: 'bug',      style: 'web',     count: 1, spread: 0, speed: 0.9,  grav: 1.0, boom: 28, carve: 4,  dmg: 8,  web: true },
     hidro:     { label: 'Hidro Pulso',     type: 'water',    style: 'water',   count: 2, spread: 4, speed: 1.0,  grav: 1.0, boom: 28, carve: 0,  dmg: 24, push: 5 },
     furia:     { label: 'Fúria do Dragão', type: 'dragon',   style: 'dragon',  count: 1, spread: 0, speed: 1.05, grav: 1.0, boom: 44, carve: 22, dmg: 50 },
     splash:    { label: 'Splash', none: true },

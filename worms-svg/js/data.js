@@ -128,10 +128,13 @@
   // ---------- Fases da campanha ----------
   // err: erro de mira do inimigo em graus (menor = mais preciso); wind: vento máximo
   MS.STAGES = [
-    { name: 'Rota 1',               theme: 'campo',    enemies: ['rattata', 'pidgey'],              err: 12,  hpMult: 1.0,  wind: 2, guests: [{ sp: 'pikachu', rarity: 0.2 }] },
-    { name: 'Floresta de Viridian', theme: 'floresta', enemies: ['caterpie', 'caterpie', 'pidgey'], err: 10,  hpMult: 1.0,  wind: 2, guests: [{ sp: 'bulbasaur', rarity: 0.22 }, { sp: 'pikachu', rarity: 0.12 }] },
-    { name: 'Praia',                theme: 'praia',    enemies: ['magikarp', 'magikarp', 'starmie'], err: 8,  hpMult: 1.0,  wind: 3, guests: [{ sp: 'squirtle', rarity: 0.22 }, { sp: 'pikachu', rarity: 0.1 }] },
+    { name: 'Rota 1',               theme: 'campo',    enemies: ['rattata', 'pidgey'],              err: 12,  hpMult: 1.0,  wind: 2, guests: [{ sp: 'pikachu', rarity: 0.2 }],
+      weather: [{ type: 'sun', p: 0.25 }, { type: 'rain', p: 0.2 }, { type: 'storm', p: 0.15 }] },
+    { name: 'Floresta de Viridian', theme: 'floresta', enemies: ['caterpie', 'caterpie', 'pidgey'], err: 10,  hpMult: 1.0,  wind: 2, guests: [{ sp: 'bulbasaur', rarity: 0.22 }, { sp: 'pikachu', rarity: 0.12 }],
+      weather: [{ type: 'rain', p: 0.3 }, { type: 'sun', p: 0.2 }] },
+    { name: 'Praia',                theme: 'praia',    enemies: ['magikarp', 'magikarp', 'starmie'], err: 8,  hpMult: 1.0,  wind: 3, guests: [{ sp: 'squirtle', rarity: 0.22 }, { sp: 'pikachu', rarity: 0.1 }],
+      weather: [{ type: 'sun', p: 0.35 }, { type: 'rain', p: 0.2 }, { type: 'storm', p: 0.15 }] },
     { name: 'Caverna',              theme: 'caverna',  enemies: ['rattata', 'pidgey', 'starmie'],   err: 6,   hpMult: 1.15, wind: 1, guests: [{ sp: 'onix', rarity: 0.35 }, { sp: 'charmander', rarity: 0.12 }] },
-    { name: 'Covil do Dragão',      theme: 'montanha', enemies: ['dratini'],                        err: 3.5, hpMult: 1.2,  wind: 3, boss: true, guests: [{ sp: 'onix', rarity: 0.2 }, { sp: 'dragonair', rarity: 0.08 }] }
+    { name: 'Covil do Dragão',      theme: 'montanha', enemies: ['dratini'],                        err: 3.5, hpMult: 1.9,  wind: 3, boss: true, weather: [{ type: 'storm', p: 0.35 }, { type: 'rain', p: 0.15 }], guests: [{ sp: 'onix', rarity: 0.2 }, { sp: 'dragonair', rarity: 0.08 }] }
   ];
 })();

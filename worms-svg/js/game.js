@@ -17,6 +17,12 @@
     ultra: { name: 'Ultra Ball', mul: 2.3, col: '#f2c230', key: 'ultra' }
   };
   const BALL_ORDER = ['ball', 'great', 'ultra'];
+  // clima: só em cenários ao ar livre (a Caverna não tem). Reforça golpes de certos tipos
+  const WEATHER = {
+    rain:  { name: 'Chuva',       note: 'Água +50%',            boost: { water: 1.5 } },
+    sun:   { name: 'Sol forte',   note: 'Fogo e Planta +40%',   boost: { fire: 1.4, grass: 1.4 } },
+    storm: { name: 'Tempestade',  note: 'Elétrico +50%',        boost: { electric: 1.5 } }
+  };
 
   const $ = id => document.getElementById(id);
   const f1 = v => (+v).toFixed(1);
@@ -33,6 +39,7 @@
   let walkBudget = WALK_MAX, dirty = true, msg = '', msgT = 0, keys = {};
   let neutral = null, lastShotVolt = false, voltDelay = 0, voltSide = 1;
   let guest = null, gCool = 1, gMode = '', gT = 0, gSide = 1, gDelay = 100, lastShotGuest = false, splashU = null, evo = null;
+  let weather = null, lightT = 300, bolt = null;
   let ballMode = false, ballType = 'ball', pickups = [], ai = null, cap = null, panel = null, pendingPanel = null;
   let campaign = null, stageIdx = 0, stageCaught = [], intro = null, teamSel = null;
   let uiList = [], uiSel = 0, themeKey = 'campo';
@@ -220,7 +227,7 @@
 
   function resetCommon() {
     fx = []; projs = []; parts = []; floaters = []; graves = [];
-    power = 0; charging = false; ballMode = false; pickups = []; ai = null; cap = null; panel = null; pendingPanel = null;
+    power = 0; charging = false; ballMode = false; pickups = []; weather = null; bolt = null; ai = null; cap = null; panel = null; pendingPanel = null;
     lastShotVolt = false; voltDelay = 0; neutral = null; keys = {};
     guest = null; gCool = 1; gMode = ''; lastShotGuest = false; splashU = null; evo = null;
     cam.x = 400; cam.y = 250; cam.z = 1; cam.shake = 0;
@@ -333,9 +340,13 @@
     });
     teams[1].cur = teams[1].units.length - 1;
     spawnPickups();
+    weather = null; lightT = 200 + Math.floor(Math.random() * 200); bolt = null;
+    let roll = Math.random();
+    for (const w of (st.weather || [])) { if (roll < w.p) { weather = w.type; break; } roll -= w.p; }
+    if (weather === 'rain' || weather === 'storm') $('sun').style.display = 'none';   // céu fechado: sem sol
     turnTeam = 0; state = 'aim';
     startTurn();
-    showMsg(`Fase ${si + 1}: ${st.name}`, 150);
+    showMsg(`Fase ${si + 1}: ${st.name}` + (weather ? ` · ${WEATHER[weather].name} (${WEATHER[weather].note})` : ''), 170);
     syncButtons();
   }
 
@@ -715,6 +726,8 @@
 
   const sideColor = u => (u.team === 2 ? GUEST_COL : teams[u.team] ? teams[u.team].color : '#fff');
 
+  const wxMul = type => (weather && WEATHER[weather].boost[type]) || 1;
+
   function explode(x, y, p) {
     const wp = p.wp, style = wp.style;
     let anyHurt = false, sup = false, weak = false;
@@ -730,7 +743,7 @@
       const c = centerOf(u), d = Math.hypot(c.x - x, c.y - y);
       if (d >= wp.boom) continue;
       const k = 1 - d / wp.boom, mult = typeMult(wp.type, spOf(u).types);
-      const dmg = Math.round(wp.dmg * k * mult);
+      const dmg = Math.round(wp.dmg * k * mult * wxMul(wp.type));
       if (dmg > 0) {
         u.hp -= dmg; u.hurt = 24; anyHurt = true;
         if (p.ownerUnit && p.ownerUnit.team === 0 && u.team > 0) p.ownerUnit.dealt += dmg;
@@ -744,6 +757,7 @@
         u.x = clamp(u.x + dir * wp.push * k, 8, W - 8);
       }
     }
+    if (anyHurt && wxMul(wp.type) > 1) floaters.push({ x, y: y - 30, t: 0, text: WEATHER[weather].name + ' reforça!', col: '#9fe0ff', size: 12 });
     if (anyHurt) Sfx.hurt();
     if (sup) setTimeout(() => Sfx.superEff(), 140);
     else if (weak) setTimeout(() => Sfx.weakEff(), 140);
@@ -1135,7 +1149,7 @@
       if (!v.alive || v.hidden) continue;
       const c = centerOf(v), d = Math.hypot(c.x - lx, c.y - ly);
       if (d >= wp.boom) continue;
-      const dmg = wp.dmg * (1 - d / wp.boom) * typeMult(wp.type, spOf(v).types);
+      const dmg = wp.dmg * (1 - d / wp.boom) * typeMult(wp.type, spOf(v).types) * wxMul(wp.type);
       if (v.team === 2) continue;                                   // visitante neutro: a IA ignora
       if (v.team === shooter.team) sc -= dmg * 1.3;
       else sc += dmg + (dmg >= v.hp ? 30 : 0);
@@ -1342,6 +1356,63 @@
 
   const ballIcon = (x, y, r) => `<g transform="translate(${x} ${y})">${Art.ball(r, 0)}</g>`;
 
+  // ---------- Clima (desenhado em tela cheia, por cima do mundo) ----------
+  function stepWeather() {
+    if (weather !== 'storm') { bolt = null; return; }
+    if (bolt) { if (++bolt.t > 12) bolt = null; }
+    if (--lightT <= 0) {
+      lightT = 240 + Math.floor(Math.random() * 360);
+      const x = rnd(80, 720); let pts = [[x, 0]], cx = x, cy = 0;
+      const endY = rnd(280, 380);
+      while (cy < endY) { cx += rnd(-22, 22); cy += rnd(22, 44); pts.push([cx, Math.min(cy, endY)]); }
+      bolt = { pts, t: 0 };
+      flash.a = 0.7; flash.col = '#f4f6ff';
+      setTimeout(() => { if (weather === 'storm') Sfx.boom('thunder'); }, 260);
+    }
+    if (bolt && bolt.t === 5) flash.a = Math.max(flash.a, 0.45);
+  }
+
+  function weatherSvg() {
+    if (!weather || scene !== 'battle' || kind !== 'campaign') return '';
+    let s = '';
+    if (weather === 'rain') {
+      s += `<rect width="800" height="500" fill="#0a1a33" opacity=".3"/>`;
+      const sl = -wind * 0.1 - 0.12;
+      for (let i = 0; i < 90; i++) {
+        const sp = 15 + (i % 5) * 2.5, y = ((frameNo * sp + i * 53) % 540) - 20, x = ((i * 131.7) % 880) - 40 + y * -sl;
+        s += `<line x1="${f1(x)}" y1="${f1(y)}" x2="${f1(x + sl * 16)}" y2="${f1(y + 16)}" stroke="#cfe9ff" stroke-width="${i % 3 ? 1.1 : 1.6}" opacity="${(0.28 + (i % 4) * 0.08).toFixed(2)}" stroke-linecap="round"/>`;
+      }
+    } else if (weather === 'sun') {
+      s += `<rect width="800" height="500" fill="#ffb347" opacity=".09"/>
+        <g transform="translate(690 52)">
+          <circle r="190" fill="#fff2b0" opacity=".05"/><circle r="120" fill="#fff2b0" opacity=".07"/><circle r="64" fill="#fff6c8" opacity=".14"/>
+          ${Array.from({ length: 10 }, (_, i) => `<path transform="rotate(${f1(i * 36 + frameNo * 0.15)})" d="M-5,-70 L0,-260 L5,-70 Z" fill="#fff6c8" opacity=".07"/>`).join('')}
+        </g>
+        <circle cx="560" cy="150" r="14" fill="#fff6c8" opacity=".07"/><circle cx="470" cy="215" r="22" fill="#ffd9a0" opacity=".06"/><circle cx="390" cy="270" r="10" fill="#fff6c8" opacity=".08"/>`;
+    } else if (weather === 'storm') {
+      s += `<rect width="800" height="500" fill="#0c1030" opacity=".4"/>`;
+      if (bolt) {
+        const d = bolt.pts.map((p, i) => `${i ? 'L' : 'M'}${f1(p[0])},${f1(p[1])}`).join(' '), o = Math.max(0, 1 - bolt.t / 12);
+        s += `<path d="${d}" fill="none" stroke="#ffe96a" stroke-width="9" stroke-linejoin="round" opacity="${(o * 0.35).toFixed(2)}"/>
+              <path d="${d}" fill="none" stroke="#ffffff" stroke-width="3" stroke-linejoin="round" opacity="${o.toFixed(2)}"/>`;
+      }
+    }
+    return s;
+  }
+
+  function weatherBadge() {
+    if (!weather || kind !== 'campaign') return '';
+    const W_ = WEATHER[weather];
+    let icon;
+    if (weather === 'sun') icon = `<circle r="5.5" fill="#ffd34d"/>${Array.from({ length: 8 }, (_, i) => `<path transform="rotate(${i * 45})" d="M0,-8 L0,-11" stroke="#ffd34d" stroke-width="1.8" stroke-linecap="round"/>`).join('')}`;
+    else if (weather === 'rain') icon = `<path d="M-8,2 Q-9,-4 -3,-4 Q-1,-9 4,-6 Q9,-6 8,1 Z" fill="#9fb8d8"/><path d="M-5,5 l-1.5,4 M0,5 l-1.5,4 M5,5 l-1.5,4" stroke="#6ad0ff" stroke-width="1.6" stroke-linecap="round"/>`;
+    else icon = `<path d="M-8,0 Q-9,-6 -3,-6 Q-1,-11 4,-8 Q9,-8 8,-1 Z" fill="#6a7090"/><path d="M1,1 L-3,7 L0,7 L-2,12 L4,5 L1,5 Z" fill="#ffe96a" stroke="#8a6a00" stroke-width=".5" stroke-linejoin="round"/>`;
+    return `<rect x="478" y="8" width="150" height="34" rx="12" fill="#0d1b2a" opacity=".72"/>
+      <g transform="translate(498 25)">${icon}</g>
+      <text x="514" y="22" font-size="11" font-weight="bold" fill="#fff">${W_.name}</text>
+      <text x="514" y="35" font-size="9.5" fill="#bfe3ff">${W_.note}</text>`;
+  }
+
   function hudSvg() {
     if (scene === 'intro') {
       let s = `<rect x="8" y="8" width="176" height="40" rx="12" fill="#0d1b2a" opacity=".72"/>
@@ -1373,6 +1444,7 @@
       <rect x="345" y="27" width="110" height="7" rx="3.5" fill="#000" opacity=".5"/>
       <line x1="400" y1="25" x2="400" y2="36" stroke="#fff" stroke-width="1" opacity=".6"/>
       ${wind ? `<rect x="${f1(wx)}" y="28.5" width="${f1(ww)}" height="4" rx="2" fill="#8fe0ff"/><path d="${arrow}" fill="#8fe0ff"/>` : ''}`;
+    s += weatherBadge();
     if (kind === 'campaign') {
       s += `<rect x="238" y="8" width="84" height="40" rx="12" fill="#0d1b2a" opacity=".72"/>
         ${ballIcon(258, 28, 9)}
@@ -1626,7 +1698,7 @@
          <rect x="12" y="${scene === 'battle' && kind === 'campaign' ? 84 : 56}" width="${f1(power * 2.04)}" height="10" rx="5" fill="url(#pow)"/>`
       : '';
 
-    $('hud').innerHTML = (flash.a > 0.01 ? `<rect width="800" height="500" fill="${flash.col}" opacity="${flash.a.toFixed(2)}"/>` : '') + hudSvg();
+    $('hud').innerHTML = weatherSvg() + (flash.a > 0.01 ? `<rect width="800" height="500" fill="${flash.col}" opacity="${flash.a.toFixed(2)}"/>` : '') + hudSvg();
     $('msgbox').innerHTML = msgSvg();
     renderOverlay();
   }
@@ -1911,7 +1983,7 @@
       if (u.hurt > 0) u.hurt--;
       if (scene !== 'intro') u.moving = false;
     }
-    if (scene === 'battle') stepBattle();
+    if (scene === 'battle') { stepBattle(); stepWeather(); }
     else if (scene === 'intro') stepIntro();
     updateUnits();
     stepParts();
@@ -1930,6 +2002,7 @@
   MS.debug = {
     get: () => ({ scene, kind, state, stageIdx, units, teams, campaign, cap, intro, panel, angle, power, wind, ballMode, turnTeam, ai, guest, gCool, gMode, evo }),
     get pickups() { return pickups; }, BALLS,
+    setWeather: w => { weather = w; lightT = 5; $('sun').style.display = (w === 'rain' || w === 'storm') ? 'none' : ''; }, get weather() { return weather; },
     forceGuest: sp => { gCool = 0; STAGES[stageIdx].guests = [{ sp, rarity: 1 }]; },
     skipEvolve, stageClear,
     initMenu, initVersus, initIntro, initStage, newCampaign, beginStage, fire, toggleBall, pickTarget,

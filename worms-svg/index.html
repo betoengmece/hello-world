@@ -122,14 +122,25 @@
 
   <!-- fundo -->
   <rect width="800" height="500" fill="url(#sky)"/>
-  <circle cx="660" cy="92" r="90" fill="url(#sunGlow)"/>
-  <circle cx="660" cy="92" r="26" fill="#fff3c4"/>
-  <g id="clouds"></g>
-  <path id="mtFarPath" fill="url(#mtFar)"/>
-  <path id="mtNearPath" fill="url(#mtNear)" opacity=".9"/>
+  <g id="Lsky">
+    <circle cx="660" cy="92" r="90" fill="url(#sunGlow)"/>
+    <circle cx="660" cy="92" r="26" fill="#fff3c4"/>
+    <g id="clouds"></g>
+  </g>
+  <g id="Lfar"><path id="mtFarPath" fill="url(#mtFar)"/></g>
+  <g id="Lnear"><path id="mtNearPath" fill="url(#mtNear)" opacity=".9"/></g>
+  <g id="Lmid"><path id="treeline" fill="#4f7f5c" opacity=".9"/></g>
+
+  <!-- mundo (segue a câmera) -->
+  <g id="Lworld">
   <path id="waveBack" fill="url(#seaBack)"/>
 
-  <!-- terreno -->
+  <!-- terreno: uma "fatia de trás" deslocada dá espessura (2.5D) e mostra o fundo das crateras -->
+  <g transform="translate(7 -9)">
+    <path id="tback" fill="#3d2818"/>
+    <path id="tbackBurnt" fill="none" stroke="#1a100a" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+    <path id="tbackGrass" fill="none" stroke="#3a6b25" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>
+  </g>
   <g clip-path="url(#tclip)">
     <rect width="800" height="500" fill="url(#dirt)"/>
     <path id="strata1" fill="#4a2c16" opacity=".5"/>
@@ -147,11 +158,16 @@
   <g id="aim"></g>
   <g id="worms"></g>
   <g id="volt"></g>
+  <g id="pshadow"></g>
   <g id="proj"></g>
   <g id="parts"></g>
   <g id="fx"></g>
   <path id="waveFront" fill="url(#seaFront)"/>
   <g id="floaters"></g>
+  </g>
+
+  <!-- primeiro plano (parallax mais rápido que o mundo) -->
+  <g id="Lfore"><path id="fore" fill="#14301a" opacity=".92"/></g>
 
   <!-- interface -->
   <g id="hud"></g>
@@ -166,11 +182,12 @@
     <g class="btn" data-act="switch"><rect x="676" y="8" width="56" height="44" rx="10"/><text x="704" y="39" style="font-size:22px">⇄</text></g>
     <g class="btn" data-act="restart"><rect x="738" y="8" width="54" height="44" rx="10"/><text x="765" y="39" style="font-size:22px">↻</text></g>
   </g>
+  <g class="btn" id="soundBtn" data-act="sound"><rect x="614" y="8" width="56" height="44" rx="10"/><text id="soundIcon" x="642" y="38" style="font-size:20px">🔊</text></g>
 </svg>
 <div id="help">
   <kbd>←</kbd> <kbd>→</kbd> andar &nbsp;·&nbsp; <kbd>↑</kbd> <kbd>↓</kbd> mirar &nbsp;·&nbsp;
   segure <kbd>ESPAÇO</kbd> para força e solte para atirar &nbsp;·&nbsp;
-  <kbd>TAB</kbd> troca de personagem &nbsp;·&nbsp; <kbd>R</kbd> reinicia
+  <kbd>TAB</kbd> troca de personagem &nbsp;·&nbsp; <kbd>R</kbd> reinicia &nbsp;·&nbsp; <kbd>M</kbd> som
 </div>
 <div id="rotate">📱 Gire o celular para o modo paisagem (deitado) para jogar melhor.</div>
 </div>
@@ -185,6 +202,181 @@
 
   const $ = id => document.getElementById(id);
   const f1 = v => (+v).toFixed(1);
+
+  // ---------- Som (sintetizado com Web Audio, sem arquivos) ----------
+  const Sfx = (() => {
+    let ctx = null, master = null, musicBus = null, noiseBuf = null, enabled = true;
+    let chargeOsc = null, chargeGain = null, musicNext = 0, musicStep = 0;
+    const r = (a, b) => a + Math.random() * (b - a);
+
+    function unlock() {
+      if (!ctx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        ctx = new AC();
+        master = ctx.createGain(); master.gain.value = enabled ? 0.55 : 0; master.connect(ctx.destination);
+        musicBus = ctx.createGain(); musicBus.gain.value = 0.09; musicBus.connect(master);
+        noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+        const d = noiseBuf.getChannelData(0);
+        for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+        musicNext = ctx.currentTime + 0.3;
+        setInterval(scheduleMusic, 30);
+      }
+      if (ctx.state === 'suspended') ctx.resume();
+    }
+    const ready = () => ctx && enabled;
+
+    function tone({ type = 'sine', f = 440, f2 = 0, t = 0.2, vol = 0.3, delay = 0, attack = 0.005, dest = master, at }) {
+      if (!ready()) return;
+      const t0 = at !== undefined ? at : ctx.currentTime + delay;
+      const osc = ctx.createOscillator(), g = ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(f, t0);
+      if (f2) osc.frequency.exponentialRampToValueAtTime(f2, t0 + t);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(vol, t0 + attack);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + t);
+      osc.connect(g); g.connect(dest || master);
+      osc.start(t0); osc.stop(t0 + t + 0.05);
+    }
+
+    function noise({ t = 0.3, vol = 0.3, ftype = 'lowpass', f = 1000, f2 = 0, q = 1, delay = 0, attack = 0.005 }) {
+      if (!ready()) return;
+      const t0 = ctx.currentTime + delay;
+      const src = ctx.createBufferSource(); src.buffer = noiseBuf; src.loop = true;
+      const flt = ctx.createBiquadFilter(); flt.type = ftype; flt.Q.value = q;
+      flt.frequency.setValueAtTime(f, t0);
+      if (f2) flt.frequency.exponentialRampToValueAtTime(f2, t0 + t);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(vol, t0 + attack);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + t);
+      src.connect(flt); flt.connect(g); g.connect(master);
+      src.start(t0, Math.random() * 0.5); src.stop(t0 + t + 0.05);
+    }
+
+    // musiquinha de fundo: arpejo em 4 acordes + baixo
+    const CHORDS = [[261.63, 329.63, 392.0, 523.25], [220.0, 261.63, 329.63, 440.0],
+                    [174.61, 220.0, 261.63, 349.23], [196.0, 246.94, 293.66, 392.0]];
+    const ARP = [0, 1, 2, 3, 2, 1, 2, 1], STEP = 0.24;
+    function scheduleMusic() {
+      if (!ctx) return;
+      if (musicNext < ctx.currentTime) musicNext = ctx.currentTime + 0.05;
+      while (musicNext < ctx.currentTime + 0.15) {
+        const chord = CHORDS[Math.floor(musicStep / 8) % 4];
+        tone({ type: 'triangle', f: chord[ARP[musicStep % 8]], t: 0.22, vol: 0.5, dest: musicBus, at: musicNext });
+        if (musicStep % 8 === 0) tone({ f: chord[0] / 2, t: STEP * 7.5, vol: 0.7, dest: musicBus, at: musicNext, attack: 0.02 });
+        musicNext += STEP; musicStep++;
+      }
+    }
+
+    const api = {
+      unlock,
+      toggle() {
+        enabled = !enabled;
+        if (master) master.gain.setTargetAtTime(enabled ? 0.55 : 0, ctx.currentTime, 0.02);
+        if (!enabled) api.chargeStop();
+        return enabled;
+      },
+      shoot(wk) {
+        if (wk === 'fogo') {
+          noise({ t: 0.4, vol: 0.35, ftype: 'bandpass', f: 900, f2: 250, q: 0.8 });
+          tone({ type: 'sawtooth', f: 180, f2: 70, t: 0.3, vol: 0.08 });
+        } else if (wk === 'planta') {
+          for (let i = 0; i < 3; i++) noise({ t: 0.14, vol: 0.16, ftype: 'highpass', f: 2500, delay: i * 0.06 });
+          tone({ type: 'triangle', f: 700, f2: 1300, t: 0.12, vol: 0.07 });
+        } else if (wk === 'agua') {
+          tone({ f: 700, f2: 220, t: 0.25, vol: 0.18 });
+          for (let i = 0; i < 4; i++) { const f = r(500, 1000); tone({ f, f2: f * 1.5, t: 0.06, vol: 0.08, delay: 0.05 + i * 0.05 }); }
+        } else {
+          noise({ t: 0.45, vol: 0.3, ftype: 'bandpass', f: 3000, q: 3 });
+          for (let i = 0; i < 6; i++) noise({ t: 0.05, vol: 0.25, ftype: 'highpass', f: 2000, delay: i * 0.06 });
+          tone({ type: 'square', f: 1400, f2: 200, t: 0.35, vol: 0.05 });
+        }
+      },
+      boom(wk) {
+        if (wk === 'fogo') {
+          noise({ t: 1.0, vol: 0.7, f: 1500, f2: 80 });
+          tone({ f: 110, f2: 35, t: 0.6, vol: 0.6 });
+        } else if (wk === 'volt') {
+          noise({ t: 0.7, vol: 0.5, f: 2500, f2: 120 });
+          tone({ f: 90, f2: 30, t: 0.5, vol: 0.45 });
+          noise({ t: 0.3, vol: 0.2, ftype: 'highpass', f: 3000 });
+        } else if (wk === 'planta') {
+          noise({ t: 0.35, vol: 0.28, ftype: 'bandpass', f: 1800, f2: 700, q: 0.7 });
+          tone({ f: 160, f2: 70, t: 0.2, vol: 0.15 });
+        } else {
+          noise({ t: 0.6, vol: 0.35, ftype: 'bandpass', f: 1400, f2: 300, q: 0.6 });
+          for (let i = 0; i < 5; i++) { const f = r(300, 800); tone({ f, f2: f * 1.6, t: 0.07, vol: 0.07, delay: 0.08 + i * 0.06 }); }
+        }
+      },
+      splash() {
+        noise({ t: 0.5, vol: 0.3, ftype: 'bandpass', f: 1000, f2: 250, q: 0.7 });
+        tone({ f: 400, f2: 120, t: 0.25, vol: 0.12 });
+      },
+      hurt()  { tone({ type: 'square', f: 620, f2: 280, t: 0.14, vol: 0.06 }); },
+      death() { tone({ type: 'triangle', f: 520, f2: 110, t: 0.7, vol: 0.14 }); },
+      turn()  { tone({ f: 660, t: 0.12, vol: 0.12 }); tone({ f: 990, t: 0.18, vol: 0.12, delay: 0.1 }); },
+      step()  { tone({ type: 'triangle', f: r(150, 200), t: 0.04, vol: 0.035 }); },
+      click() { tone({ f: 900, t: 0.04, vol: 0.06 }); },
+      voltWarn() {
+        tone({ type: 'square', f: 250, f2: 1100, t: 1.2, vol: 0.045 });
+        for (let i = 0; i < 5; i++) noise({ t: 0.04, vol: 0.12, ftype: 'highpass', f: 4000, delay: 0.1 + i * 0.2 });
+      },
+      win() { [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone({ type: 'triangle', f, t: 0.3, vol: 0.15, delay: i * 0.14 })); },
+      chargeStart() {
+        if (!ready()) return;
+        api.chargeStop();
+        chargeOsc = ctx.createOscillator(); chargeOsc.type = 'triangle'; chargeOsc.frequency.value = 220;
+        chargeGain = ctx.createGain();
+        chargeGain.gain.setValueAtTime(0.0001, ctx.currentTime);
+        chargeGain.gain.exponentialRampToValueAtTime(0.05, ctx.currentTime + 0.05);
+        chargeOsc.connect(chargeGain); chargeGain.connect(master); chargeOsc.start();
+      },
+      chargeSet(p) { if (chargeOsc) chargeOsc.frequency.setTargetAtTime(220 + p * 7, ctx.currentTime, 0.03); },
+      chargeStop() {
+        if (!chargeOsc) return;
+        chargeGain.gain.setTargetAtTime(0.0001, ctx.currentTime, 0.02);
+        chargeOsc.stop(ctx.currentTime + 0.1);
+        chargeOsc = null; chargeGain = null;
+      }
+    };
+    return api;
+  })();
+
+  // ---------- Câmera 2.5D: zoom, acompanhamento, tremor e parallax ----------
+  const cam = { x: 400, y: 250, z: 1, shake: 0, sx: 0, sy: 0 };
+  let focus = { x: 400, y: 250 };
+
+  function updateCamera() {
+    let tx = 400, ty = 250, tz = 1, k = 0.06;
+    if (state === 'flying' && projs.length) {
+      const p = projs[Math.floor(projs.length / 2)];
+      tx = p.x; ty = p.y; tz = 1.35; k = 0.12;
+    } else if (state === 'settle') {
+      tx = focus.x; ty = focus.y; tz = 1.25;
+    } else if (state === 'volt') {
+      const vp = voltPos(); tx = vp.x; ty = vp.y - 30; tz = 1.7;
+    } else if (state === 'aim' && charging) {
+      const w = activeWorm(); tx = w.x; ty = w.y - 30; tz = 1.15; k = 0.04;
+    }
+    cam.z += (tz - cam.z) * k * 0.8;
+    cam.x += (tx - cam.x) * k;
+    cam.y += (ty - cam.y) * k;
+    const vw = W / cam.z / 2, vh = H / cam.z / 2;
+    cam.x = clamp(cam.x, vw, W - vw);
+    cam.y = clamp(cam.y, vh, H - vh);
+    cam.sx = cam.shake ? rnd(-cam.shake, cam.shake) : 0;
+    cam.sy = cam.shake ? rnd(-cam.shake, cam.shake) : 0;
+    cam.shake = cam.shake > 0.3 ? cam.shake * 0.88 : 0;
+  }
+
+  // f = profundidade da camada (0 = infinito, 1 = mundo, >1 = primeiro plano)
+  function camT(f) {
+    const z = 1 + (cam.z - 1) * f;
+    const cx = 400 + (cam.x + cam.sx - 400) * f, cy = 250 + (cam.y + cam.sy - 250) * f;
+    return `translate(400 250) scale(${z.toFixed(3)}) translate(${f1(-cx)} ${f1(-cy)})`;
+  }
 
   // Tipos de tiro. speed/grav são multiplicadores; push empurra os atingidos.
   const WEAPONS = {
@@ -258,6 +450,26 @@
     $('mtFarPath').setAttribute('d', hillPath(far));
     $('mtNearPath').setAttribute('d', hillPath(near));
 
+    // fileira de pinheiros distantes
+    let tl = `M-60,${H}`;
+    for (let x = -60; x <= W + 60; x += rnd(9, 17)) {
+      const base = 262 + 10 * Math.sin(x * 0.01 + p3), h = rnd(14, 32), hw = rnd(5, 9);
+      tl += ` L${f1(x - hw)},${f1(base)} L${f1(x)},${f1(base - h)} L${f1(x + hw)},${f1(base)}`;
+    }
+    $('treeline').setAttribute('d', tl + ` L${W + 60},${H} Z`);
+
+    // touceiras de capim em primeiro plano, nos cantos
+    const clump = (cx, base, n, hmax) => {
+      let d = '';
+      for (let i = 0; i < n; i++) {
+        const x = cx + rnd(-34, 34), h = rnd(hmax * 0.5, hmax), lean = rnd(-9, 9);
+        d += `M${f1(x - 3)},${base} Q${f1(x + lean * 0.5)},${f1(base - h * 0.6)} ${f1(x + lean)},${f1(base - h)} ` +
+             `Q${f1(x + lean * 0.3 + 1)},${f1(base - h * 0.5)} ${f1(x + 3)},${base} Z `;
+      }
+      return d;
+    };
+    $('fore').setAttribute('d', clump(-14, 520, 16, 72) + clump(814, 520, 16, 72));
+
     // decoração: árvores, pinheiros, pedras, arbustos e flores (destrutíveis)
     decor = [];
     const avoid = TEAM_DEF.flatMap(t => t.spawn).concat([VOLT_X]);
@@ -306,6 +518,7 @@
     });
     turnTeam = 0; state = 'aim';
     angle = 45;
+    cam.x = 400; cam.y = 250; cam.z = 1; cam.shake = 0;
     showMsg('Vez de ' + teams[0].name + '!', 120);
   }
 
@@ -333,6 +546,10 @@
 
   function explode(x, y, wk) {
     const wp = WEAPONS[wk];
+    let anyHurt = false;
+    focus = { x, y };
+    cam.shake = Math.max(cam.shake, wp.boom / 6);
+    Sfx.boom(wk);
     carve(x, y, wp.carve);
     fx.push({ x, y, t: 0, max: 36, r: wp.boom, fill: FX_FILL[wk] });
     burst(x, y, wk);
@@ -343,7 +560,7 @@
       const k = 1 - d / wp.boom;
       const dmg = Math.round(wp.dmg * k);
       if (dmg > 0) {
-        w.hp -= dmg; w.hurt = 24;
+        w.hp -= dmg; w.hurt = 24; anyHurt = true;
         floaters.push({ x: w.x, y: w.y - 52, t: 0, text: '-' + dmg, col: teams[w.team].color });
       }
       if (wp.push) {
@@ -351,6 +568,7 @@
         w.x = clamp(w.x + dir * wp.push * k, 8, W - 8);
       }
     }
+    if (anyHurt) Sfx.hurt();
   }
 
   // Cria os projéteis de uma arma (planta atira três folhas em leque)
@@ -369,6 +587,8 @@
     const w = activeWorm(), a = angle * Math.PI / 180, sp = 3 + power * 0.075;
     launch(SPECIES[w.species].weapon, w.x + w.face * MOUTH_X, w.y + MOUTH_Y, a, sp, 'player');
     w.breath = 18;
+    Sfx.chargeStop();
+    Sfx.shoot(SPECIES[w.species].weapon);
     power = 0; charging = false; state = 'flying';
   }
 
@@ -382,6 +602,7 @@
     launch('volt', vp.x, vp.y - 34, a, rnd(5, 6.5), 'volt');
     lastShotVolt = true;
     state = 'flying';
+    Sfx.shoot('volt');
   }
 
   function stepProjs() {
@@ -398,6 +619,7 @@
         if (p.x < -60 || p.x > W + 60 || p.y > H + 60) { outcome = 'gone'; break; }
         if (p.y >= WATER && p.wk !== 'agua') {               // caiu no mar
           outcome = 'gone';
+          Sfx.splash();
           for (let k = 0; k < 10; k++) addPart({ x: p.x, y: WATER, vx: rnd(-1.5, 1.5), vy: rnd(-3, -1), g: 0.15,
                                                  life: 40, max: 40, r: rnd(1.2, 2.2), col: '#bfe9ff', kind: 'drop' });
           break;
@@ -440,6 +662,7 @@
     if (Math.abs(nx - VOLT_X) < 18) return;              // não pisa no Volt
     w.x = nx;
     w.moving = true; w.walkT++;
+    if (w.walkT % 10 === 0) Sfx.step();
     walkBudget -= 1.5;
   }
 
@@ -451,6 +674,7 @@
     walkBudget = WALK_MAX;
     state = 'aim';
     showMsg('Vez de ' + teams[turnTeam].name + '!', 110);
+    Sfx.turn();
   }
 
   function settle() {
@@ -467,6 +691,8 @@
         } else {
           graves.push({ x: w.x, y: w.y - 30 });
         }
+        if (drowned) Sfx.splash();
+        Sfx.death();
         showMsg(w.name + ' ' + (drowned ? 'afogou!' : 'desmaiou!'), 100);
       }
     }
@@ -476,6 +702,7 @@
       state = 'over';
       const winner = aliveTeams.length === 0 ? 'Empate' : aliveTeams[0].name;
       showMsg('Fim de jogo! ' + winner + ' venceu! (toque em ↻ ou tecle R)', 1e9);
+      Sfx.win();
       return;
     }
     if (lastShotVolt) { lastShotVolt = false; startTurn(); return; }
@@ -491,6 +718,7 @@
       voltDelay = 100;
       state = 'volt';
       showMsg('Volt vai atirar para a ' + (voltSide < 0 ? 'ESQUERDA' : 'DIREITA') + '!', 100);
+      Sfx.voltWarn();
       return;
     }
     startTurn();
@@ -708,6 +936,7 @@
     for (let x = 1; x < W; x++) d += ' L' + x + ',' + f1(heights[x]);
     d += ` L${W},${f1(heights[W - 1])} L${W},${H} L0,${H} Z`;
     $('tclipPath').setAttribute('d', d);
+    $('tback').setAttribute('d', 'M-12,' + f1(heights[0]) + d.replace(/^M/, ' L'));
 
     // borda superior: grama onde intacto, terra queimada nas crateras
     let g = '', b = '', inG = false, inB = false, tf = '';
@@ -724,6 +953,8 @@
     $('edgeGrass').setAttribute('d', g);
     $('edgeGrassHi').setAttribute('d', g);
     $('edgeBurnt').setAttribute('d', b);
+    $('tbackGrass').setAttribute('d', g);
+    $('tbackBurnt').setAttribute('d', b);
     $('tufts').setAttribute('d', tf);
     $('decor').innerHTML = decor.map(decorSvg).join('');
   }
@@ -783,6 +1014,14 @@
     if (dirty) { renderTerrain(); dirty = false; }
     renderWater();
     renderClouds();
+
+    // camadas em profundidades diferentes (parallax)
+    $('Lsky').setAttribute('transform', camT(0.08));
+    $('Lfar').setAttribute('transform', camT(0.25));
+    $('Lnear').setAttribute('transform', camT(0.5));
+    $('Lmid').setAttribute('transform', camT(0.65));
+    $('Lworld').setAttribute('transform', camT(1));
+    $('Lfore').setAttribute('transform', camT(1.3));
     const act = state === 'over' ? null : activeWorm();
 
     // o personagem da vez olha para o lado da mira
@@ -822,7 +1061,7 @@
       const flash = w.hurt > 0 && (w.hurt % 6 < 3);
       const hp = clamp(w.hp, 0, 100);
       wh += `<g transform="translate(${f1(w.x)} ${f1(w.y)})">
-        <ellipse cx="0" cy=".5" rx="11" ry="2.6" fill="#000" opacity=".25"/>
+        <ellipse cx="0" cy="${f1(gy(w.x) - w.y + 0.5)}" rx="11" ry="2.6" fill="#000" opacity=".25"/>
         <g transform="scale(${w.face} 1)"${flash ? ' opacity=".45"' : ''}>${BODY[w.species](w, bob, step)}</g>
         <g transform="translate(0 -46)">
           <text x="0" y="0" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#fff"
@@ -876,6 +1115,14 @@
     }
     $('proj').innerHTML = ph;
 
+    // sombra dos tiros no chão (menor e mais fraca quanto mais alto)
+    $('pshadow').innerHTML = projs.map(p => {
+      if (p.x < 0 || p.x >= W) return '';
+      const g = gy(p.x), k = clamp(1 - Math.max(0, g - p.y) / 260, 0.15, 1);
+      return `<ellipse cx="${f1(p.x)}" cy="${f1(g)}" rx="${f1(8 * k + 2)}" ry="${f1(2.4 * k + 0.6)}"
+               fill="#000" opacity="${(0.35 * k).toFixed(2)}"/>`;
+    }).join('');
+
     // partículas
     $('parts').innerHTML = parts.map(p => {
       const k = p.life / p.max, op = Math.min(1, k * 1.5).toFixed(2);
@@ -925,6 +1172,7 @@
         if (keys.right) walk(1);
       } else {
         power = Math.min(100, power + 0.9);
+        Sfx.chargeSet(power);
       }
     }
     if (state === 'flying') stepProjs();
@@ -937,6 +1185,7 @@
     for (const f of floaters) f.t++;
     floaters = floaters.filter(f => f.t < 60);
     if (msgT > 0 && --msgT === 0) msg = '';
+    updateCamera();
     renderAll();
     requestAnimationFrame(frame);
   }
@@ -945,12 +1194,13 @@
   const ARROWS = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
 
   addEventListener('keydown', e => {
-    if (e.key === 'r' || e.key === 'R') { init(); return; }
+    if (e.key === 'r' || e.key === 'R') { Sfx.click(); init(); return; }
+    if (e.key === 'm' || e.key === 'M') { toggleSound(); return; }
     if (state === 'over') return;
     if (ARROWS[e.key]) { keys[ARROWS[e.key]] = true; e.preventDefault(); return; }
     if (e.code === 'Space') {
       e.preventDefault();
-      if (!e.repeat && state === 'aim') { charging = true; power = 0; }
+      if (!e.repeat && state === 'aim') { charging = true; power = 0; Sfx.chargeStart(); }
       return;
     }
     if (e.key === 'Tab') { e.preventDefault(); switchWorm(); }
@@ -968,8 +1218,17 @@
   // ---------- Controles de toque (botões SVG) ----------
   const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
   if (isTouch) document.body.classList.add('touch');
+  else $('soundBtn').setAttribute('transform', 'translate(124 0)');   // no PC, o botão de som vai para o canto
 
-  document.querySelectorAll('#touch .btn').forEach(btn => {
+  function toggleSound() {
+    Sfx.unlock();
+    $('soundIcon').textContent = Sfx.toggle() ? '🔊' : '🔇';
+  }
+  // o navegador só libera áudio depois de um toque ou tecla
+  ['keydown', 'pointerdown', 'pointerup', 'touchend', 'click'].forEach(ev =>
+    addEventListener(ev, () => Sfx.unlock(), { passive: true }));
+
+  document.querySelectorAll('.btn').forEach(btn => {
     const act = btn.dataset.act;
     const holdKey = { left: 'left', right: 'right', up: 'up', down: 'down' }[act];
     const press = e => {
@@ -977,9 +1236,10 @@
       try { btn.setPointerCapture(e.pointerId); } catch (_) {}
       btn.classList.add('on');
       if (holdKey) keys[holdKey] = true;
-      else if (act === 'fire') { if (state === 'aim' && !charging) { charging = true; power = 0; } }
-      else if (act === 'switch') switchWorm();
-      else if (act === 'restart') init();
+      else if (act === 'fire') { if (state === 'aim' && !charging) { charging = true; power = 0; Sfx.unlock(); Sfx.chargeStart(); } }
+      else if (act === 'switch') { Sfx.click(); switchWorm(); }
+      else if (act === 'restart') { Sfx.click(); init(); }
+      else if (act === 'sound') toggleSound();
     };
     const release = e => {
       e.preventDefault();
@@ -999,7 +1259,7 @@
     else if (e.code === 'Space' && charging) fire();
   });
 
-  addEventListener('blur', () => { keys = {}; charging = false; power = 0; });
+  addEventListener('blur', () => { keys = {}; charging = false; power = 0; Sfx.chargeStop(); });
 
   init();
   requestAnimationFrame(frame);

@@ -39,5 +39,5 @@
     return `<g transform="translate(0 ${n(bob)}) scale(${rig.scale}) translate(-115 ${-rig.ground})">${art}</g>`;
   }
   MS.AnimatedKanto={draw,selected:Object.fromEntries(Object.entries(rigs).map(([sp,r])=>[sp,r.version]))};
-  if(MS.Art){const original=MS.Art.draw;MS.Art.draw=function(sp,c){return draw(sp,c)??original.call(this,sp,c);};}
+  // Obs.: o jogo agora usa os desenhos redesenhados em art.js (mesmo estilo dos demais); este módulo serve à prévia animated-kanto/index.html.
 })();

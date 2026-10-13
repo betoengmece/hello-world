@@ -61,7 +61,7 @@
   let neutral = null, lastShotVolt = false, voltDelay = 0, voltSide = 1;
   let guest = null, gCool = 1, gMode = '', gT = 0, gSide = 1, gDelay = 100, lastShotGuest = false, splashU = null, evo = null;
   let weather = null, lightT = 300, bolt = null;
-  let ballMode = false, ballType = 'ball', pickups = [], ai = null, cap = null, panel = null, pendingPanel = null;
+  let ballMode = false, ballType = 'ball', lastBall = false, lastBallType = 'ball', pickups = [], ai = null, cap = null, panel = null, pendingPanel = null;
   let campaign = null, stageIdx = 0, stageCaught = [], intro = null, teamSel = null;
   let uiList = [], uiSel = 0, themeKey = 'campo';
   let focus = { x: 400, y: 250 };
@@ -248,7 +248,7 @@
 
   function resetCommon() {
     fx = []; projs = []; parts = []; floaters = []; graves = [];
-    power = 0; charging = false; ballMode = false; pickups = []; weather = null; bolt = null; ai = null; cap = null; panel = null; pendingPanel = null;
+    power = 0; charging = false; ballMode = false; lastBall = false; pickups = []; weather = null; bolt = null; ai = null; cap = null; panel = null; pendingPanel = null;
     lastShotVolt = false; voltDelay = 0; neutral = null; keys = {};
     guest = null; gCool = 1; gMode = ''; lastShotGuest = false; splashU = null; evo = null;
     cam.x = 400; cam.y = 250; cam.z = 1; cam.shake = 0;
@@ -708,6 +708,17 @@
     return clamp(spOf(u).catch * mul * (1.05 - (u.hp / u.maxhp) * 0.9), 0.05, 0.95);
   }
 
+  const weakFoeExists = () => teams[1].units.concat(guest ? [guest] : []).some(u => u.alive && !u.hidden && u.hp / u.maxhp <= WEAK);
+
+  // se o último tiro do jogador foi uma Pokébola, a próxima vez já começa com ela pronta
+  function autoBall() {
+    if (!lastBall || kind !== 'campaign' || !weakFoeExists()) return false;
+    const avail = BALL_ORDER.filter(k => campaign[BALLS[k].key] > 0);
+    if (!avail.length) return false;
+    ballMode = true; ballType = avail.includes(lastBallType) ? lastBallType : avail[0];
+    return true;
+  }
+
   function toggleBall() {
     if (scene !== 'battle' || kind !== 'campaign' || state !== 'aim' || charging) return;
     const avail = BALL_ORDER.filter(k => campaign[BALLS[k].key] > 0);
@@ -718,7 +729,7 @@
       return;
     }
     if (!avail.length) { showMsg('Você está sem Pokébolas!', 90); Sfx.ballFail(); return; }
-    if (!teams[1].units.concat(guest ? [guest] : []).some(u => u.alive && !u.hidden && u.hp / u.maxhp <= WEAK)) {
+    if (!weakFoeExists()) {
       showMsg('Nenhum inimigo está fraco o bastante!', 100); Sfx.ballFail(); return;
     }
     ballMode = true; ballType = avail[0]; Sfx.select();
@@ -799,6 +810,7 @@
     const u = activeUnit(); if (!u) return;
     const S = spOf(u), a = angle * Math.PI / 180, sp = 3 + power * 0.075;
     u.face = Math.cos(a) >= 0 ? 1 : -1;
+    if (!ballMode && !teams[turnTeam].ai) lastBall = false;      // tiro normal: deixa de repetir a Pokébola
     if (!ballMode && WEAPONS[S.weapon].none) {
       u.hop = 1; splashU = u; state = 'skip'; skipT = 80; walkBudget = 0; charging = false; power = 0; ai = null;
       Sfx.chargeStop(); Sfx.splash();
@@ -809,6 +821,7 @@
       launch('ball', u.x + u.face * 8 * u.scale, u.y - S.h * 0.6 * u.scale, a, sp, 'player', u);
       projs[projs.length - 1].bt = ballType;
       campaign[BALLS[ballType].key]--; ballMode = false; Sfx.ballThrow();
+      if (!teams[turnTeam].ai) { lastBall = true; lastBallType = ballType; }
     } else {
       const mx = u.x + u.face * S.mouth[0] * u.scale, my = u.y + S.mouth[1] * u.scale;
       launch(S.weapon, mx, my, a, sp, 'unit', u);
@@ -1012,7 +1025,8 @@
     } else {
       state = 'aim';
       angle = mem !== undefined ? mem : (u.face === 1 ? 45 : 135);
-      showMsg(kind === 'campaign' ? `Sua vez: ${u.name}!` : `Vez de ${t.name}!`, 110);
+      const again = autoBall();
+      showMsg(kind === 'campaign' ? `Sua vez: ${u.name}!${again ? ` ${BALLS[ballType].name} pronta (como no último tiro)` : ''}` : `Vez de ${t.name}!`, again ? 150 : 110);
     }
     if (u.stuck) u.stuck = false;
     Sfx.turn();
@@ -1022,7 +1036,7 @@
     if (scene !== 'battle' || state !== 'aim' || charging) return;
     const t = teams[turnTeam];
     const j = nextFree(t, t.cur);
-    if (j !== t.cur) { t.cur = j; Sfx.click(); ballMode = false; }
+    if (j !== t.cur) { t.cur = j; Sfx.click(); }
   }
 
   function settle() {
@@ -2104,6 +2118,7 @@
 
   // para testes automatizados
   MS.debug = {
+    get lastBall() { return lastBall; },
     get: () => ({ scene, kind, state, stageIdx, units, teams, campaign, cap, intro, panel, angle, power, wind, ballMode, turnTeam, ai, guest, gCool, gMode, evo }),
     get pickups() { return pickups; }, BALLS,
     setWeather: w => { weather = w; lightT = 5; $('sun').style.display = (w === 'rain' || w === 'storm') ? 'none' : ''; }, get weather() { return weather; },

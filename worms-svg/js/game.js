@@ -111,7 +111,7 @@
   }
 
   const FX_FILL = { fire: 'url(#boom)', leaf: 'url(#leafBoom)', water: 'url(#splash)', thunder: 'url(#zap)',
-                    normal: 'url(#hitBoom)', gust: 'url(#gustBoom)', web: 'url(#webBoom)', dragon: 'url(#dragBoom)', rock: 'url(#rockBoom)' };
+                    normal: 'url(#hitBoom)', gust: 'url(#gustBoom)', web: 'url(#webBoom)', dragon: 'url(#dragBoom)', rock: 'url(#rockBoom)', poison: '#b46bd0' };
 
   // ---------- Geração do mundo ----------
   function hillPath(pts) {
@@ -829,7 +829,7 @@
   }
 
   // ---------- Efeitos do tiro ----------
-  const STYLE_COL = { rock: '#c8b898', fire: '#ffb020', leaf: '#7be07b', water: '#9fe0ff', thunder: '#fff27a', normal: '#fff6c8', gust: '#ffffff', web: '#ffffff', dragon: '#9a6aff' };
+  const STYLE_COL = { rock: '#c8b898', fire: '#ffb020', leaf: '#7be07b', water: '#9fe0ff', thunder: '#fff27a', normal: '#fff6c8', gust: '#ffffff', web: '#ffffff', dragon: '#9a6aff', poison: '#c783e4' };
 
   function muzzle(x, y, style, a) {
     const col = STYLE_COL[style] || '#fff';
@@ -872,6 +872,9 @@
         break;
       case 'rock':
         if (e) addPart({ x: x + rnd(-3, 3), y: y + rnd(-3, 3), vx: rnd(-0.4, 0.4), vy: rnd(-0.2, 0.5), g: 0.05, life: 28, max: 28, r: rnd(1.4, 2.6), col: pick(['#b8a898', '#8c8f94', '#d8c8b0']), kind: 'ember' });
+        break;
+      case 'poison':
+        if (e) addPart({ x, y, vx: rnd(-0.35, 0.35), vy: rnd(-0.5, 0.1), g: -0.01, life: 24, max: 24, r: rnd(1.3, 2.6), col: pick(['#a040a0', '#c783e4', '#e5b4ef']), kind: 'drop' });
         break;
     }
   }
@@ -1106,7 +1109,9 @@
     do { x = rnd(310, 490); tries++; } while (tries < 40 && (gy(x) > WATER - 40 || units.some(v => v.alive && Math.abs(v.x - x) < 42)));
     if (gy(x) > WATER - 40) return false;
     const g = mkUnit(def.sp, x, 2, Math.random() < 0.5 ? 1 : -1, 1);
-    g.capScale = 0; g.turnsLeft = 2 + (def.rarity >= 0.2 ? 1 : 0) + Math.floor(Math.random() * 2);
+    g.capScale = 0;
+    g.turnsLeft = Number.isInteger(def.stayRounds) && def.stayRounds > 0
+      ? def.stayRounds : 2 + (def.rarity >= 0.2 ? 1 : 0) + Math.floor(Math.random() * 2);
     guest = g; units.push(g); gMode = 'appear'; gT = 0; state = 'guest';
     showMsg(`${g.name} selvagem apareceu!`, 100); Sfx.ballCatch();
     spray(x, g.y - 14, 14, '#fff27a', 3.2, 0.02, 40, 2, 'spark');
@@ -1277,6 +1282,9 @@
         spray(x, y, 18, '#8c8f94', 4, 0.17, 70, 3.4, 'chunk'); spray(x, y, 10, '#b8a898', 3, 0.15, 60, 2.6, 'chunk'); smoke(x, y, 6); break;
       case 'dragon':
         spray(x, y, 16, '#9a6aff', 4, 0.04, 50, 2.2, 'ember'); spray(x, y, 10, '#5b3a20', 3.6, 0.15, 60, 2.8, 'chunk'); smoke(x, y, 4); break;
+      case 'poison':
+        spray(x, y, 16, '#c783e4', 2.8, 0.02, 44, 2.4, 'drop');
+        spray(x, y, 8, '#a040a0', 2.0, -0.01, 50, 1.6, 'ember'); break;
       default:
         spray(x, y, 16, '#fff27a', 4.5, 0, 22, 1.4, 'spark'); spray(x, y, 8, '#5b3a20', 3, 0.15, 60, 2.6, 'chunk'); smoke(x, y, 3);
     }
@@ -1509,6 +1517,16 @@
           ph += `<circle cx="${f1(tp.x)}" cy="${f1(tp.y)}" r="${f1(2 + 5 * k)}" fill="${k > 0.5 ? c1[0] : c1[1]}" opacity="${(k * 0.7).toFixed(2)}"/>`;
         });
         return ph + `<circle cx="${f1(p.x)}" cy="${f1(p.y)}" r="${f1((st === 'fire' ? 7 : 8.5) + Math.sin(frameNo * 0.6) * 1.2)}" fill="url(#${st === 'fire' ? 'fireball' : 'dragFire'})"/>`;
+      }
+      case 'poison': {
+        p.trail.forEach((tp, i) => {
+          const k = (i + 1) / p.trail.length;
+          ph += `<circle cx="${f1(tp.x)}" cy="${f1(tp.y)}" r="${f1(1 + 2 * k)}" fill="#c783e4" opacity="${(k * 0.55).toFixed(2)}"/>`;
+        });
+        const deg = Math.atan2(p.vy, p.vx) * 180 / Math.PI;
+        return ph + `<g transform="translate(${f1(p.x)} ${f1(p.y)}) rotate(${f1(deg)})">
+          <path d="M-8,-3 L9,0 L-8,3 L-4,0 Z" fill="#b45ac8" stroke="#592468" stroke-width="1" stroke-linejoin="round"/>
+          <path d="M-5,-1 L5,0" fill="none" stroke="#f0cef6" stroke-width=".8"/></g>`;
       }
       case 'leaf': {
         const deg = Math.atan2(p.vy, p.vx) * 180 / Math.PI + Math.sin(frameNo * 0.4 + p.spin) * 25;
@@ -2116,3 +2134,4 @@
   initMenu();
   requestAnimationFrame(frame);
 })();
+

@@ -113,6 +113,9 @@
           case 'rock':
             tone({ type: 'square', f: 140, f2: 60, t: 0.25, vol: 0.14 });
             noise({ t: 0.3, vol: 0.3, ftype: 'lowpass', f: 900, f2: 200 }); break;
+          case 'poison':
+            noise({ t: 0.18, vol: 0.16, ftype: 'highpass', f: 2200, f2: 1200 });
+            tone({ type: 'triangle', f: 850, f2: 300, t: 0.16, vol: 0.10 }); break;
           case 'dragon':
             noise({ t: 0.7, vol: 0.35, ftype: 'lowpass', f: 1200, f2: 150 });
             tone({ type: 'sawtooth', f: 130, f2: 55, t: 0.6, vol: 0.14 });
@@ -146,6 +149,9 @@
             noise({ t: 0.9, vol: 0.65, f: 1100, f2: 70 });
             tone({ type: 'square', f: 90, f2: 30, t: 0.5, vol: 0.4 });
             for (let i = 0; i < 4; i++) noise({ t: 0.08, vol: 0.2, ftype: 'bandpass', f: 600, q: 2, delay: 0.15 + i * 0.09 }); break;
+          case 'poison':
+            noise({ t: 0.35, vol: 0.25, ftype: 'bandpass', f: 1100, f2: 350, q: 0.8 });
+            tone({ type: 'sine', f: 300, f2: 100, t: 0.22, vol: 0.14 }); break;
           case 'dragon':
             noise({ t: 1.1, vol: 0.65, f: 1200, f2: 60 });
             tone({ type: 'sawtooth', f: 100, f2: 28, t: 0.8, vol: 0.5 }); break;
@@ -217,3 +223,4 @@
     return api;
   })();
 })();
+

@@ -17,6 +17,7 @@ Jogo de artilharia por turnos feito inteiramente com SVG. Personagens, terreno d
 7. **Evolução:** ao vencer uma fase, quem lutou ganha XP (mais se causou dano). Ao encher a barra (aparece na tela de escolha do time) o Pokémon evolui, com uma cena de evolução: Charmander → Charmeleon, Bulbasaur → Ivysaur, Squirtle → Wartortle, Rattata → Raticate, Pidgey → Pidgeotto, Caterpie → Butterfree, Magikarp → Gyarados, Dratini → Dragonair. Gyarados e as evoluções são bem mais fortes.
 8. **Visitantes neutros:** em cada fase um Pokémon neutro pode aparecer no meio do campo ("VISITANTE"), ficar por 2 a 4 rodadas atacando um lado sorteado (avisa antes qual), e depois ir embora e voltar mais tarde, ou não. Cada cenário tem os seus, com raridades diferentes (na Caverna, o Onix é o mais comum). Dá para derrubá-lo ou, melhor, enfraquecer e capturar com a Pokébola.
 9. Seus Pokémon se curam entre as fases. Quando seu time passa de 3, você escolhe quais 3 levar. O progresso é salvo no navegador ao concluir cada fase.
+10. **Novos encontros:** Jigglypuff pode visitar a Rota 1; Beedrill é um inimigo da Floresta de Viridian; Exeggutor pode visitar a Praia; Dugtrio é um inimigo da Caverna; Snorlax é um visitante raro do Covil do Dragão, permanecendo por 7 rodadas para dar mais tempo de captura. Dratini continua sendo o chefe final.
 
 ### Versus
 Três times (Fogo, Planta, Água) jogam por turnos no mesmo aparelho, com um Pikachu neutro no meio do campo que, ao fim de cada rodada, atira para um lado sorteado.
@@ -38,13 +39,18 @@ Ataques com o tipo certo causam **o dobro de dano** ("Super efetivo!"); com o ti
 | Magikarp | Água | Splash: não faz nada (mas é fácil de capturar) |
 | Dratini | Dragão | Fúria do Dragão (chefe da campanha, pequeno e frágil) |
 | Onix | Pedra/Terra | Lançar Pedra: pedra pesada que abre cratera (aparece como visitante na Caverna e no Covil) |
+| Beedrill | Inseto/Veneno | Ferrão Venenoso: dois ferrões roxos, pouco dano ao terreno |
+| Jigglypuff | Normal | Pancada: golpe que empurra o alvo |
+| Dugtrio | Terra | Bomba de Lama: projétil pesado que abre cratera |
+| Exeggutor | Planta/Psíquico | Bomba de Sementes: dois projéteis de Planta |
+| Snorlax | Normal | Golpe Corporal: ataque forte que empurra o alvo |
 | Charmeleon / Ivysaur / Wartortle | Fogo / Planta / Água | versões mais fortes dos ataques iniciais |
 | Raticate / Pidgeotto | Normal / Normal+Voador | Hiperpresa / Furacão |
 | Butterfree | Inseto/Voador | Vento Prateado: três rajadas |
 | Gyarados | Água/Voador | Hidro Bomba |
 | Dragonair | Dragão | Cometa Dragão |
 
-Relações usadas: Pedra > Fogo, Voador, Inseto · Terra > Fogo, Elétrico, Pedra · Água/Planta > Terra, Pedra · Fogo > Planta, Inseto · Água > Fogo · Planta > Água · Elétrico > Água, Voador · Inseto > Planta, Psíquico · Voador > Planta, Inseto · Dragão > Dragão (e resistências inversas, como Fogo < Água e Planta < Fogo).
+Relações usadas: Pedra > Fogo, Voador, Inseto · Terra > Fogo, Elétrico, Pedra, Veneno · Água/Planta > Terra, Pedra · Fogo > Planta, Inseto · Água > Fogo · Planta > Água · Elétrico > Água, Voador · Inseto > Planta, Psíquico · Voador > Planta, Inseto · Dragão > Dragão · Veneno > Planta · Psíquico > Veneno. Veneno é resistido por Veneno, Terra e Pedra; Veneno resiste a Planta e Inseto. O tipo Veneno não aplica dano contínuo. Os multiplicadores dos dois tipos são combinados quando o defensor tem tipo duplo.
 
 ## Controles
 
@@ -75,5 +81,9 @@ index.html      esqueleto SVG (gradientes, camadas, botões)
 js/sfx.js       sons e música
 js/data.js      tipos, ataques, espécies, cenários e fases
 js/art.js       desenhos dos personagens, Pokébola, treinador e cenário
+js/animated-kanto.js  animações das cinco versões de Pokémon aprovadas
 js/game.js      motor: física, turnos, IA, captura, fase inicial, campanha e menus
+animated-kanto/index.html  prévia das cinco animações com controles
+tests/kanto-integration.test.cjs  validação da integração com o motor
 ```
+

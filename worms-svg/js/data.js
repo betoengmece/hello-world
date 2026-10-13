@@ -5,26 +5,27 @@
   // ---------- Tipos ----------
   MS.TYPE_COLOR = {
     normal: '#a8a878', fire: '#f08030', water: '#6890f0', grass: '#78c850', electric: '#f8d030',
-    bug: '#a8b820', flying: '#a890f0', psychic: '#f85888', dragon: '#7038f8', rock: '#b8a038', ground: '#e0c068'
+    bug: '#a8b820', flying: '#a890f0', psychic: '#f85888', dragon: '#7038f8', rock: '#b8a038', ground: '#e0c068', poison: '#a040a0'
   };
   MS.TYPE_NAME = {
     normal: 'Normal', fire: 'Fogo', water: 'Água', grass: 'Planta', electric: 'Elétrico',
-    bug: 'Inseto', flying: 'Voador', psychic: 'Psíquico', dragon: 'Dragão', rock: 'Pedra', ground: 'Terra'
+    bug: 'Inseto', flying: 'Voador', psychic: 'Psíquico', dragon: 'Dragão', rock: 'Pedra', ground: 'Terra', poison: 'Veneno'
   };
 
   // Efetividade: tipo do ataque -> tipo do defensor. 2 = super efetivo, 0.5 = pouco efetivo.
   const CHART = {
     fire:     { grass: 2, bug: 2, water: .5, fire: .5, dragon: .5, rock: .5 },
     water:    { fire: 2, ground: 2, rock: 2, water: .5, grass: .5, dragon: .5 },
-    grass:    { water: 2, ground: 2, rock: 2, fire: .5, grass: .5, bug: .5, flying: .5, dragon: .5 },
+    grass:    { water: 2, ground: 2, rock: 2, fire: .5, grass: .5, bug: .5, flying: .5, dragon: .5, poison: .5 },
     electric: { water: 2, flying: 2, grass: .5, electric: .5, dragon: .5, ground: .5 },
-    bug:      { grass: 2, psychic: 2, fire: .5, flying: .5 },
+    bug:      { grass: 2, psychic: 2, fire: .5, flying: .5, poison: .5 },
     flying:   { grass: 2, bug: 2, electric: .5 },
-    psychic:  { psychic: .5 },
+    psychic:  { psychic: .5, poison: 2 },
     dragon:   { dragon: 2 },
     rock:     { fire: 2, flying: 2, bug: 2, ground: .5 },
-    ground:   { fire: 2, electric: 2, rock: 2, grass: .5, bug: .5, flying: .5 },
-    normal:   { rock: .5 }
+    ground:   { fire: 2, electric: 2, rock: 2, poison: 2, grass: .5, bug: .5, flying: .5 },
+    normal:   { rock: .5 },
+    poison:   { grass: 2, poison: .5, ground: .5, rock: .5 }
   };
   MS.typeMult = (atk, defTypes) =>
     defTypes.reduce((m, t) => m * ((CHART[atk] && CHART[atk][t] !== undefined) ? CHART[atk][t] : 1), 1);
@@ -50,6 +51,11 @@
     hidrobomba:{ label: 'Hidro Bomba',     type: 'water',    style: 'water',   count: 1, spread: 0, speed: 1.0,  grav: 1.0, boom: 56, carve: 0,  dmg: 70, push: 13 },
     furia2:    { label: 'Cometa Dragão',   type: 'dragon',   style: 'dragon',  count: 1, spread: 0, speed: 1.05, grav: 1.0, boom: 52, carve: 26, dmg: 64 },
     pedra:     { label: 'Lançar Pedra',    type: 'rock',     style: 'rock',    count: 1, spread: 0, speed: 1.0,  grav: 1.15, boom: 40, carve: 26, dmg: 46 },
+    ferrao:    { label: 'Ferrão Venenoso', type: 'poison', style: 'poison', count: 2, spread: 3, speed: 1.12, grav: 0.85, boom: 22, carve: 3, dmg: 22 },
+    pancada:   { label: 'Pancada',         type: 'normal', style: 'normal', count: 1, spread: 0, speed: 1.05, grav: 0.9, boom: 30, carve: 8, dmg: 32, push: 4 },
+    lama:      { label: 'Bomba de Lama',   type: 'ground', style: 'rock', count: 1, spread: 0, speed: 1.0, grav: 1.1, boom: 34, carve: 18, dmg: 40 },
+    sementes:  { label: 'Bomba de Sementes', type: 'grass', style: 'leaf', count: 2, spread: 5, speed: 0.95, grav: 0.8, boom: 26, carve: 8, dmg: 28 },
+    corporal:  { label: 'Golpe Corporal',  type: 'normal', style: 'normal', count: 1, spread: 0, speed: 0.95, grav: 1.1, boom: 38, carve: 14, dmg: 50, push: 8 },
     splash:    { label: 'Splash', none: true },
     ball:      { label: 'Pokébola',        type: 'normal',   style: 'ball',    count: 1, spread: 0, speed: 1.0,  grav: 1.0, boom: 0,  carve: 0,  dmg: 0 }
   };
@@ -77,7 +83,13 @@
     butterfree: { name: 'Butterfree', types: ['bug', 'flying'],     weapon: 'vento',      maxhp: 95,  h: 56, hitY: 27, hitR: 15, catch: 0.4,  mouth: [10, -30], scale: 1.1 },
     gyarados:   { name: 'Gyarados',   types: ['water', 'flying'],   weapon: 'hidrobomba', maxhp: 180, h: 62, hitY: 26, hitR: 17, catch: 0.2,  mouth: [20, -42], scale: 1.1 },
     dragonair:  { name: 'Dragonair',  types: ['dragon'],            weapon: 'furia2',     maxhp: 170, h: 66, hitY: 28, hitR: 15, catch: 0.2,  mouth: [19, -39], scale: 1.1 },
-    onix:       { name: 'Onix',       types: ['rock', 'ground'],    weapon: 'pedra',      maxhp: 170, h: 70, hitY: 30, hitR: 19, catch: 0.3,  mouth: [18, -48] }
+    onix:       { name: 'Onix',       types: ['rock', 'ground'],    weapon: 'pedra',      maxhp: 170, h: 70, hitY: 30, hitR: 19, catch: 0.3,  mouth: [18, -48] },
+    // Conceitos aprovados: versões fixadas em animated-kanto.js.
+    beedrill:   { name: 'Beedrill',   types: ['bug', 'poison'],     weapon: 'ferrao',     maxhp: 95, h: 43, hitY: 19, hitR: 13, catch: 0.55, mouth: [13, -20] },
+    jigglypuff: { name: 'Jigglypuff', types: ['normal'],            weapon: 'pancada',    maxhp: 80, h: 40, hitY: 18, hitR: 15, catch: 0.85, mouth: [13, -24] },
+    dugtrio:    { name: 'Dugtrio',    types: ['ground'],            weapon: 'lama',       maxhp: 105, h: 39, hitY: 17, hitR: 15, catch: 0.60, mouth: [9, -23] },
+    exeggutor:  { name: 'Exeggutor',  types: ['grass', 'psychic'],  weapon: 'sementes',   maxhp: 125, h: 49, hitY: 22, hitR: 16, catch: 0.40, mouth: [12, -27] },
+    snorlax:    { name: 'Snorlax',    types: ['normal'],            weapon: 'corporal',   maxhp: 175, h: 43, hitY: 18, hitR: 18, catch: 0.25, mouth: [11, -23], scale: 1.1 }
   };
 
   // ---------- Cenários ----------
@@ -128,13 +140,14 @@
   // ---------- Fases da campanha ----------
   // err: erro de mira do inimigo em graus (menor = mais preciso); wind: vento máximo
   MS.STAGES = [
-    { name: 'Rota 1',               theme: 'campo',    enemies: ['rattata', 'pidgey'],              err: 12,  hpMult: 1.0,  wind: 2, guests: [{ sp: 'pikachu', rarity: 0.2 }],
+    { name: 'Rota 1',               theme: 'campo',    enemies: ['rattata', 'pidgey'],              err: 12,  hpMult: 1.0,  wind: 2, guests: [{ sp: 'pikachu', rarity: 0.2 }, { sp: 'jigglypuff', rarity: 0.24 }],
       weather: [{ type: 'sun', p: 0.25 }, { type: 'rain', p: 0.2 }, { type: 'storm', p: 0.15 }] },
-    { name: 'Floresta de Viridian', theme: 'floresta', enemies: ['caterpie', 'caterpie', 'pidgey'], err: 10,  hpMult: 1.0,  wind: 2, guests: [{ sp: 'bulbasaur', rarity: 0.22 }, { sp: 'pikachu', rarity: 0.12 }],
+    { name: 'Floresta de Viridian', theme: 'floresta', enemies: ['caterpie', 'beedrill', 'pidgey'], err: 10,  hpMult: 1.0,  wind: 2, guests: [{ sp: 'bulbasaur', rarity: 0.22 }, { sp: 'pikachu', rarity: 0.12 }],
       weather: [{ type: 'rain', p: 0.3 }, { type: 'sun', p: 0.2 }] },
-    { name: 'Praia',                theme: 'praia',    enemies: ['magikarp', 'magikarp', 'starmie'], err: 8,  hpMult: 1.0,  wind: 3, guests: [{ sp: 'squirtle', rarity: 0.22 }, { sp: 'pikachu', rarity: 0.1 }],
+    { name: 'Praia',                theme: 'praia',    enemies: ['magikarp', 'magikarp', 'starmie'], err: 8,  hpMult: 1.0,  wind: 3, guests: [{ sp: 'squirtle', rarity: 0.22 }, { sp: 'pikachu', rarity: 0.1 }, { sp: 'exeggutor', rarity: 0.14 }],
       weather: [{ type: 'sun', p: 0.35 }, { type: 'rain', p: 0.2 }, { type: 'storm', p: 0.15 }] },
-    { name: 'Caverna',              theme: 'caverna',  enemies: ['rattata', 'pidgey', 'starmie'],   err: 6,   hpMult: 1.15, wind: 1, guests: [{ sp: 'onix', rarity: 0.35 }, { sp: 'charmander', rarity: 0.12 }] },
-    { name: 'Covil do Dragão',      theme: 'montanha', enemies: ['dratini'],                        err: 3.5, hpMult: 1.9,  wind: 3, boss: true, weather: [{ type: 'storm', p: 0.35 }, { type: 'rain', p: 0.15 }], guests: [{ sp: 'onix', rarity: 0.2 }, { sp: 'dragonair', rarity: 0.08 }] }
+    { name: 'Caverna',              theme: 'caverna',  enemies: ['rattata', 'dugtrio', 'starmie'],  err: 6,   hpMult: 1.15, wind: 1, guests: [{ sp: 'onix', rarity: 0.35 }, { sp: 'charmander', rarity: 0.12 }] },
+    { name: 'Covil do Dragão',      theme: 'montanha', enemies: ['dratini'],                        err: 3.5, hpMult: 1.9,  wind: 3, boss: true, weather: [{ type: 'storm', p: 0.35 }, { type: 'rain', p: 0.15 }], guests: [{ sp: 'onix', rarity: 0.2 }, { sp: 'dragonair', rarity: 0.08 }, { sp: 'snorlax', rarity: 0.08, stayRounds: 7 }] }
   ];
 })();
+

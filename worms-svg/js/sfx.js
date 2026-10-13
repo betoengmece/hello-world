@@ -3,16 +3,18 @@
   const MS = window.MS = window.MS || {};
 
   MS.Sfx = (() => {
-    let ctx = null, master = null, musicBus = null, noiseBuf = null, enabled = true;
+    let ctx = null, master = null, musicBus = null, noiseBuf = null, enabled = true, volume = 0.6;
     let chargeOsc = null, chargeGain = null, musicNext = 0, musicStep = 0;
     const r = (a, b) => a + Math.random() * (b - a);
+
+    const level = () => 0.92 * volume;       // volume 0..1 (padrão 0,6 ≈ ganho 0,55)
 
     function unlock() {
       if (!ctx) {
         const AC = window.AudioContext || window.webkitAudioContext;
         if (!AC) return;
         ctx = new AC();
-        master = ctx.createGain(); master.gain.value = enabled ? 0.55 : 0; master.connect(ctx.destination);
+        master = ctx.createGain(); master.gain.value = enabled ? level() : 0; master.connect(ctx.destination);
         musicBus = ctx.createGain(); musicBus.gain.value = 0.09; musicBus.connect(master);
         noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
         const d = noiseBuf.getChannelData(0);
@@ -72,10 +74,15 @@
       unlock,
       toggle() {
         enabled = !enabled;
-        if (master) master.gain.setTargetAtTime(enabled ? 0.55 : 0, ctx.currentTime, 0.02);
+        if (master) master.gain.setTargetAtTime(enabled ? level() : 0, ctx.currentTime, 0.02);
         if (!enabled) api.chargeStop();
         return enabled;
       },
+      setVolume(v) {
+        volume = Math.max(0, Math.min(1, v));
+        if (master && enabled) master.gain.setTargetAtTime(level(), ctx.currentTime, 0.02);
+      },
+      isOn: () => enabled,
 
       // som do disparo, de acordo com o "estilo" do ataque
       shoot(style) {

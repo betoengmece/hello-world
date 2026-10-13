@@ -57,6 +57,7 @@ Relações usadas: Pedra > Fogo, Voador, Inseto · Terra > Fogo, Elétrico, Pedr
 | TAB | trocar de parceiro |
 | R | reiniciar a fase / partida |
 | M | liga/desliga o som |
+| O (ou botão ⚙) | menu lateral de ajustes: brilho da tela e volume do som (o jogo pausa; ← → ajusta, ↑ ↓ escolhe). Fica salvo no navegador |
 | ESC | volta ao menu |
 
 **No celular:** botões na tela (◀ ▶ andar, ▲ ▼ mirar, segure TIRO para carregar e solte para atirar, BOLA, ⇄ troca, ↻ reinicia, ☰ menu, 🔊 som). Jogue com o celular deitado. Menus funcionam por toque.

@@ -9,7 +9,28 @@
   const VOLT_X = 400;         // posição do Pikachu no modo Versus
   const WEAK = 0.35;          // abaixo dessa fração de PV o inimigo pode ser capturado
   const PLAYER_COL = '#3a9bff', WILD_COL = '#e0433a', GUEST_COL = '#ffd34d';
-  const SAVE_KEY = 'ms_campaign_v1';
+  const SAVE_KEY = 'ms_campaign_v1', SET_KEY = 'ms_settings_v1';
+  // ajustes (menu lateral): brilho da tela e volume do som
+  const settings = { bright: 1, vol: 0.6 };
+  try { const t = JSON.parse(localStorage.getItem(SET_KEY)); if (t) { settings.bright = Math.min(1.5, Math.max(0.6, +t.bright || 1)); settings.vol = Math.min(1, Math.max(0, t.vol === undefined ? 0.6 : +t.vol)); } } catch (_) {}
+  let settingsOpen = false, drawerT = 0, settingsRow = 0, dragSlider = -1, sliderRects = [];
+  const SLIDERS = [
+    { key: 'bright', label: 'Brilho', min: 0.6, max: 1.5, def: 1,   fmt: v => Math.round(v * 100) + '%' },
+    { key: 'vol',    label: 'Volume', min: 0,   max: 1,   def: 0.6, fmt: v => Math.round(v * 100) + '%' }
+  ];
+  function applySettings() {
+    $('game').style.filter = Math.abs(settings.bright - 1) < 0.005 ? '' : `brightness(${settings.bright.toFixed(2)})`;
+    Sfx.setVolume(settings.vol);
+    try { localStorage.setItem(SET_KEY, JSON.stringify(settings)); } catch (_) {}
+  }
+  function setSlider(i, v) {
+    const S = SLIDERS[i]; settings[S.key] = Math.min(S.max, Math.max(S.min, v)); applySettings();
+  }
+  function toggleSettings(force) {
+    settingsOpen = force === undefined ? !settingsOpen : force;
+    dragSlider = -1; keys = {}; charging = false; power = 0; Sfx.chargeStop(); Sfx.click();
+    uiSel = 0; syncButtons();
+  }
   // tipos de bola: a Great e a Ultra têm chance de captura maior e só aparecem como itens pelo campo
   const BALLS = {
     ball:  { name: 'Pokébola',   mul: 1,   col: '#e63b3b', key: 'balls' },
@@ -1407,7 +1428,7 @@
     if (weather === 'sun') icon = `<circle r="5.5" fill="#ffd34d"/>${Array.from({ length: 8 }, (_, i) => `<path transform="rotate(${i * 45})" d="M0,-8 L0,-11" stroke="#ffd34d" stroke-width="1.8" stroke-linecap="round"/>`).join('')}`;
     else if (weather === 'rain') icon = `<path d="M-8,2 Q-9,-4 -3,-4 Q-1,-9 4,-6 Q9,-6 8,1 Z" fill="#9fb8d8"/><path d="M-5,5 l-1.5,4 M0,5 l-1.5,4 M5,5 l-1.5,4" stroke="#6ad0ff" stroke-width="1.6" stroke-linecap="round"/>`;
     else icon = `<path d="M-8,0 Q-9,-6 -3,-6 Q-1,-11 4,-8 Q9,-8 8,-1 Z" fill="#6a7090"/><path d="M1,1 L-3,7 L0,7 L-2,12 L4,5 L1,5 Z" fill="#ffe96a" stroke="#8a6a00" stroke-width=".5" stroke-linejoin="round"/>`;
-    return `<rect x="478" y="8" width="150" height="34" rx="12" fill="#0d1b2a" opacity=".72"/>
+    return `<rect x="478" y="8" width="132" height="34" rx="12" fill="#0d1b2a" opacity=".72"/>
       <g transform="translate(498 25)">${icon}</g>
       <text x="514" y="22" font-size="11" font-weight="bold" fill="#fff">${W_.name}</text>
       <text x="514" y="35" font-size="9.5" fill="#bfe3ff">${W_.note}</text>`;
@@ -1803,6 +1824,35 @@
     return s;
   }
 
+  function drawerSvg() {
+    const e = 1 - Math.pow(1 - drawerT, 3), X = 800 - 250 * e;
+    sliderRects = [];
+    let s = `<rect width="800" height="500" fill="#000" opacity="${(0.35 * e).toFixed(2)}"/>
+      <rect x="${f1(X)}" y="0" width="260" height="500" fill="#101b33" fill-opacity=".97"/>
+      <rect x="${f1(X)}" y="0" width="3" height="500" fill="#ffd34d" opacity=".8"/>
+      <text x="${f1(X + 24)}" y="38" font-size="20" font-weight="800" fill="#fff">⚙ Ajustes</text>`;
+    SLIDERS.forEach((S, i) => {
+      const y = 110 + i * 84, tx = X + 24, tw = 202, v = settings[S.key], k = (v - S.min) / (S.max - S.min), foc = settingsRow === i;
+      sliderRects.push({ x: tx, y: y - 14, w: tw, h: 36 });
+      const def = (S.def - S.min) / (S.max - S.min);
+      s += `<g>${foc ? `<rect x="${f1(X + 12)}" y="${y - 34}" width="226" height="72" rx="12" fill="none" stroke="#ffb347" stroke-width="2" opacity=".9"/>` : ''}
+        <text x="${f1(tx)}" y="${y - 12}" font-size="14" font-weight="bold" fill="#fff">${S.label}</text>
+        <text x="${f1(tx + tw)}" y="${y - 12}" text-anchor="end" font-size="14" font-weight="bold" fill="#ffd34d">${S.fmt(v)}</text>
+        <rect x="${f1(tx)}" y="${y + 2}" width="${tw}" height="8" rx="4" fill="#000" opacity=".55"/>
+        <rect x="${f1(tx)}" y="${y + 2}" width="${f1(tw * k)}" height="8" rx="4" fill="${S.key === 'bright' ? '#ffd34d' : '#6ad0ff'}"/>
+        <line x1="${f1(tx + tw * def)}" y1="${y - 1}" x2="${f1(tx + tw * def)}" y2="${y + 13}" stroke="#fff" stroke-width="1.5" opacity=".6"/>
+        <circle cx="${f1(tx + tw * k)}" cy="${y + 6}" r="${dragSlider === i ? 11 : 9}" fill="#fff" stroke="#173a78" stroke-width="2.5"/></g>`;
+    });
+    // botões (sem animação de posição para o toque funcionar): ficam dentro do painel
+    const bx = Math.round(X + 24);
+    s += uiBtn(bx, 290, 202, 40, Sfx.isOn() ? 'Som: ligado' : 'Som: desligado', () => { toggleSound(); }, { fs: 16 });
+    s += uiBtn(bx, 338, 202, 40, 'Restaurar padrão', () => { SLIDERS.forEach((S, i) => setSlider(i, S.def)); }, { fs: 16 });
+    s += uiBtn(bx, 386, 202, 40, 'Fechar', () => toggleSettings(false), { fs: 16 });
+    s += `<text x="${f1(X + 125)}" y="454" text-anchor="middle" font-size="10" fill="#fff" opacity=".6">O abre/fecha · ← → ajusta · ↑ ↓ escolhe</text>
+          <text x="${f1(X + 125)}" y="470" text-anchor="middle" font-size="10" fill="#fff" opacity=".45">(o jogo fica em pausa)</text>`;
+    return s;
+  }
+
   function renderOverlay() {
     uiList = [];
     let s = '';
@@ -1810,6 +1860,7 @@
     else if (scene === 'team') s = teamSvg();
     if (evo) s = evolveSvg();
     if (panel) { uiList = []; s += panelSvg(); }
+    if (drawerT > 0.01 || settingsOpen) { uiList = []; s += drawerSvg(); }
     if (uiSel >= uiList.length) uiSel = Math.max(0, uiList.length - 1);
     $('overlay').innerHTML = s;
   }
@@ -1817,13 +1868,13 @@
   // ---------- Botões de toque ----------
   const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
   if (isTouch) document.body.classList.add('touch');
-  else { $('soundBtn').setAttribute('transform', 'translate(124 0)'); $('menuBtn').setAttribute('transform', 'translate(124 0)'); }
+  else for (const id of ['soundBtn', 'menuBtn', 'settingsBtn']) $(id).setAttribute('transform', 'translate(62 0)');
 
   function syncButtons() {
-    const b = scene === 'battle' && !panel && state !== 'evolve', i = scene === 'intro';
+    const b = scene === 'battle' && !panel && state !== 'evolve' && !settingsOpen, i = scene === 'intro' && !settingsOpen;
     const camp = b && kind === 'campaign';
     const show = { left: b, right: b, up: b || i, down: b || i, fire: b || i, switch: b, restart: b || i,
-                   ball: camp, menu: b || i, sound: true };
+                   ball: camp, menu: b || i, sound: !settingsOpen, settings: true };
     // na fase da cidade os botões vão para a esquerda, para não cobrir a lagoa e os alvos da direita
     const introPos = { up: 'translate(-536 0)', down: 'translate(-536 0)', fire: 'translate(190 452) scale(.75) translate(-738 -436)' };
     document.querySelectorAll('.btn').forEach(el => {
@@ -1870,6 +1921,7 @@
       else if (act === 'ball') toggleBall();
       else if (act === 'menu') { Sfx.click(); initMenu(); }
       else if (act === 'sound') toggleSound();
+      else if (act === 'settings') toggleSettings();
     };
     const release = e => {
       e.preventDefault();
@@ -1890,17 +1942,38 @@
   function uiHit(p) { return uiList.findIndex(b => p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h); }
   $('game').addEventListener('pointerdown', e => {
     if (e.target.closest && e.target.closest('.btn')) return;
+    if (settingsOpen) {
+      Sfx.unlock();
+      const p = svgPoint(e), X = 800 - 250;
+      const si = sliderRects.findIndex(r => p.x >= r.x - 10 && p.x <= r.x + r.w + 10 && p.y >= r.y && p.y <= r.y + r.h);
+      if (si >= 0) {
+        settingsRow = si; dragSlider = si;
+        try { $('game').setPointerCapture(e.pointerId); } catch (_) {}
+        const r = sliderRects[si], S = SLIDERS[si];
+        setSlider(si, S.min + (S.max - S.min) * Math.min(1, Math.max(0, (p.x - r.x) / r.w)));
+        return;
+      }
+      const i = uiHit(p);
+      if (i >= 0) { uiSel = i; activate(i); } else if (p.x < X) toggleSettings(false);
+      return;
+    }
     if (evo) { Sfx.unlock(); skipEvolve(); return; }
     if (!uiList.length) return;
     const i = uiHit(svgPoint(e));
     if (i >= 0 && !uiList[i].disabled) { uiSel = i; Sfx.unlock(); activate(i); }
   });
   $('game').addEventListener('pointermove', e => {
+    if (dragSlider >= 0) {
+      const p = svgPoint(e), r = sliderRects[dragSlider], S = SLIDERS[dragSlider];
+      if (r) setSlider(dragSlider, S.min + (S.max - S.min) * Math.min(1, Math.max(0, (p.x - r.x) / r.w)));
+      return;
+    }
     if (e.pointerType !== 'mouse' || !uiList.length) return;
     const i = uiHit(svgPoint(e));
     if (i >= 0 && i !== uiSel) uiSel = i;
   });
   $('game').addEventListener('contextmenu', e => e.preventDefault());
+  ['pointerup', 'pointercancel'].forEach(ev => $('game').addEventListener(ev, () => { dragSlider = -1; }));
 
   function activate(i) {
     const b = uiList[i];
@@ -1913,6 +1986,17 @@
   const ARROWS = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
 
   addEventListener('keydown', e => {
+    if (e.key === 'o' || e.key === 'O') { e.preventDefault(); toggleSettings(); return; }
+    if (settingsOpen) {
+      if (e.key === 'Escape') toggleSettings(false);
+      else if (e.key === 'ArrowUp') { settingsRow = 0; Sfx.click(); e.preventDefault(); }
+      else if (e.key === 'ArrowDown') { settingsRow = 1; Sfx.click(); e.preventDefault(); }
+      else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        const S = SLIDERS[settingsRow], d = (e.key === 'ArrowRight' ? 1 : -1) * (S.max - S.min) * 0.05;
+        setSlider(settingsRow, settings[S.key] + d); e.preventDefault();
+      } else if (e.key === 'm' || e.key === 'M') toggleSound();
+      return;
+    }
     if (e.key === 'm' || e.key === 'M') { toggleSound(); return; }
     if (evo) {
       if (e.key === 'Escape') initMenu();
@@ -1978,6 +2062,8 @@
 
   function frame() {
     frameNo++;
+    drawerT = Math.max(0, Math.min(1, drawerT + (settingsOpen ? 0.09 : -0.09)));
+    if (settingsOpen) { updateCamera(); renderAll(); requestAnimationFrame(frame); return; }   // pausado
     for (const u of units) {
       if (u.breath > 0) u.breath--;
       if (u.hurt > 0) u.hurt--;
@@ -2003,6 +2089,7 @@
     get: () => ({ scene, kind, state, stageIdx, units, teams, campaign, cap, intro, panel, angle, power, wind, ballMode, turnTeam, ai, guest, gCool, gMode, evo }),
     get pickups() { return pickups; }, BALLS,
     setWeather: w => { weather = w; lightT = 5; $('sun').style.display = (w === 'rain' || w === 'storm') ? 'none' : ''; }, get weather() { return weather; },
+    toggleSettings, settings,
     forceGuest: sp => { gCool = 0; STAGES[stageIdx].guests = [{ sp, rarity: 1 }]; },
     skipEvolve, stageClear,
     initMenu, initVersus, initIntro, initStage, newCampaign, beginStage, fire, toggleBall, pickTarget,
@@ -2025,6 +2112,7 @@
     }
   };
 
+  applySettings();
   initMenu();
   requestAnimationFrame(frame);
 })();

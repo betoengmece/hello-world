@@ -1450,10 +1450,10 @@
     if (weather === 'sun') icon = `<circle r="5.5" fill="#ffd34d"/>${Array.from({ length: 8 }, (_, i) => `<path transform="rotate(${i * 45})" d="M0,-8 L0,-11" stroke="#ffd34d" stroke-width="1.8" stroke-linecap="round"/>`).join('')}`;
     else if (weather === 'rain') icon = `<path d="M-8,2 Q-9,-4 -3,-4 Q-1,-9 4,-6 Q9,-6 8,1 Z" fill="#9fb8d8"/><path d="M-5,5 l-1.5,4 M0,5 l-1.5,4 M5,5 l-1.5,4" stroke="#6ad0ff" stroke-width="1.6" stroke-linecap="round"/>`;
     else icon = `<path d="M-8,0 Q-9,-6 -3,-6 Q-1,-11 4,-8 Q9,-8 8,-1 Z" fill="#6a7090"/><path d="M1,1 L-3,7 L0,7 L-2,12 L4,5 L1,5 Z" fill="#ffe96a" stroke="#8a6a00" stroke-width=".5" stroke-linejoin="round"/>`;
-    return `<rect x="478" y="8" width="132" height="34" rx="12" fill="#0d1b2a" opacity=".72"/>
-      <g transform="translate(498 25)">${icon}</g>
-      <text x="514" y="22" font-size="11" font-weight="bold" fill="#fff">${W_.name}</text>
-      <text x="514" y="35" font-size="9.5" fill="#bfe3ff">${W_.note}</text>`;
+    return `<rect x="338" y="46" width="132" height="32" rx="12" fill="#0d1b2a" opacity=".72"/>
+      <g transform="translate(358 62)">${icon}</g>
+      <text x="374" y="59" font-size="11" font-weight="bold" fill="#fff">${W_.name}</text>
+      <text x="374" y="72" font-size="9.5" fill="#bfe3ff">${W_.note}</text>`;
   }
 
   function hudSvg() {
@@ -1494,9 +1494,9 @@
         <text x="274" y="33" font-size="16" font-weight="bold" fill="#fff">×${campaign.balls}</text>
         <text x="312" y="43" text-anchor="end" font-size="8" fill="#bbb">[B]</text>`;
       if (campaign.great > 0 || campaign.ultra > 0) {
-        s += `<rect x="238" y="52" width="150" height="22" rx="11" fill="#0d1b2a" opacity=".72"/>
+        s += `<rect x="238" y="52" width="92" height="22" rx="11" fill="#0d1b2a" opacity=".72"/>
           <g transform="translate(252 63)">${Art.ball(6, 0, 0, BALLS.great.col)}</g><text x="262" y="67" font-size="12" font-weight="bold" fill="#fff">×${campaign.great}</text>
-          <g transform="translate(312 63)">${Art.ball(6, 0, 0, BALLS.ultra.col)}</g><text x="322" y="67" font-size="12" font-weight="bold" fill="#fff">×${campaign.ultra}</text>`;
+          <g transform="translate(290 63)">${Art.ball(6, 0, 0, BALLS.ultra.col)}</g><text x="300" y="67" font-size="12" font-weight="bold" fill="#fff">×${campaign.ultra}</text>`;
       }
       if (ballMode) s += `<rect x="238" y="78" width="170" height="22" rx="11" fill="${BALLS[ballType].col}" opacity=".92"/>
         <text x="323" y="93" text-anchor="middle" font-size="11" font-weight="bold" fill="${ballType === 'ultra' ? '#2a1a00' : '#fff'}">${BALLS[ballType].name.toUpperCase()} ATIVA</text>`;
@@ -1901,6 +1901,8 @@
   const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
   if (isTouch) document.body.classList.add('touch');
   else for (const id of ['soundBtn', 'menuBtn', 'settingsBtn']) $(id).setAttribute('transform', 'translate(62 0)');
+  // no celular o canto superior direito já é todo ocupado (☰ 🔊 ⇄ ↻): o ⚙ vai para o meio da base da tela
+  if (isTouch) $('settingsBtn').setAttribute('transform', 'translate(-358 424)');
 
   function syncButtons() {
     const b = scene === 'battle' && !panel && state !== 'evolve' && !settingsOpen, i = scene === 'intro' && !settingsOpen;

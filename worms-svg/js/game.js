@@ -6,7 +6,6 @@
   const W = 800, H = 500, WATER = 480;
   const GRAV = 0.2;           // gravidade base (px/frame²)
   const WALK_MAX = 120;       // distância máxima de caminhada por turno
-  const VOLT_X = 400;         // posição do Pikachu no modo Versus
   const WEAK = 0.35;          // abaixo dessa fração de PV o inimigo pode ser capturado
   const PLAYER_COL = '#3a9bff', WILD_COL = '#e0433a', GUEST_COL = '#ffd34d';
   const SAVE_KEY = 'ms_campaign_v1', SET_KEY = 'ms_settings_v1';
@@ -42,7 +41,8 @@
   const WEATHER = {
     rain:  { name: 'Chuva',       note: 'Água +50%',            boost: { water: 1.5 } },
     sun:   { name: 'Sol forte',   note: 'Fogo e Planta +40%',   boost: { fire: 1.4, grass: 1.4 } },
-    storm: { name: 'Tempestade',  note: 'Elétrico +50%',        boost: { electric: 1.5 } }
+    storm: { name: 'Tempestade',  note: 'Elétrico +50%',        boost: { electric: 1.5 } },
+    snow:  { name: 'Neve',        note: 'Gelo +50%',            boost: { ice: 1.5 } }
   };
 
   const $ = id => document.getElementById(id);
@@ -53,12 +53,12 @@
 
   // ---------- Estado ----------
   let scene = 'menu';          // 'menu' | 'intro' | 'team' | 'battle'
-  let kind = 'versus';         // tipo de batalha: 'versus' | 'campaign'
+  let kind = 'menu';           // 'menu' | 'intro' | 'campaign'
   let frameNo = 0;
   let heights, grass, tuft, decor = [], graves = [], parts = [], floaters = [], clouds = [], cloudEls = [], fx = [], projs = [];
   let units = [], teams = [], turnTeam = 0, state = 'aim', wind = 0, power = 0, charging = false, angle = 45;
   let walkBudget = WALK_MAX, dirty = true, msg = '', msgT = 0, keys = {};
-  let neutral = null, lastShotVolt = false, voltDelay = 0, voltSide = 1;
+  let menuPage = 'main', pageNo = 0, wxRounds = 3, wxPrev = null, wxK = 1;
   let guest = null, gCool = 1, gMode = '', gT = 0, gSide = 1, gDelay = 100, lastShotGuest = false, splashU = null, evo = null;
   let weather = null, lightT = 300, bolt = null;
   let ballMode = false, ballType = 'ball', lastBall = false, lastBallType = 'ball', pickups = [], ai = null, cap = null, panel = null, pendingPanel = null;
@@ -73,6 +73,9 @@
   const teamAlive = t => t.units.some(u => u.alive);
   const gy = x => heights[clamp(Math.round(x), 0, W - 1)];
   const spOf = u => SPECIES[u.sp];
+  const curW = u => u.moves[Math.min(u.mi, u.moves.length - 1)];
+  const isVar = u => u.mvs !== 'b';
+  const stars = mvs => (mvs === 'b' ? '' : mvs.includes('+') ? '★★' : '★');
   const centerOf = u => ({ x: u.x, y: u.y - spOf(u).hitY * u.scale });
   const hitRof = u => spOf(u).hitR * u.scale * (u.hrMul || 1);
 
@@ -87,7 +90,6 @@
       const p = projs[Math.floor(projs.length / 2)];
       tx = p.x; ty = p.y; tz = scene === 'intro' ? 1.2 : 1.35; k = 0.12;
     } else if (state === 'settle') { tx = focus.x; ty = focus.y; tz = 1.25; }
-    else if (state === 'volt' && neutral) { tx = neutral.x; ty = neutral.y - 30; tz = 1.7; }
     else if (state === 'guest' && guest) { tx = guest.x; ty = guest.y - 40; tz = 1.45; }
     else if ((state === 'aim' || state === 'ai') && charging && scene === 'battle') {
       const u = activeUnit(); if (u) { tx = u.x; ty = u.y - 30; tz = 1.15; k = 0.04; }
@@ -111,7 +113,7 @@
   }
 
   const FX_FILL = { fire: 'url(#boom)', leaf: 'url(#leafBoom)', water: 'url(#splash)', thunder: 'url(#zap)',
-                    normal: 'url(#hitBoom)', gust: 'url(#gustBoom)', web: 'url(#webBoom)', dragon: 'url(#dragBoom)', rock: 'url(#rockBoom)', poison: '#b46bd0' };
+                    normal: 'url(#hitBoom)', gust: 'url(#gustBoom)', web: 'url(#webBoom)', dragon: 'url(#dragBoom)', rock: 'url(#rockBoom)', poison: '#b46bd0', ice: '#bfeaf6', ghost: '#8a6ac0', punch: '#fff0c8' };
 
   // ---------- Geração do mundo ----------
   function hillPath(pts) {
@@ -192,12 +194,12 @@
     // faixa de fundo: prédios (cidade), dunas (praia), pedras pontudas (caverna) ou pinheiros
     let tl = '', win = '';
     if (key === 'cidade') { const s = skyline(); tl = s.d; win = s.win; }
-    else if (key === 'praia') {
+    else if (key === 'praia' || key === 'cabo' || key === 'vitoria' || key === 'usina') {
       const pts = []; for (let x = -20; x <= W + 40; x += 70) pts.push({ x, y: rnd(268, 290) });
       tl = hillPath(pts);
     } else {
       tl = `M-60,${H}`;
-      const cave = key === 'caverna';
+      const cave = key === 'caverna' || key === 'lava' || key === 'gelo';
       for (let x = -60; x <= W + 60; x += cave ? rnd(18, 34) : rnd(9, 17)) {
         const baseY = 262 + 10 * Math.sin(x * 0.01 + p3), h = cave ? rnd(22, 52) : rnd(14, 32), hw = cave ? rnd(7, 13) : rnd(5, 9);
         tl += ` L${f1(x - hw)},${f1(baseY)} L${f1(x)},${f1(baseY - h)} L${f1(x + hw)},${f1(baseY)}`;
@@ -249,47 +251,27 @@
   function resetCommon() {
     fx = []; projs = []; parts = []; floaters = []; graves = [];
     power = 0; charging = false; ballMode = false; lastBall = false; pickups = []; weather = null; bolt = null; ai = null; cap = null; panel = null; pendingPanel = null;
-    lastShotVolt = false; voltDelay = 0; neutral = null; keys = {};
+    keys = {}; wxPrev = null; wxK = 1;
     guest = null; gCool = 1; gMode = ''; lastShotGuest = false; splashU = null; evo = null;
     cam.x = 400; cam.y = 250; cam.z = 1; cam.shake = 0;
     Sfx.chargeStop();
   }
 
-  function mkUnit(sp, x, team, face, hpMult = 1) {
+  function mkUnit(sp, x, team, face, hpMult = 1, mvs = 'b') {
     const S = SPECIES[sp], maxhp = Math.round(S.maxhp * hpMult);
+    mvs = MS.cleanMv(sp, mvs);
     return { sp, name: S.name, team, x, y: gy(x), hp: maxhp, maxhp, alive: true, face: face || 1, breath: 0, hurt: 0,
+             mvs, moves: MS.movesOf(sp, mvs), mi: 0,
              walkT: 0, moving: false, blinkOff: Math.floor(rnd(0, 230)), webbed: false, stuck: false, hidden: false, capScale: 1,
              scale: S.scale || 1, hop: 0, dealt: 0, rid: -1, turnsLeft: 0 };
   }
 
   // ---------- Menu ----------
   function initMenu() {
-    scene = 'menu'; kind = 'menu'; resetCommon();
+    scene = 'menu'; kind = 'menu'; menuPage = 'main'; resetCommon();
     genWorld('campo'); genClouds(); genDecor([105, 185, 615, 695]);
     units = [mkUnit('charmander', 105, 0, 1), mkUnit('bulbasaur', 185, 0, 1), mkUnit('squirtle', 615, 0, -1), mkUnit('pikachu', 695, 0, -1)];
     teams = []; state = 'menu'; wind = 0; msg = ''; msgT = 0; uiSel = 0;
-    syncButtons();
-  }
-
-  // ---------- Versus (3 times + Pikachu no meio) ----------
-  const TEAM_DEF = [
-    { name: 'Fogo',   color: '#e0433a', sp: 'charmander', spawn: [60, 140] },
-    { name: 'Planta', color: '#3fae5a', sp: 'bulbasaur',  spawn: [660, 740] },
-    { name: 'Água',   color: '#3a7de0', sp: 'squirtle',   spawn: [230, 310] }
-  ];
-
-  function initVersus() {
-    scene = 'battle'; kind = 'versus'; resetCommon();
-    genWorld('campo'); genClouds();
-    genDecor(TEAM_DEF.flatMap(t => t.spawn).concat([VOLT_X]));
-    units = []; teams = TEAM_DEF.map(d => ({ name: d.name, color: d.color, units: [], cur: 0, ai: false }));
-    TEAM_DEF.forEach((d, ti) => d.spawn.forEach(x0 => {
-      const x = x0 + rnd(-6, 6), u = mkUnit(d.sp, x, ti, x < VOLT_X ? 1 : -1);
-      units.push(u); teams[ti].units.push(u);
-    }));
-    neutral = mkUnit('pikachu', VOLT_X, -1, 1);
-    turnTeam = 0; state = 'aim'; stageIdx = 0;
-    startTurn();
     syncButtons();
   }
 
@@ -298,40 +280,49 @@
     try {
       const s = JSON.parse(localStorage.getItem(SAVE_KEY));
       if (s && Array.isArray(s.roster) && s.roster.length && s.roster.every(r => SPECIES[r]) &&
-          Number.isInteger(s.stage) && s.stage >= 0 && s.stage < STAGES.length) {
+          Number.isInteger(s.stage) && s.stage >= 0) {
+        s.stage = Math.min(s.stage, STAGES.length - 1);
         s.great = Math.max(0, Math.min(9, +s.great || 0)); s.ultra = Math.max(0, Math.min(9, +s.ultra || 0));
         s.xp = s.roster.map((_, i) => (Array.isArray(s.xp) && +s.xp[i] > 0) ? Math.round(+s.xp[i]) : 0);
+        s.mv = s.roster.map((r, i) => MS.cleanMv(r, Array.isArray(s.mv) ? s.mv[i] : 'b'));   // saves antigos: tudo golpe padrão
+        s.done = !!s.done;
         return s;
       }
     } catch (_) {}
     return null;
   }
   function saveGame() {
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ roster: campaign.roster, xp: campaign.xp, great: campaign.great, ultra: campaign.ultra, stage: campaign.stage, balls: campaign.balls, weakStart: campaign.weakStart })); } catch (_) {}
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ roster: campaign.roster, xp: campaign.xp, mv: campaign.mv, great: campaign.great, ultra: campaign.ultra, stage: campaign.stage, balls: campaign.balls, weakStart: campaign.weakStart, done: !!campaign.done })); } catch (_) {}
   }
   function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch (_) {} }
 
+  // campaign.stage = fase mais avançada liberada; é possível rejogar qualquer fase anterior (para capturar o que ficou para trás)
   function newCampaign(starter) {
-    campaign = { roster: [starter], xp: [0], great: 0, ultra: 0, stage: 0, balls: 0, weakStart: SPECIES[starter].maxhp < 100, sel: [0] };
+    campaign = { roster: [starter], xp: [0], mv: ['b'], great: 0, ultra: 0, stage: 0, balls: 0, weakStart: SPECIES[starter].maxhp < 100, sel: [0], done: false };
     beginStage(0);
   }
-  function continueCampaign() {
-    const s = loadSave(); if (!s) return;
-    campaign = { roster: s.roster.slice(), xp: s.xp.slice(), great: s.great, ultra: s.ultra, stage: s.stage, balls: s.balls || 0, weakStart: !!s.weakStart, sel: [0] };
-    beginStage(s.stage);
+  function loadCampaign() {
+    const s = loadSave(); if (!s) return false;
+    campaign = { roster: s.roster.slice(), xp: s.xp.slice(), mv: s.mv.slice(), great: s.great, ultra: s.ultra, stage: s.stage, balls: s.balls || 0, weakStart: !!s.weakStart, sel: [0], done: s.done };
+    return true;
   }
+  function continueCampaign() { if (loadCampaign()) beginStage(campaign.stage); }
+  function playStage(si) { if (loadCampaign()) beginStage(Math.min(si, campaign.stage)); }
 
   function beginStage(si) {
-    campaign.stage = si;
-    campaign.balls = Math.min(9, campaign.balls + (STAGES[si].boss ? 5 : 3));
+    const replay = si < campaign.stage;
+    campaign.stage = Math.max(campaign.stage, si);
+    // rejogar uma fase antiga não acumula bolas: só garante um mínimo para tentar de novo
+    campaign.balls = replay ? Math.max(campaign.balls, 4) : Math.min(9, campaign.balls + (STAGES[si].boss ? 5 : 3));
     campaign.ballsStart = campaign.balls; campaign.greatStart = campaign.great; campaign.ultraStart = campaign.ultra;
     campaign.rosterStart = campaign.roster.slice();
-    campaign.xpStart = campaign.xp.slice();
+    campaign.xpStart = campaign.xp.slice(); campaign.mvStart = campaign.mv.slice();
     if (campaign.roster.length <= 3) {
       campaign.partyIdx = campaign.roster.map((_, i) => i);
       campaign.party = campaign.roster.slice();
       initStage(si);
     } else {
+      pageNo = 0;
       campaign.sel = campaign.sel.filter(i => i < campaign.roster.length).slice(0, 3);
       if (!campaign.sel.length) campaign.sel = [0];
       scene = 'team'; kind = 'campaign'; stageIdx = si; resetCommon(); uiSel = 0;
@@ -353,26 +344,59 @@
       { name: 'Selvagens', color: WILD_COL, units: [], cur: 0, ai: true }
     ];
     campaign.partyIdx.forEach((ri, i) => {
-      const u = mkUnit(campaign.roster[ri], px[i] + rnd(-5, 5), 0, 1); u.rid = ri; units.push(u); teams[0].units.push(u);
+      const u = mkUnit(campaign.roster[ri], px[i] + rnd(-5, 5), 0, 1, 1, campaign.mv[ri]); u.rid = ri; units.push(u); teams[0].units.push(u);
     });
     gCool = 1 + Math.floor(Math.random() * 2);
     st.enemies.forEach((sp, i) => {
-      const u = mkUnit(sp, ex[i] + rnd(-5, 5), 1, -1, st.hpMult * mercy); units.push(u); teams[1].units.push(u);
+      const u = mkUnit(sp, ex[i] + rnd(-5, 5), 1, -1, st.hpMult * mercy, MS.rollMoves(sp, wildBonus(si))); units.push(u); teams[1].units.push(u);
     });
     teams[1].cur = teams[1].units.length - 1;
     spawnPickups();
     weather = null; lightT = 200 + Math.floor(Math.random() * 200); bolt = null;
-    let roll = Math.random();
-    for (const w of (st.weather || [])) { if (roll < w.p) { weather = w.type; break; } roll -= w.p; }
-    if (weather === 'rain' || weather === 'storm') $('sun').style.display = 'none';   // céu fechado: sem sol
+    weather = rollWeather(st, null); wxRounds = 3 + Math.floor(Math.random() * 3);
+    applyWeatherSky();
     turnTeam = 0; state = 'aim';
     startTurn();
     showMsg(`Fase ${si + 1}: ${st.name}` + (weather ? ` · ${WEATHER[weather].name} (${WEATHER[weather].note})` : ''), 170);
     syncButtons();
   }
 
+  // fases mais avançadas têm mais chance de selvagens com golpes variantes
+  const wildBonus = si => Math.min(0.2, si * 0.02);
+
+  // sorteia o clima conforme a lista da fase (o que sobrar da soma das chances = tempo limpo); evita repetir o atual
+  function rollWeather(st, avoid) {
+    const list = st.weather || [];
+    if (!list.length) return null;
+    for (let tries = 0; tries < 8; tries++) {
+      let roll = Math.random(), w = null;
+      for (const e of list) { if (roll < e.p) { w = e.type; break; } roll -= e.p; }
+      if (w !== avoid || tries === 7) return w;
+    }
+    return null;
+  }
+  // céu fechado (chuva, tempestade, neve) esconde o sol
+  function applyWeatherSky() {
+    const t = THEMES[themeKey];
+    $('sun').style.display = (t.sun && !(weather === 'rain' || weather === 'storm' || weather === 'snow')) ? '' : 'none';
+  }
+  // de tempos em tempos o clima muda sozinho no meio da fase
+  function maybeChangeWeather() {
+    const st = STAGES[stageIdx];
+    if (!(st.weather || []).length || state === 'over') return;
+    if (--wxRounds > 0) return;
+    wxRounds = 3 + Math.floor(Math.random() * 4);
+    const nw = rollWeather(st, weather);
+    if (nw === weather) return;
+    wxPrev = weather; wxK = 0; weather = nw; applyWeatherSky();
+    if (nw === 'storm') lightT = 120;
+    showMsg(nw ? `O tempo mudou: ${WEATHER[nw].name}! (${WEATHER[nw].note})` : 'O tempo abriu.', 130);
+    Sfx.voltWarn();
+  }
+
   function restartStage() {
     campaign.roster = campaign.rosterStart.slice();
+    campaign.mv = campaign.mvStart.slice();
     campaign.xp = campaign.xpStart.slice();
     campaign.balls = campaign.ballsStart; campaign.great = campaign.greatStart; campaign.ultra = campaign.ultraStart;
     initStage(stageIdx);
@@ -385,7 +409,7 @@
       const sp = campaign.roster[ri], S = SPECIES[sp];
       if (!S.evo) return;
       const u = units.find(x => x.rid === ri);
-      const gain = 50 + 15 * stageIdx + Math.min(70, Math.round((u ? u.dealt : 0) * 0.5));
+      const gain = Math.round((50 + 15 * Math.min(stageIdx, 6) + Math.min(70, Math.round((u ? u.dealt : 0) * 0.5))) * (S.xpMul || 1));
       campaign.xp[ri] += gain;
       if (campaign.xp[ri] >= S.evoXp) {
         evos.push({ ri, from: sp, to: S.evo });
@@ -401,13 +425,14 @@
     const last = stageIdx >= STAGES.length - 1;
     Sfx.win();
     const xp = awardXp();
-    if (!last) { campaign.stage = stageIdx + 1; saveGame(); } else clearSave();
+    if (!last) campaign.stage = Math.max(campaign.stage, stageIdx + 1); else campaign.done = true;
+    saveGame();
     const buttons = last
       ? [{ label: 'Menu principal', fn: initMenu }]
       : [{ label: 'Próxima fase ▶', fn: () => beginStage(stageIdx + 1) }, { label: 'Menu', fn: initMenu }];
     pendingPanel = { t: 70, evos: xp.evos, panel: {
       title: last ? '🏆 Você é o Campeão!' : 'Fase concluída!',
-      sub: last ? `Você terminou a campanha com ${campaign.roster.length} Pokémon.` : `${STAGES[stageIdx].name} superada.`,
+      sub: last ? `Você terminou a campanha com ${campaign.roster.length} Pokémon. Dá para rejogar qualquer fase pelo menu.` : `${STAGES[stageIdx].name} superada.`,
       lines: xp.lines, caught: stageCaught.slice(), buttons } };
     showMsg(last ? 'Campeão!' : 'Fase concluída!', 70);
   }
@@ -811,7 +836,8 @@
     const S = spOf(u), a = angle * Math.PI / 180, sp = 3 + power * 0.075;
     u.face = Math.cos(a) >= 0 ? 1 : -1;
     if (!ballMode && !teams[turnTeam].ai) lastBall = false;      // tiro normal: deixa de repetir a Pokébola
-    if (!ballMode && WEAPONS[S.weapon].none) {
+    const wk = curW(u);
+    if (!ballMode && WEAPONS[wk].none) {
       u.hop = 1; splashU = u; state = 'skip'; skipT = 80; walkBudget = 0; charging = false; power = 0; ai = null;
       Sfx.chargeStop(); Sfx.splash();
       showMsg(`${u.name} usou Splash! Mas nada aconteceu...`, 80);
@@ -824,25 +850,17 @@
       if (!teams[turnTeam].ai) { lastBall = true; lastBallType = ballType; }
     } else {
       const mx = u.x + u.face * S.mouth[0] * u.scale, my = u.y + S.mouth[1] * u.scale;
-      launch(S.weapon, mx, my, a, sp, 'unit', u);
-      u.breath = 18; Sfx.shoot(WEAPONS[S.weapon].style);
-      muzzle(mx, my, WEAPONS[S.weapon].style, a);
+      launch(wk, mx, my, a, sp, 'unit', u);
+      u.breath = 18; Sfx.shoot(WEAPONS[wk].style);
+      muzzle(mx, my, WEAPONS[wk].style, a);
     }
     Sfx.chargeStop();
     lastAngles[kind + turnTeam] = angle;
     power = 0; charging = false; state = 'flying'; ai = null;
   }
 
-  function voltShoot() {
-    const deg = rnd(40, 75);
-    const a = (voltSide > 0 ? deg : 180 - deg) * Math.PI / 180;
-    launch('volt', neutral.x, neutral.y - 34, a, rnd(5, 6.5), 'volt', null);
-    lastShotVolt = true; state = 'flying'; Sfx.shoot('thunder');
-    muzzle(neutral.x, neutral.y - 34, 'thunder', a);
-  }
-
   // ---------- Efeitos do tiro ----------
-  const STYLE_COL = { rock: '#c8b898', fire: '#ffb020', leaf: '#7be07b', water: '#9fe0ff', thunder: '#fff27a', normal: '#fff6c8', gust: '#ffffff', web: '#ffffff', dragon: '#9a6aff', poison: '#c783e4' };
+  const STYLE_COL = { rock: '#c8b898', fire: '#ffb020', leaf: '#7be07b', water: '#9fe0ff', thunder: '#fff27a', normal: '#fff6c8', gust: '#ffffff', web: '#ffffff', dragon: '#9a6aff', poison: '#c783e4', ice: '#bfeaf6', ghost: '#9a7ac8', punch: '#fff0c8' };
 
   function muzzle(x, y, style, a) {
     const col = STYLE_COL[style] || '#fff';
@@ -886,6 +904,15 @@
       case 'rock':
         if (e) addPart({ x: x + rnd(-3, 3), y: y + rnd(-3, 3), vx: rnd(-0.4, 0.4), vy: rnd(-0.2, 0.5), g: 0.05, life: 28, max: 28, r: rnd(1.4, 2.6), col: pick(['#b8a898', '#8c8f94', '#d8c8b0']), kind: 'ember' });
         break;
+      case 'ice':
+        if (e) addPart({ x: x + rnd(-2, 2), y: y + rnd(-2, 2), vx: rnd(-0.3, 0.3), vy: rnd(-0.1, 0.4), g: 0.03, life: 28, max: 28, r: rnd(1.2, 2.4), col: pick(['#ffffff', '#bfeaf6', '#8fd8f0']), kind: 'spark' });
+        break;
+      case 'ghost':
+        if (e) addPart({ x: x + rnd(-3, 3), y: y + rnd(-3, 3), vx: rnd(-0.3, 0.3), vy: rnd(-0.5, 0.1), g: -0.01, life: 30, max: 30, r: rnd(2, 3.6), col: pick(['#6a4a9a', '#8a6ac0', '#3c2866']), kind: 'smoke' });
+        break;
+      case 'punch':
+        if (frameNo % 3 === 0) addPart({ x, y, vx: rnd(-0.4, 0.4), vy: rnd(-0.4, 0.4), g: 0, life: 16, max: 16, r: rnd(1.4, 2.2), col: '#ffe9b0', kind: 'ember' });
+        break;
       case 'poison':
         if (e) addPart({ x, y, vx: rnd(-0.35, 0.35), vy: rnd(-0.5, 0.1), g: -0.01, life: 24, max: 24, r: rnd(1.3, 2.6), col: pick(['#a040a0', '#c783e4', '#e5b4ef']), kind: 'drop' });
         break;
@@ -918,7 +945,6 @@
         }
         if (target) { outcome = 'unit'; break; }
         if (p.x >= 0 && p.x < W && p.y >= heights[Math.round(p.x)]) { outcome = 'ground'; break; }
-        if (neutral && p.owner !== 'volt' && Math.hypot(neutral.x - p.x, (neutral.y - 14) - p.y) < 14) { outcome = 'ground'; break; }
       }
       if (!outcome) continue;
       projs.splice(i, 1);
@@ -949,7 +975,7 @@
     startCapture(u, p.x, p.y, ok, success => {
       if (success) {
         u.alive = false; u.captured = true; u.hp = 0;
-        campaign.roster.push(u.sp); campaign.xp.push(0); stageCaught.push(u.sp);
+        campaign.roster.push(u.sp); campaign.xp.push(0); campaign.mv.push(u.mvs); stageCaught.push({ sp: u.sp, mvs: u.mvs });
         if (u === guest) { guest = null; gCool = 1 + Math.floor(Math.random() * 3); units = units.filter(v => v !== u); }
       }
       state = 'settle';
@@ -975,7 +1001,6 @@
     if (!u || walkBudget <= 0) return false;
     const nx = clamp(u.x + dir * 1.5, 8, W - 8);
     if (gy(nx) < u.y - 10) return false;                              // parede alta demais
-    if (neutral && Math.abs(nx - VOLT_X) < 18) return false;
     for (const v of units) if (v !== u && v.alive && !v.hidden && Math.abs(v.x - nx) < 12 && Math.abs(v.y - u.y) < 22) return false;
     u.x = nx; u.moving = true; u.walkT++;
     if (u.walkT % 10 === 0) Sfx.step();
@@ -1029,14 +1054,23 @@
       showMsg(kind === 'campaign' ? `Sua vez: ${u.name}!${again ? ` ${BALLS[ballType].name} pronta (como no último tiro)` : ''}` : `Vez de ${t.name}!`, again ? 150 : 110);
     }
     if (u.stuck) u.stuck = false;
-    Sfx.turn();
+    Sfx.turn(); syncButtons();
+  }
+
+  // alterna entre os golpes do Pokémon da vez (quando ele tem dois)
+  function cycleMove() {
+    if (scene !== 'battle' || state !== 'aim' || charging) return;
+    const u = activeUnit(); if (!u || u.moves.length < 2) return;
+    ballMode = false;
+    u.mi = (u.mi + 1) % u.moves.length; Sfx.select();
+    showMsg(`${WEAPONS[curW(u)].label}!`, 70);
   }
 
   function switchUnit() {
     if (scene !== 'battle' || state !== 'aim' || charging) return;
     const t = teams[turnTeam];
     const j = nextFree(t, t.cur);
-    if (j !== t.cur) { t.cur = j; Sfx.click(); }
+    if (j !== t.cur) { t.cur = j; Sfx.click(); syncButtons(); }
   }
 
   function settle() {
@@ -1050,8 +1084,7 @@
         if (drowned) {
           for (let k = 0; k < 16; k++) addPart({ x: u.x, y: WATER, vx: rnd(-2, 2), vy: rnd(-4, -1.5), g: 0.15, life: 45, max: 45, r: rnd(1.5, 2.5), col: '#bfe9ff', kind: 'drop' });
           Sfx.splash();
-        } else if (kind === 'versus') graves.push({ x: u.x, y: u.y - 30 });
-        else { smoke(u.x, u.y - 14, 8); spray(u.x, u.y - 14, 10, '#ffffff', 2.5, 0.02, 30, 2, 'spark'); }
+        } else { smoke(u.x, u.y - 14, 8); spray(u.x, u.y - 14, 10, '#ffffff', 2.5, 0.02, 30, 2, 'spark'); }
         Sfx.death();
         showMsg(`${u.name} ${drowned ? 'afogou!' : 'desmaiou!'}`, 100);
       }
@@ -1060,7 +1093,7 @@
     if (guest && !guest.alive) { guest = null; gCool = 1 + Math.floor(Math.random() * 3); }
     units = units.filter(u => u.team !== 2 || u.alive);
 
-    if (kind === 'campaign') {
+    {
       if (!teamAlive(teams[1])) { stageClear(); return; }
       if (!teamAlive(teams[0])) { stageLose(); return; }
       if (lastShotGuest) { lastShotGuest = false; turnTeam = 0; startTurn(); return; }
@@ -1070,32 +1103,11 @@
       startTurn();
       return;
     }
-
-    const aliveTeams = teams.filter(teamAlive);
-    if (aliveTeams.length <= 1) {
-      state = 'over';
-      const winner = aliveTeams.length === 0 ? 'Empate' : aliveTeams[0].name;
-      showMsg('Fim de jogo! ' + winner + ' venceu! (toque em ↻ ou tecle R)', 1e9);
-      Sfx.win();
-      return;
-    }
-    if (lastShotVolt) { lastShotVolt = false; startTurn(); return; }
-    const prev = turnTeam;
-    let n = prev;
-    do { n = (n + 1) % teams.length; } while (!teamAlive(teams[n]));
-    turnTeam = n;
-    if (n < prev) {
-      voltSide = Math.random() < 0.5 ? -1 : 1;
-      voltDelay = 100; state = 'volt';
-      showMsg('Pikachu vai atirar para a ' + (voltSide < 0 ? 'ESQUERDA' : 'DIREITA') + '!', 100);
-      Sfx.voltWarn();
-      return;
-    }
-    startTurn();
   }
 
   // ---------- Visitantes neutros (atacam qualquer lado, podem ser capturados) ----------
   function roundEnd() {
+    maybeChangeWeather();
     const defs = STAGES[stageIdx].guests || [];
     if (guest && guest.alive) {
       const g = guest; gT = 0;
@@ -1122,22 +1134,24 @@
     let x = 400, tries = 0;
     do { x = rnd(310, 490); tries++; } while (tries < 40 && (gy(x) > WATER - 40 || units.some(v => v.alive && Math.abs(v.x - x) < 42)));
     if (gy(x) > WATER - 40) return false;
-    const g = mkUnit(def.sp, x, 2, Math.random() < 0.5 ? 1 : -1, 1);
+    const g = mkUnit(def.sp, x, 2, Math.random() < 0.5 ? 1 : -1, 1, MS.rollMoves(def.sp, wildBonus(stageIdx) + 0.05));
     g.capScale = 0;
     g.turnsLeft = Number.isInteger(def.stayRounds) && def.stayRounds > 0
       ? def.stayRounds : 2 + (def.rarity >= 0.2 ? 1 : 0) + Math.floor(Math.random() * 2);
     guest = g; units.push(g); gMode = 'appear'; gT = 0; state = 'guest';
-    showMsg(`${g.name} selvagem apareceu!`, 100); Sfx.ballCatch();
+    showMsg(`${g.name}${isVar(g) ? ' ' + stars(g.mvs) : ''} selvagem apareceu!`, 100); Sfx.ballCatch();
     spray(x, g.y - 14, 14, '#fff27a', 3.2, 0.02, 40, 2, 'spark');
     return true;
   }
 
   function guestShoot() {
-    const g = guest, S = spOf(g), wp = WEAPONS[S.weapon];
+    const g = guest, S = spOf(g);
+    if (g) g.mi = Math.floor(Math.random() * g.moves.length);
+    const wk = g ? curW(g) : null, wp = g ? WEAPONS[wk] : null;
     if (!g || wp.none) { lastShotGuest = true; state = 'settle'; return; }
     const deg = rnd(35, 72), a = (gSide > 0 ? deg : 180 - deg) * Math.PI / 180;
     const mx = g.x + gSide * S.mouth[0] * g.scale, my = g.y + S.mouth[1] * g.scale;
-    launch(S.weapon, mx, my, a, rnd(5.2, 8.4), 'guest', g);
+    launch(wk, mx, my, a, rnd(5.2, 8.4), 'guest', g);
     g.breath = 18; lastShotGuest = true; state = 'flying'; Sfx.shoot(wp.style);
     muzzle(mx, my, wp.style, a);
   }
@@ -1166,17 +1180,27 @@
   }
 
   // ---------- IA dos selvagens ----------
-  function simShot(wp, shooter, x0, y0, a, sp) {
+  // alvos possíveis de um tiro (calculados uma vez por planejamento, para a IA não travar)
+  function shotTargets(wp, shooter) {
+    const out = [];
+    for (const v of units) {
+      if (!v.alive || v.hidden || v === shooter || (wp.style === 'ball' && v.team === 0)) continue;
+      const c = centerOf(v), r = hitRof(v); out.push({ x: c.x, y: c.y, r2: r * r });
+    }
+    return out;
+  }
+  function simShot(wp, shooter, x0, y0, a, sp, tg) {
+    tg = tg || shotTargets(wp, shooter);
     let x = x0, y = y0, vx = sp * wp.speed * Math.cos(a), vy = -sp * wp.speed * Math.sin(a);
+    const gk = GRAV * wp.grav / 3;
     for (let n = 0; n < 700; n++) {
       for (let s = 0; s < 3; s++) {
-        vx += wind * 0.0012; vy += GRAV * wp.grav / 3; x += vx / 3; y += vy / 3;
+        vx += wind * 0.0012; vy += gk; x += vx / 3; y += vy / 3;
         if (x < -60 || x > W + 60 || y > H + 60 || y >= WATER) return null;
         if (x >= 0 && x < W && y >= heights[Math.round(x)]) return { x, y };
-        for (const v of units) {
-          if (!v.alive || v.hidden || v === shooter || (wp.style === 'ball' && v.team === 0)) continue;
-          const c = centerOf(v);
-          if (Math.hypot(c.x - x, c.y - y) < hitRof(v)) return { x, y };
+        for (let k = 0; k < tg.length; k++) {
+          const dx = tg[k].x - x, dy = tg[k].y - y;
+          if (dx * dx + dy * dy < tg[k].r2) return { x, y };
         }
       }
     }
@@ -1197,19 +1221,22 @@
     return sc;
   }
 
-  function planShot(u) {
-    const S = spOf(u), wp = WEAPONS[S.weapon];
+  // simula todos os ângulos/forças para um golpe e devolve o melhor palpite
+  function planWeapon(u, wk) {
+    const S = spOf(u), wp = WEAPONS[wk];
     const foes = units.filter(v => v.alive && !v.hidden && v.team !== u.team && v.team !== 2);
     let best = null, bestS = -1e9, near = null, nearD = 1e9;
-    for (let ang = 8; ang <= 172; ang += 3) {
+    const tg = shotTargets(wp, u);
+    const heavy = wp.count >= 3 || u.moves.length > 1, aStep = heavy ? 4 : 3, pStep = heavy ? 6 : 5;
+    for (let ang = 8; ang <= 172; ang += aStep) {
       const a = ang * Math.PI / 180, face = Math.cos(a) >= 0 ? 1 : -1;
       const x0 = u.x + face * S.mouth[0] * u.scale, y0 = u.y + S.mouth[1] * u.scale;
-      for (let pw = 18; pw <= 100; pw += 5) {
+      for (let pw = 18; pw <= 100; pw += pStep) {
         const sp = 3 + pw * 0.075;
         let score = 0, dmin = 1e9;
         for (let i = 0; i < wp.count; i++) {
           const off = wp.count === 1 ? 0 : (i - (wp.count - 1) / 2) * wp.spread * Math.PI / 180;
-          const r = simShot(wp, u, x0, y0, a + off, sp);
+          const r = simShot(wp, u, x0, y0, a + off, sp, tg);
           if (!r) continue;
           score += scoreHit(wp, u, r.x, r.y);
           for (const f of foes) dmin = Math.min(dmin, Math.hypot(r.x - f.x, r.y - f.y));
@@ -1219,7 +1246,19 @@
         if (dmin < nearD) { nearD = dmin; near = { ang, pw }; }
       }
     }
-    let pick1 = bestS > 1 ? best : (near || { ang: 120, pw: 60 });
+    return { pick: bestS > 1 ? best : (near || { ang: 120, pw: 60 }), score: bestS > 1 ? bestS : 0, near: nearD };
+  }
+
+  function planShot(u) {
+    // com dois golpes, a IA simula os dois e usa o que promete mais dano
+    let bestPlan = null, bestMi = 0;
+    u.moves.forEach((wk, i) => {
+      if (WEAPONS[wk].none) return;
+      const pl = planWeapon(u, wk);
+      if (!bestPlan || pl.score > bestPlan.score || (pl.score === bestPlan.score && pl.near < bestPlan.near)) { bestPlan = pl; bestMi = i; }
+    });
+    u.mi = bestMi;
+    const pick1 = bestPlan ? bestPlan.pick : { ang: 120, pw: 60 };
     const err = STAGES[stageIdx].err;
     const e1 = (Math.random() + Math.random() - 1) * err, e2 = (Math.random() + Math.random() - 1) * err * 0.7;
     ai.angle = clamp(pick1.ang + e1, 5, 175);
@@ -1237,7 +1276,7 @@
     if (!u || !u.alive || !a) { state = 'settle'; return; }
     a.t++;
     if (a.phase === 'think0') {
-      if (spOf(u).weapon === 'splash') { a.phase = 'splash'; a.t = 0; showMsg(`${u.name} usou Splash!`, 80); Sfx.splash(); return; }
+      if (u.moves.every(k => WEAPONS[k].none)) { a.phase = 'splash'; a.t = 0; showMsg(`${u.name} usou Splash!`, 80); Sfx.splash(); return; }
       const f = nearestFoe(u);
       a.walkDir = f ? Math.sign(f.x - u.x) * (Math.random() < 0.7 ? 1 : -1) : -1;
       a.walkLeft = (u.webbed || Math.random() < 0.45) ? 0 : Math.round(rnd(15, 50));
@@ -1296,6 +1335,12 @@
         spray(x, y, 18, '#8c8f94', 4, 0.17, 70, 3.4, 'chunk'); spray(x, y, 10, '#b8a898', 3, 0.15, 60, 2.6, 'chunk'); smoke(x, y, 6); break;
       case 'dragon':
         spray(x, y, 16, '#9a6aff', 4, 0.04, 50, 2.2, 'ember'); spray(x, y, 10, '#5b3a20', 3.6, 0.15, 60, 2.8, 'chunk'); smoke(x, y, 4); break;
+      case 'ice':
+        spray(x, y, 20, '#dff4ff', 4, 0.1, 50, 2.2, 'spark'); spray(x, y, 8, '#8fd8f0', 3, 0.12, 60, 2.8, 'chunk'); break;
+      case 'ghost':
+        spray(x, y, 12, '#8a6ac0', 2.8, -0.01, 60, 3.2, 'drop'); smoke(x, y, 6); break;
+      case 'punch':
+        spray(x, y, 14, '#fff0c8', 4.2, 0.06, 30, 2.4, 'spark'); spray(x, y, 8, '#5b3a20', 3, 0.15, 55, 2.4, 'chunk'); smoke(x, y, 3); break;
       case 'poison':
         spray(x, y, 16, '#c783e4', 2.8, 0.02, 44, 2.4, 'drop');
         spray(x, y, 8, '#a040a0', 2.0, -0.01, 50, 1.6, 'ember'); break;
@@ -1305,7 +1350,9 @@
   }
   function burstDecor(d) {
     const y = d.base - 10;
-    if (d.type === 'rock' || d.type === 'stalag') spray(d.x, y, 8, '#8c8f94', 3, 0.15, 60, 2.6, 'chunk');
+    if (['rock', 'stalag', 'tomb', 'volrock', 'pillar', 'ember'].includes(d.type)) spray(d.x, y, 8, '#8c8f94', 3, 0.15, 60, 2.6, 'chunk');
+    else if (d.type === 'icespike' || d.type === 'snowpine') spray(d.x, y, 10, '#dff4ff', 3, 0.1, 50, 2.2, 'spark');
+    else if (d.type === 'pylon') spray(d.x, y, 10, '#fff27a', 3, 0.05, 40, 1.6, 'spark');
     else if (d.type === 'crystal') spray(d.x, y, 10, d.col, 3, 0.1, 50, 2.2, 'spark');
     else spray(d.x, y, 8, d.type === 'flower' ? d.col : '#4f9a3a', 2.2, 0.03, 70, 3, 'leaf');
   }
@@ -1337,7 +1384,7 @@
       const hp = clamp(u.hp / u.maxhp, 0, 1);
       label = `<g transform="translate(0 ${f1(ly)})">
         ${opt.extra || ''}
-        <text x="0" y="0" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#fff" stroke="#000" stroke-width=".6">${u.name}</text>
+        <text x="0" y="0" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#fff" stroke="#000" stroke-width=".6">${u.name}${isVar(u) ? `<tspan fill="#ffd34d" dx="2">${stars(u.mvs)}</tspan>` : ''}</text>
         ${Art.typeDots(S.types, 0, -12, TYPE_COLOR)}
         ${opt.noBar ? '' : `<rect x="-15" y="3" width="30" height="5.5" rx="2.75" fill="#000" opacity=".6"/>
         <rect x="-14" y="4" width="${f1(28 * hp)}" height="3.5" rx="1.75" fill="${col}"/>`}
@@ -1401,6 +1448,7 @@
 
   // ---------- Clima (desenhado em tela cheia, por cima do mundo) ----------
   function stepWeather() {
+    if (wxK < 1) { wxK = Math.min(1, wxK + 0.02); if (wxK >= 1) wxPrev = null; }
     if (weather !== 'storm') { bolt = null; return; }
     if (bolt) { if (++bolt.t > 12) bolt = null; }
     if (--lightT <= 0) {
@@ -1415,45 +1463,71 @@
     if (bolt && bolt.t === 5) flash.a = Math.max(flash.a, 0.45);
   }
 
-  function weatherSvg() {
-    if (!weather || scene !== 'battle' || kind !== 'campaign') return '';
+  function wxLayer(w) {
     let s = '';
-    if (weather === 'rain') {
+    if (w === 'rain') {
       s += `<rect width="800" height="500" fill="#0a1a33" opacity=".3"/>`;
       const sl = -wind * 0.1 - 0.12;
       for (let i = 0; i < 90; i++) {
         const sp = 15 + (i % 5) * 2.5, y = ((frameNo * sp + i * 53) % 540) - 20, x = ((i * 131.7) % 880) - 40 + y * -sl;
         s += `<line x1="${f1(x)}" y1="${f1(y)}" x2="${f1(x + sl * 16)}" y2="${f1(y + 16)}" stroke="#cfe9ff" stroke-width="${i % 3 ? 1.1 : 1.6}" opacity="${(0.28 + (i % 4) * 0.08).toFixed(2)}" stroke-linecap="round"/>`;
       }
-    } else if (weather === 'sun') {
+    } else if (w === 'sun') {
       s += `<rect width="800" height="500" fill="#ffb347" opacity=".09"/>
         <g transform="translate(690 52)">
           <circle r="190" fill="#fff2b0" opacity=".05"/><circle r="120" fill="#fff2b0" opacity=".07"/><circle r="64" fill="#fff6c8" opacity=".14"/>
           ${Array.from({ length: 10 }, (_, i) => `<path transform="rotate(${f1(i * 36 + frameNo * 0.15)})" d="M-5,-70 L0,-260 L5,-70 Z" fill="#fff6c8" opacity=".07"/>`).join('')}
         </g>
         <circle cx="560" cy="150" r="14" fill="#fff6c8" opacity=".07"/><circle cx="470" cy="215" r="22" fill="#ffd9a0" opacity=".06"/><circle cx="390" cy="270" r="10" fill="#fff6c8" opacity=".08"/>`;
-    } else if (weather === 'storm') {
+    } else if (w === 'storm') {
       s += `<rect width="800" height="500" fill="#0c1030" opacity=".4"/>`;
       if (bolt) {
         const d = bolt.pts.map((p, i) => `${i ? 'L' : 'M'}${f1(p[0])},${f1(p[1])}`).join(' '), o = Math.max(0, 1 - bolt.t / 12);
         s += `<path d="${d}" fill="none" stroke="#ffe96a" stroke-width="9" stroke-linejoin="round" opacity="${(o * 0.35).toFixed(2)}"/>
               <path d="${d}" fill="none" stroke="#ffffff" stroke-width="3" stroke-linejoin="round" opacity="${o.toFixed(2)}"/>`;
       }
+    } else if (w === 'snow') {
+      s += `<rect width="800" height="500" fill="#bcd8f0" opacity=".14"/>`;
+      for (let i = 0; i < 70; i++) {
+        const sp = 1.1 + (i % 5) * 0.45, y = ((frameNo * sp + i * 71) % 540) - 20;
+        const x = ((i * 117.3) % 840) - 20 + Math.sin(frameNo * 0.03 + i) * 14 - wind * y * 0.04;
+        s += `<circle cx="${f1(x)}" cy="${f1(y)}" r="${(1.2 + (i % 3) * 0.7).toFixed(1)}" fill="#fff" opacity="${(0.55 + (i % 4) * 0.1).toFixed(2)}"/>`;
+      }
     }
     return s;
   }
 
+  function weatherSvg() {
+    if ((!weather && !wxPrev) || scene !== 'battle') return '';
+    if (wxK >= 1) return wxLayer(weather);
+    // transição suave entre o clima antigo e o novo
+    return `<g opacity="${(1 - wxK).toFixed(2)}">${wxLayer(wxPrev)}</g><g opacity="${wxK.toFixed(2)}">${wxLayer(weather)}</g>`;
+  }
+
   function weatherBadge() {
-    if (!weather || kind !== 'campaign') return '';
+    if (!weather || scene !== 'battle') return '';
     const W_ = WEATHER[weather];
     let icon;
     if (weather === 'sun') icon = `<circle r="5.5" fill="#ffd34d"/>${Array.from({ length: 8 }, (_, i) => `<path transform="rotate(${i * 45})" d="M0,-8 L0,-11" stroke="#ffd34d" stroke-width="1.8" stroke-linecap="round"/>`).join('')}`;
     else if (weather === 'rain') icon = `<path d="M-8,2 Q-9,-4 -3,-4 Q-1,-9 4,-6 Q9,-6 8,1 Z" fill="#9fb8d8"/><path d="M-5,5 l-1.5,4 M0,5 l-1.5,4 M5,5 l-1.5,4" stroke="#6ad0ff" stroke-width="1.6" stroke-linecap="round"/>`;
+    else if (weather === 'snow') icon = `<g stroke="#dff4ff" stroke-width="1.7" stroke-linecap="round"><path d="M0,-8 V8 M-7,-4 L7,4 M-7,4 L7,-4"/></g><circle r="2" fill="#fff"/>`;
     else icon = `<path d="M-8,0 Q-9,-6 -3,-6 Q-1,-11 4,-8 Q9,-8 8,-1 Z" fill="#6a7090"/><path d="M1,1 L-3,7 L0,7 L-2,12 L4,5 L1,5 Z" fill="#ffe96a" stroke="#8a6a00" stroke-width=".5" stroke-linejoin="round"/>`;
-    return `<rect x="338" y="46" width="132" height="32" rx="12" fill="#0d1b2a" opacity=".72"/>
+    const pulse = wxK < 1 ? `<rect x="334" y="42" width="140" height="40" rx="14" fill="none" stroke="#ffd34d" stroke-width="3" opacity="${(1 - wxK).toFixed(2)}"/>` : '';
+    return pulse + `<rect x="338" y="46" width="132" height="32" rx="12" fill="#0d1b2a" opacity=".72"/>
       <g transform="translate(358 62)">${icon}</g>
       <text x="374" y="59" font-size="11" font-weight="bold" fill="#fff">${W_.name}</text>
       <text x="374" y="72" font-size="9.5" fill="#bfe3ff">${W_.note}</text>`;
+  }
+
+  // golpe atual (e dica de troca quando o Pokémon tem dois golpes)
+  function moveHud(u) {
+    const wp = WEAPONS[curW(u)];
+    if (ballMode) return `<text x="40" y="57" font-size="11" font-weight="bold" fill="#ffd34d">Pokébola pronta</text>`;
+    if (wp.none) return `<text x="40" y="57" font-size="11" fill="#cfe">Golpe: Splash (não causa dano)</text>`;
+    const two = u.moves.length > 1, vr = wp.variant ? ` · ${MS.MODE_NOTE[wp.variant]}` : '';
+    return `<circle cx="46" cy="53" r="4" fill="${TYPE_COLOR[wp.type]}" stroke="#000" stroke-width=".7"/>
+      <text x="55" y="57" font-size="11" font-weight="bold" fill="#fff">${wp.label}${isVar(u) ? ' ★' : ''}</text>
+      <text x="${two ? 222 : 222}" y="57" text-anchor="end" font-size="8.5" fill="#bfe3ff">${two ? `[G] ${u.mi + 1}/${u.moves.length}` : vr.replace(' · ', '')}</text>`;
   }
 
   function hudSvg() {
@@ -1465,30 +1539,29 @@
     }
     if (scene !== 'battle' || state === 'over' || state === 'evolve') return '';
     const isVisit = !!guest && (state === 'guest' || lastShotGuest);
-    const isVolt = state === 'volt' || lastShotVolt || isVisit;
+    const isVolt = isVisit;
     const t = teams[turnTeam], u = activeUnit();
     let name, col;
     if (isVisit) { name = guest.name + ' (visitante)'; col = GUEST_COL; }
-    else if (isVolt) { name = 'Pikachu'; col = '#ffd83a'; }
-    else if (kind === 'campaign') { name = t.ai ? `${u.name} selvagem` : u.name; col = t.color; }
-    else { name = t.name; col = t.color; }
+    else { name = t.ai ? `${u.name} selvagem` : u.name; col = t.color; }
     const walkW = (Math.max(0, walkBudget) / WALK_MAX) * 170;
     const ww = Math.abs(wind) / 3 * 50;
     const wx = wind >= 0 ? 400 : 400 - ww;
     const arrow = wind > 0 ? `M${f1(400 + ww)},26.5 l6,4 l-6,4 Z` : `M${f1(400 - ww)},26.5 l-6,4 l6,4 Z`;
     let s = `
-      <rect x="8" y="8" width="222" height="40" rx="12" fill="#0d1b2a" opacity=".72"/>
+      <rect x="8" y="8" width="222" height="${!isVolt && u && !t.ai ? 58 : 40}" rx="12" fill="#0d1b2a" opacity=".72"/>
       <circle cx="26" cy="24" r="7" fill="${col}" stroke="#fff" stroke-width="2"/>
       <text x="40" y="29" font-size="14" font-weight="bold" fill="#fff">Vez: ${name}</text>
       ${isVolt || (t && t.ai) ? '' : `<rect x="40" y="35" width="172" height="5" rx="2.5" fill="#000" opacity=".5"/>
         <rect x="41" y="36" width="${f1(Math.max(0, walkW - 2))}" height="3" rx="1.5" fill="#9be36a"/>`}
+      ${!isVolt && u && !t.ai ? moveHud(u) : ''}
       <rect x="330" y="8" width="140" height="34" rx="12" fill="#0d1b2a" opacity=".72"/>
       <text x="400" y="21" text-anchor="middle" font-size="9" fill="#ddd" letter-spacing="1.5">${wind ? 'VENTO' : 'SEM VENTO'}</text>
       <rect x="345" y="27" width="110" height="7" rx="3.5" fill="#000" opacity=".5"/>
       <line x1="400" y1="25" x2="400" y2="36" stroke="#fff" stroke-width="1" opacity=".6"/>
       ${wind ? `<rect x="${f1(wx)}" y="28.5" width="${f1(ww)}" height="4" rx="2" fill="#8fe0ff"/><path d="${arrow}" fill="#8fe0ff"/>` : ''}`;
     s += weatherBadge();
-    if (kind === 'campaign') {
+    {
       s += `<rect x="238" y="8" width="84" height="40" rx="12" fill="#0d1b2a" opacity=".72"/>
         ${ballIcon(258, 28, 9)}
         <text x="274" y="33" font-size="16" font-weight="bold" fill="#fff">×${campaign.balls}</text>
@@ -1541,6 +1614,37 @@
         return ph + `<g transform="translate(${f1(p.x)} ${f1(p.y)}) rotate(${f1(deg)})">
           <path d="M-8,-3 L9,0 L-8,3 L-4,0 Z" fill="#b45ac8" stroke="#592468" stroke-width="1" stroke-linejoin="round"/>
           <path d="M-5,-1 L5,0" fill="none" stroke="#f0cef6" stroke-width=".8"/></g>`;
+      }
+      case 'ice': {
+        p.trail.forEach((tp, i) => {
+          const k = (i + 1) / p.trail.length;
+          ph += `<circle cx="${f1(tp.x)}" cy="${f1(tp.y)}" r="${f1(1 + 2.4 * k)}" fill="#dff4ff" opacity="${(k * 0.55).toFixed(2)}"/>`;
+        });
+        const deg = Math.atan2(p.vy, p.vx) * 180 / Math.PI;
+        return ph + `<g transform="translate(${f1(p.x)} ${f1(p.y)}) rotate(${f1(deg)})">
+          <path d="M-9,0 L-2,-4.4 L10,0 L-2,4.4 Z" fill="#bfeaf6" stroke="#4a8ab0" stroke-width="1.2" stroke-linejoin="round"/>
+          <path d="M-5,0 L6,0" stroke="#fff" stroke-width="1.2" stroke-linecap="round" opacity=".9"/></g>`;
+      }
+      case 'ghost': {
+        p.trail.forEach((tp, i) => {
+          const k = (i + 1) / p.trail.length;
+          ph += `<circle cx="${f1(tp.x)}" cy="${f1(tp.y)}" r="${f1(2 + 4 * k)}" fill="#6a4a9a" opacity="${(k * 0.4).toFixed(2)}"/>`;
+        });
+        const k = 0.5 + 0.5 * Math.sin(frameNo * 0.4);
+        return ph + `<circle cx="${f1(p.x)}" cy="${f1(p.y)}" r="${f1(8 + k * 1.4)}" fill="#8a6ac0" opacity=".35"/>
+          <circle cx="${f1(p.x)}" cy="${f1(p.y)}" r="6" fill="#2a1848" stroke="#b496e0" stroke-width="1.4"/>
+          <circle cx="${f1(p.x - 1.6)}" cy="${f1(p.y - 1.8)}" r="1.6" fill="#e0d0f8" opacity=".8"/>`;
+      }
+      case 'punch': {
+        p.trail.forEach((tp, i) => {
+          const k = (i + 1) / p.trail.length;
+          ph += `<circle cx="${f1(tp.x)}" cy="${f1(tp.y)}" r="${f1(1.5 + 3 * k)}" fill="#fff0c8" opacity="${(k * 0.5).toFixed(2)}"/>`;
+        });
+        const deg = Math.atan2(p.vy, p.vx) * 180 / Math.PI;
+        return ph + `<g transform="translate(${f1(p.x)} ${f1(p.y)}) rotate(${f1(deg)})">
+          <circle r="6.6" fill="#f2c9a0" stroke="#7a3a1c" stroke-width="1.3"/>
+          <path d="M-1,-5 L-1,5 M2.4,-4.4 L2.4,4.4" stroke="#7a3a1c" stroke-width=".9" opacity=".7"/>
+          <path d="M-12,-3 L-7,-2 M-13,0 L-7,0 M-12,3 L-7,2" stroke="#fff" stroke-width="1.3" stroke-linecap="round" opacity=".8"/></g>`;
       }
       case 'leaf': {
         const deg = Math.atan2(p.vy, p.vx) * 180 / Math.PI + Math.sin(frameNo * 0.4 + p.spin) * 25;
@@ -1704,20 +1808,9 @@
       $('aim').innerHTML = aim;
     }
 
-    if (scene === 'battle') $('introBack').innerHTML = kind === 'campaign' ? pickupsSvg() : '';
-    $('graves').innerHTML = graves.map(g => `<g transform="translate(${f1(g.x)} ${f1(g.y)})">
-      <path d="M-7,0 L-7,-14 Q-7,-21 0,-21 Q7,-21 7,-14 L7,0 Z" fill="#b4b8be" stroke="#5c6067" stroke-width="1.2"/>
-      <path d="M0,-17 L0,-6 M-3.5,-13 L3.5,-13" stroke="#5c6067" stroke-width="1.6" stroke-linecap="round"/>
-      <rect x="-9" y="-1.5" width="18" height="3" rx="1" fill="#6b4a2b"/></g>`).join('');
+    if (scene === 'battle') $('introBack').innerHTML = pickupsSvg();
 
     $('worms').innerHTML = scene === 'intro' ? '' : (inBattle ? renderBattleUnits(act) : units.map(u => unitSvg(u, { color: '#fff', noBar: true })).join(''));
-
-    $('volt').innerHTML = neutral
-      ? `<g transform="translate(${neutral.x} ${f1(gy(neutral.x))})">
-           <ellipse cx="0" cy=".5" rx="11" ry="2.6" fill="#000" opacity=".25"/>
-           ${Art.draw('pikachu', { f: frameNo, blink: false, breath: 0, bob: 0, step: 0, x: 0, charge: state === 'volt' })}</g>
-         <text x="${neutral.x}" y="${f1(gy(neutral.x) - 50)}" text-anchor="middle" font-size="10.5" font-weight="bold"
-               fill="#fff27a" stroke="#000" stroke-width=".6">Pikachu</text>` : '';
 
     $('proj').innerHTML = projs.map(projSvg).join('') + captureSvg();
 
@@ -1768,6 +1861,7 @@
   }
 
   function menuSvg() {
+    if (menuPage === 'stages') return stagesSvg();
     const save = loadSave();
     let s = `<rect width="800" height="500" fill="#0b1630" opacity=".38"/>
       <g transform="translate(400 112)" text-anchor="middle">
@@ -1776,11 +1870,52 @@
       </g>
       <g transform="translate(130 100)">${Art.ball(30, -12)}</g><g transform="translate(670 100)">${Art.ball(30, 12)}</g>`;
     let y = 196;
-    if (save) { s += uiBtn(250, y, 300, 50, `Continuar — Fase ${save.stage + 1}`, continueCampaign); y += 62; }
-    s += uiBtn(250, y, 300, 50, 'Novo jogo (campanha)', startNewGame); y += 62;
-    s += uiBtn(250, y, 300, 50, 'Versus (3 times, local)', initVersus);
+    if (save) {
+      s += uiBtn(250, y, 300, 50, save.done ? 'Continuar — Campeão ★' : `Continuar — Fase ${save.stage + 1}`, continueCampaign); y += 62;
+      s += uiBtn(250, y, 300, 50, 'Escolher fase', openStages); y += 62;
+    }
+    s += uiBtn(250, y, 300, 50, save ? 'Novo jogo (apaga o progresso)' : 'Novo jogo', startNewGame, { fs: save ? 18 : 20 });
     s += `<text x="400" y="472" text-anchor="middle" font-size="10" fill="#fff" opacity=".8">Projeto de fã, sem fins lucrativos. Pokémon e seus nomes pertencem a Nintendo / Game Freak / Creatures.</text>
       <text x="400" y="488" text-anchor="middle" font-size="10" fill="#fff" opacity=".6">Todas as artes são desenhos próprios em SVG.</text>`;
+    return s;
+  }
+
+  // seleção de fase: só as já liberadas; dá para voltar e rejogar para capturar o que ficou para trás
+  function openStages() {
+    const sv = loadSave(); if (!sv) return;
+    menuPage = 'stages'; uiSel = Math.min(sv.stage, STAGES.length - 1); Sfx.select();
+  }
+
+  function stagesSvg() {
+    const sv = loadSave() || { stage: 0, done: false };
+    const cols = 4, cw = 168, ch = 68, gx = 12, gy_ = 10, x0 = Math.round((W - (cols * cw + (cols - 1) * gx)) / 2), y0 = 84;
+    let s = `<rect width="800" height="500" fill="#0b1630" opacity=".62"/>
+      <text x="400" y="40" text-anchor="middle" font-size="26" font-weight="800" fill="#fff">Escolher fase</text>
+      <text x="400" y="62" text-anchor="middle" font-size="12" fill="#cfe">Volte a uma fase anterior para capturar o que ficou para trás (seus Pokémon e XP são mantidos).</text>`;
+    STAGES.forEach((st, i) => {
+      const col = i % cols, row = Math.floor(i / cols), x = x0 + col * (cw + gx), y = y0 + row * (ch + gy_);
+      const locked = i > sv.stage, cleared = sv.done || i < sv.stage, cur = i === sv.stage && !sv.done;
+      const sel = i === uiSel;
+      uiList.push({ x, y, w: cw, h: ch, fn: () => playStage(i), disabled: locked });
+      s += `<g opacity="${locked ? 0.42 : 1}"><rect x="${x}" y="${y}" width="${cw}" height="${ch}" rx="12" fill="${sel && !locked ? '#ffb347' : '#1b2a44'}" fill-opacity="${sel && !locked ? 0.96 : 0.92}"
+          stroke="${cur ? '#8fe070' : '#fff'}" stroke-opacity="${cur ? 1 : 0.55}" stroke-width="${cur ? 3 : 1.6}"/>
+        <text x="${x + 16}" y="${y + 40}" font-size="30" font-weight="900" fill="${sel && !locked ? '#241400' : '#ffd34d'}">${i + 1}</text>
+        <text x="${x + 44}" y="${y + 29}" font-size="12.5" font-weight="bold" fill="${sel && !locked ? '#241400' : '#fff'}">${st.name}</text>
+        <text x="${x + 44}" y="${y + 47}" font-size="10" fill="${sel && !locked ? '#3a2400' : '#bfe3ff'}">${locked ? 'bloqueada' : cleared ? '✔ concluída' : 'fase atual'}${st.boss ? ' · CHEFE' : ''}</text>
+        ${locked ? `<text x="${x + cw - 12}" y="${y + 24}" text-anchor="end" font-size="15">🔒</text>` : ''}</g>`;
+    });
+    // detalhes da fase em foco
+    const fi = Math.min(Math.max(uiSel, 0), STAGES.length - 1), F = STAGES[fi], fl = fi > sv.stage;
+    const names = a => Array.from(new Set(a)).map(e => SPECIES[e].name).join(', ');
+    const wx = (F.weather || []).map(w => WEATHER[w.type].name).join(' / ') || 'sem clima (ambiente fechado)';
+    const iy = y0 + Math.ceil(STAGES.length / cols) * (ch + gy_) + 4;
+    s += `<rect x="${x0}" y="${iy}" width="${cols * cw + (cols - 1) * gx}" height="92" rx="12" fill="#0d1b2a" fill-opacity=".85" stroke="#fff" stroke-opacity=".35"/>`;
+    if (fl) s += `<text x="400" y="${iy + 52}" text-anchor="middle" font-size="14" fill="#fff" opacity=".85">🔒 Vença a fase ${fi} para liberar.</text>`;
+    else s += `<text x="${x0 + 16}" y="${iy + 22}" font-size="14" font-weight="bold" fill="#ffd34d">${fi + 1}. ${F.name}</text>
+      <text x="${x0 + 16}" y="${iy + 42}" font-size="11.5" fill="#fff">Selvagens: <tspan fill="#ffb3a8">${names(F.enemies)}</tspan></text>
+      <text x="${x0 + 16}" y="${iy + 60}" font-size="11.5" fill="#fff">Visitantes: <tspan fill="#ffe27a">${names((F.guests || []).map(g => g.sp)) || '—'}</tspan></text>
+      <text x="${x0 + 16}" y="${iy + 78}" font-size="11.5" fill="#fff">Clima: <tspan fill="#9fe0ff">${wx}</tspan></text>`;
+    s += uiBtn(300, 436, 200, 42, '◀ Voltar', () => { menuPage = 'main'; uiSel = 1; }, { fs: 17 });
     return s;
   }
 
@@ -1788,42 +1923,54 @@
 
   function typeChips(types, cx, y) { return Art.typeDots(types, cx, y, TYPE_COLOR); }
 
+  const PER_PAGE = 14;
+
   function teamSvg() {
     const R = campaign.roster, st = STAGES[stageIdx], n = R.length;
-    const cols = 7, cw = 100, gap = 8, x0 = Math.round((W - (cols * cw + (cols - 1) * gap)) / 2), y0 = 118, ch = 150;
+    const cols = 7, cw = 100, gap = 8, x0 = Math.round((W - (cols * cw + (cols - 1) * gap)) / 2), y0 = 108, ch = 142;
+    const pages = Math.max(1, Math.ceil(n / PER_PAGE));
+    pageNo = clamp(pageNo, 0, pages - 1);
     const foes = st.enemies.map(e => SPECIES[e]);
     let s = `<rect width="800" height="500" fill="#0b1630" opacity=".55"/>
-      <text x="400" y="42" text-anchor="middle" font-size="26" font-weight="800" fill="#fff">Escolha até 3 Pokémon</text>
-      <text x="400" y="66" text-anchor="middle" font-size="13" fill="#ffd34d">Fase ${stageIdx + 1}: ${st.name}</text>
-      <text x="400" y="88" text-anchor="middle" font-size="12" fill="#cfe">Inimigos: ${foes.map(f => f.name).join(', ')}</text>
-      <text x="400" y="106" text-anchor="middle" font-size="11" fill="#fff" opacity=".8">▲ = seu ataque é super efetivo contra algum inimigo</text>`;
-    R.forEach((sp, i) => {
-      const S = SPECIES[sp], col = i % cols, row = Math.floor(i / cols);
-      const x = x0 + col * (cw + gap), y = y0 + row * (ch + 10), picked = campaign.sel.includes(i);
+      <text x="400" y="38" text-anchor="middle" font-size="26" font-weight="800" fill="#fff">Escolha até 3 Pokémon</text>
+      <text x="400" y="60" text-anchor="middle" font-size="13" fill="#ffd34d">Fase ${stageIdx + 1}: ${st.name}</text>
+      <text x="400" y="80" text-anchor="middle" font-size="12" fill="#cfe">Inimigos: ${Array.from(new Set(foes.map(f => f.name))).join(', ')}</text>
+      <text x="400" y="97" text-anchor="middle" font-size="10.5" fill="#fff" opacity=".8">▲ = algum golpe seu é super efetivo contra um inimigo &nbsp;·&nbsp; ★ = golpe variante</text>`;
+    const first = pageNo * PER_PAGE;
+    for (let k = 0; k < PER_PAGE && first + k < n; k++) {
+      const i = first + k, sp = R[i], S = SPECIES[sp], col = k % cols, row = Math.floor(k / cols);
+      const x = x0 + col * (cw + gap), y = y0 + row * (ch + 6), picked = campaign.sel.includes(i);
       const idx = uiList.length;
       uiList.push({ x, y, w: cw, h: ch, fn: () => {
-        const k = campaign.sel.indexOf(i);
-        if (k >= 0) { if (campaign.sel.length > 1) campaign.sel.splice(k, 1); }
+        const kk = campaign.sel.indexOf(i);
+        if (kk >= 0) { if (campaign.sel.length > 1) campaign.sel.splice(kk, 1); }
         else if (campaign.sel.length < 3) campaign.sel.push(i);
         else { showMsg('Máximo de 3 Pokémon!', 60); return; }
         Sfx.click();
       } });
-      const wp = WEAPONS[S.weapon];
-      const adv = !wp.none && foes.some(f => typeMult(wp.type, f.types) > 1);
-      const selCur = idx === uiSel;
+      const mvs = campaign.mv[i], mk = MS.movesOf(sp, mvs), wps = mk.map(k2 => WEAPONS[k2]);
+      const adv = wps.some(wp => !wp.none && foes.some(f => typeMult(wp.type, f.types) > 1));
+      const selCur = idx === uiSel, sc = Math.min(1.3, 50 / (S.h * (S.scale || 1)));
+      const lines = wps.map((wp, li) => `<text x="${x + cw / 2}" y="${y + (wps.length > 1 ? 122 + li * 10 : 127)}" text-anchor="middle" font-size="9" fill="${mvs !== 'b' ? '#ffe27a' : '#cde'}">${mvs !== 'b' ? '★ ' : ''}${wp.label}</text>`).join('');
       s += `<g><rect x="${x}" y="${y}" width="${cw}" height="${ch}" rx="12" fill="${picked ? '#2b4a2a' : '#1b2a44'}" fill-opacity=".92"
           stroke="${picked ? '#8fe070' : '#fff'}" stroke-opacity="${picked ? 1 : 0.45}" stroke-width="${picked ? 3 : 1.5}"/>
         ${selCur ? `<rect x="${x - 3}" y="${y - 3}" width="${cw + 6}" height="${ch + 6}" rx="14" fill="none" stroke="#ffb347" stroke-width="3"/>` : ''}
-        <g transform="translate(${x + cw / 2} ${y + 84}) scale(1.3)">${Art.draw(sp, { f: frameNo, blink: false, breath: 0, bob: Math.sin(frameNo * 0.08 + i) * 0.7, step: 0, x: i })}</g>
-        <text x="${x + cw / 2}" y="${y + 106}" text-anchor="middle" font-size="12.5" font-weight="bold" fill="#fff">${S.name}</text>
-        ${typeChips(S.types, x + cw / 2, y + 118)}
-        <text x="${x + cw / 2}" y="${y + 134}" text-anchor="middle" font-size="9.5" fill="#cde">${wp.label}</text>
+        <g transform="translate(${x + cw / 2} ${y + 80}) scale(${f1(sc)})">${Art.draw(sp, { f: frameNo, blink: false, breath: 0, bob: Math.sin(frameNo * 0.08 + i) * 0.7, step: 0, x: i })}</g>
+        <text x="${x + cw / 2}" y="${y + 96}" text-anchor="middle" font-size="12" font-weight="bold" fill="#fff">${S.name}</text>
+        ${typeChips(S.types, x + cw / 2, y + 107)}
+        ${lines}
         ${adv ? `<text x="${x + cw - 10}" y="${y + 20}" text-anchor="end" font-size="14" font-weight="bold" fill="#8fe070">▲</text>` : ''}
-        ${S.evo ? `<rect x="${x + 14}" y="${y + 140}" width="${cw - 28}" height="4" rx="2" fill="#000" opacity=".55"/><rect x="${x + 14}" y="${y + 140}" width="${f1((cw - 28) * clamp(campaign.xp[i] / S.evoXp, 0, 1))}" height="4" rx="2" fill="#6ad0ff"/>` : ''}
+        ${S.evo ? `<rect x="${x + 14}" y="${y + 136}" width="${cw - 28}" height="3.4" rx="1.7" fill="#000" opacity=".55"/><rect x="${x + 14}" y="${y + 136}" width="${f1((cw - 28) * clamp(campaign.xp[i] / S.evoXp, 0, 1))}" height="3.4" rx="1.7" fill="#6ad0ff"/>` : ''}
         ${picked ? `<text x="${x + 10}" y="${y + 20}" font-size="14" font-weight="bold" fill="#8fe070">✔</text>` : ''}</g>`;
-    });
-    s += `<text x="400" y="440" text-anchor="middle" font-size="13" fill="#fff">Escolhidos: ${campaign.sel.length}/3 &nbsp;·&nbsp; Pokébolas: ${campaign.balls}</text>`;
-    s += uiBtn(280, 450, 240, 40, 'Começar ▶', () => {
+    }
+    const by = y0 + 2 * (ch + 6) + 4;
+    if (pages > 1) {
+      s += uiBtn(300, by, 44, 26, '◀', () => { pageNo = (pageNo + pages - 1) % pages; uiSel = 0; }, { fs: 14 });
+      s += `<text x="400" y="${by + 18}" text-anchor="middle" font-size="12" fill="#fff">Página ${pageNo + 1}/${pages}</text>`;
+      s += uiBtn(456, by, 44, 26, '▶', () => { pageNo = (pageNo + 1) % pages; uiSel = 0; }, { fs: 14 });
+    }
+    s += `<text x="400" y="${by + 48}" text-anchor="middle" font-size="13" fill="#fff">Escolhidos: ${campaign.sel.length}/3 &nbsp;·&nbsp; Pokébolas: ${campaign.balls}</text>`;
+    s += uiBtn(280, by + 56, 240, 38, 'Começar ▶', () => {
       campaign.partyIdx = campaign.sel.slice();
       campaign.party = campaign.sel.map(i => campaign.roster[i]);
       Sfx.select(); initStage(stageIdx);
@@ -1845,9 +1992,11 @@
     if (P.caught.length) {
       s += `<text x="400" y="${y + 18}" text-anchor="middle" font-size="13" fill="#8fe070" font-weight="bold">Capturados nesta fase</text>`;
       const n = P.caught.length, step = 90, sx = 400 - (n - 1) * step / 2;
-      P.caught.forEach((sp, i) => {
+      P.caught.forEach((c, i) => {
+        const sp = c.sp;
         s += `<g transform="translate(${f1(sx + i * step)} ${y + 88})">${Art.draw(sp, { f: frameNo, blink: false, breath: 0, bob: Math.sin(frameNo * 0.08 + i) * 0.7, step: 0, x: i })}
-          <text y="14" text-anchor="middle" font-size="12" font-weight="bold" fill="#fff">${SPECIES[sp].name}</text></g>`;
+          <text y="14" text-anchor="middle" font-size="12" font-weight="bold" fill="#fff">${SPECIES[sp].name}${c.mvs !== 'b' ? `<tspan fill="#ffd34d"> ${stars(c.mvs)}</tspan>` : ''}</text>
+          ${c.mvs !== 'b' ? `<text y="26" text-anchor="middle" font-size="9.5" fill="#ffe27a">${MS.movesOf(sp, c.mvs).map(k => WEAPONS[k].label).join(' + ')}</text>` : ''}</g>`;
       });
       y += 130;
     } else y += 20;
@@ -1907,8 +2056,9 @@
   function syncButtons() {
     const b = scene === 'battle' && !panel && state !== 'evolve' && !settingsOpen, i = scene === 'intro' && !settingsOpen;
     const camp = b && kind === 'campaign';
+    const au = b && teams[turnTeam] && !teams[turnTeam].ai ? activeUnit() : null;
     const show = { left: b, right: b, up: b || i, down: b || i, fire: b || i, switch: b, restart: b || i,
-                   ball: camp, menu: b || i, sound: !settingsOpen, settings: true };
+                   ball: camp, move: !!(au && au.moves.length > 1), menu: b || i, sound: !settingsOpen, settings: true };
     // na fase da cidade os botões vão para a esquerda, para não cobrir a lagoa e os alvos da direita
     const introPos = { up: 'translate(-536 0)', down: 'translate(-536 0)', fire: 'translate(190 452) scale(.75) translate(-738 -436)' };
     document.querySelectorAll('.btn').forEach(el => {
@@ -1926,7 +2076,6 @@
   function restart() {
     Sfx.click();
     if (scene === 'intro') initIntro();
-    else if (scene === 'battle' && kind === 'versus') initVersus();
     else if (scene === 'battle' && kind === 'campaign') restartStage();
   }
 
@@ -1953,6 +2102,7 @@
       else if (act === 'switch') switchUnit();
       else if (act === 'restart') restart();
       else if (act === 'ball') toggleBall();
+      else if (act === 'move') cycleMove();
       else if (act === 'menu') { Sfx.click(); initMenu(); }
       else if (act === 'sound') toggleSound();
       else if (act === 'settings') toggleSettings();
@@ -2040,13 +2190,14 @@
     // menus, seleção de time e painéis
     if (scene === 'menu' || scene === 'team' || panel) {
       const n = uiList.length; if (!n) return;
-      const team = scene === 'team' && !panel;
-      if (e.key === 'ArrowRight' || (!team && e.key === 'ArrowDown')) { uiSel = (uiSel + 1) % n; Sfx.click(); e.preventDefault(); }
-      else if (e.key === 'ArrowLeft' || (!team && e.key === 'ArrowUp')) { uiSel = (uiSel + n - 1) % n; Sfx.click(); e.preventDefault(); }
-      else if (team && e.key === 'ArrowDown') { uiSel = Math.min(n - 1, uiSel + 7); Sfx.click(); e.preventDefault(); }
-      else if (team && e.key === 'ArrowUp') { uiSel = Math.max(0, uiSel - 7); Sfx.click(); e.preventDefault(); }
+      const gridN = panel ? 0 : scene === 'team' ? 7 : (scene === 'menu' && menuPage === 'stages') ? 4 : 0;
+      const nGrid = scene === 'team' ? Math.min(PER_PAGE, campaign.roster.length - pageNo * PER_PAGE) : STAGES.length;
+      if (e.key === 'ArrowRight' || (!gridN && e.key === 'ArrowDown')) { uiSel = (uiSel + 1) % n; Sfx.click(); e.preventDefault(); }
+      else if (e.key === 'ArrowLeft' || (!gridN && e.key === 'ArrowUp')) { uiSel = (uiSel + n - 1) % n; Sfx.click(); e.preventDefault(); }
+      else if (gridN && e.key === 'ArrowDown') { uiSel = uiSel + gridN < nGrid ? uiSel + gridN : (uiSel < nGrid ? n - 1 : uiSel); Sfx.click(); e.preventDefault(); }
+      else if (gridN && e.key === 'ArrowUp') { uiSel = uiSel >= nGrid ? nGrid - 1 : Math.max(0, uiSel - gridN); Sfx.click(); e.preventDefault(); }
       else if (e.key === 'Enter' || e.code === 'Space') { e.preventDefault(); if (!e.repeat) activate(uiSel); }
-      else if (e.key === 'Escape' && scene !== 'menu') initMenu();
+      else if (e.key === 'Escape') { if (scene === 'menu') { if (menuPage === 'stages') { menuPage = 'main'; uiSel = 1; } } else initMenu(); }
       return;
     }
     if (e.key === 'Escape') { initMenu(); return; }
@@ -2056,6 +2207,7 @@
     if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) pressFire(); return; }
     if (e.key === 'Tab') { e.preventDefault(); switchUnit(); return; }
     if (e.key === 'b' || e.key === 'B') toggleBall();
+    else if (e.key === 'g' || e.key === 'G') cycleMove();
   });
 
   addEventListener('keyup', e => {
@@ -2083,7 +2235,6 @@
     if (state === 'guest') stepGuest();
     if (state === 'evolve') stepEvolve();
     if (state === 'flying') stepProjs();
-    if (state === 'volt' && --voltDelay <= 0) voltShoot();
     if (state === 'capture' && cap) stepCapture();
     if (state === 'settle') settle();
     if (kind === 'campaign' && state !== 'over' && state !== 'evolve') stepPickups();
@@ -2124,10 +2275,10 @@
     get: () => ({ scene, kind, state, stageIdx, units, teams, campaign, cap, intro, panel, angle, power, wind, ballMode, turnTeam, ai, guest, gCool, gMode, evo }),
     get pickups() { return pickups; }, BALLS,
     setWeather: w => { weather = w; lightT = 5; $('sun').style.display = (w === 'rain' || w === 'storm') ? 'none' : ''; }, get weather() { return weather; },
-    toggleSettings, settings,
+    toggleSettings, settings, sync: () => syncButtons(), plan: u => { ai = { phase: 'plan', t: 0 }; planShot(u); },
     forceGuest: sp => { gCool = 0; STAGES[stageIdx].guests = [{ sp, rarity: 1 }]; },
     skipEvolve, stageClear,
-    initMenu, initVersus, initIntro, initStage, newCampaign, beginStage, fire, toggleBall, pickTarget,
+    initMenu, initIntro, playStage, cycleMove, maybeChangeWeather, rollWeather, initStage, newCampaign, beginStage, fire, toggleBall, pickTarget,
     setAngle: a => { angle = a; }, setPower: p => { power = p; },
     // procura (ângulo, força) para acertar um alvo com a arma 'wk' a partir do personagem da vez
     findShot: (target, wk) => {

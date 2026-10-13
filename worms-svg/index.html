@@ -170,6 +170,39 @@
     <radialGradient id="gCoco" cx=".38" cy=".3" r=".8">
       <stop offset="0" stop-color="#fff6c8"/><stop offset=".55" stop-color="#ecd48c"/><stop offset="1" stop-color="#b99a52"/>
     </radialGradient>
+    <radialGradient id="gBat" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#a8b4ff"/><stop offset=".55" stop-color="#6a76d8"/><stop offset="1" stop-color="#3a42a0"/>
+    </radialGradient>
+    <radialGradient id="gGhost" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#b496e0"/><stop offset=".55" stop-color="#7a56b4"/><stop offset="1" stop-color="#3c2866"/>
+    </radialGradient>
+    <radialGradient id="gMach" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#c4d0ee"/><stop offset=".55" stop-color="#8896c8"/><stop offset="1" stop-color="#505e98"/>
+    </radialGradient>
+    <radialGradient id="gArc" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#ffc468"/><stop offset=".55" stop-color="#f08a22"/><stop offset="1" stop-color="#b24c08"/>
+    </radialGradient>
+    <radialGradient id="gLap" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#8fd8f0"/><stop offset=".55" stop-color="#4a9ccc"/><stop offset="1" stop-color="#245e90"/>
+    </radialGradient>
+    <radialGradient id="gSeel" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#fbfdff"/><stop offset=".55" stop-color="#d4e0f0"/><stop offset="1" stop-color="#9cb0cc"/>
+    </radialGradient>
+    <radialGradient id="gMag" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#e0e4ec"/><stop offset=".55" stop-color="#a4aab8"/><stop offset="1" stop-color="#6c7284"/>
+    </radialGradient>
+    <radialGradient id="gMagmar" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#ffc070"/><stop offset=".55" stop-color="#f2582a"/><stop offset="1" stop-color="#a02008"/>
+    </radialGradient>
+    <radialGradient id="gScy" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#b8ec70"/><stop offset=".55" stop-color="#62b034"/><stop offset="1" stop-color="#2f6c1a"/>
+    </radialGradient>
+    <radialGradient id="gGeo" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#c8c4bc"/><stop offset=".55" stop-color="#9a968c"/><stop offset="1" stop-color="#625e56"/>
+    </radialGradient>
+    <radialGradient id="gBlack" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#5a5470"/><stop offset=".55" stop-color="#322e44"/><stop offset="1" stop-color="#1a1626"/>
+    </radialGradient>
     <radialGradient id="rockBoom">
       <stop offset="0" stop-color="#f0e8d8"/><stop offset=".4" stop-color="#c8b898"/>
       <stop offset=".8" stop-color="#7a6a58"/><stop offset="1" stop-color="#4a3e30" stop-opacity="0"/>
@@ -269,6 +302,7 @@
     <g class="btn" data-act="switch"><rect x="676" y="8" width="56" height="44" rx="10"/><text x="704" y="39" style="font-size:22px">⇄</text></g>
     <g class="btn" data-act="restart"><rect x="738" y="8" width="54" height="44" rx="10"/><text x="765" y="39" style="font-size:22px">↻</text></g>
   </g>
+  <g class="btn" id="moveBtn" data-act="move" style="display:none"><circle cx="766" cy="284" r="28"/><text x="766" y="291" style="font-size:13px">GOLPE</text></g>
   <g class="btn" id="ballBtn" data-act="ball"><circle cx="766" cy="352" r="28"/><text x="766" y="359" style="font-size:14px">BOLA</text></g>
   <g class="btn" id="menuBtn" data-act="menu"><rect x="552" y="8" width="56" height="44" rx="10"/><text x="580" y="38" style="font-size:22px">☰</text></g>
   <g class="btn" id="settingsBtn" data-act="settings"><rect x="676" y="8" width="56" height="44" rx="10"/><text x="704" y="38" style="font-size:22px">⚙</text></g>
@@ -277,7 +311,7 @@
 </svg>
 <div id="help">
   <kbd>←</kbd> <kbd>→</kbd> andar &nbsp;·&nbsp; <kbd>↑</kbd> <kbd>↓</kbd> mirar &nbsp;·&nbsp;
-  segure <kbd>ESPAÇO</kbd> para força e solte para atirar &nbsp;·&nbsp; <kbd>B</kbd> Pokébola (inimigo fraco) &nbsp;·&nbsp;
+  segure <kbd>ESPAÇO</kbd> para força e solte para atirar &nbsp;·&nbsp; <kbd>B</kbd> Pokébola (inimigo fraco) &nbsp;·&nbsp; <kbd>G</kbd> troca de golpe &nbsp;·&nbsp;
   <kbd>TAB</kbd> troca de parceiro &nbsp;·&nbsp; <kbd>R</kbd> reinicia &nbsp;·&nbsp; <kbd>M</kbd> som &nbsp;·&nbsp; <kbd>ESC</kbd> menu
 </div>
 <div id="rotate">📱 Gire o celular para o modo paisagem (deitado) para jogar melhor.</div>
@@ -286,6 +320,7 @@
 <script src="js/sfx.js"></script>
 <script src="js/data.js"></script>
 <script src="js/art.js"></script>
+<script src="js/art2.js"></script>
 <script src="js/animated-kanto.js"></script>
 <script src="js/game.js"></script>
 </body>

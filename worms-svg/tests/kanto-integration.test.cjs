@@ -15,7 +15,7 @@ const math=Object.create(Math);let seed=7351;math.random=()=>{seed=(seed*1664525
 const storage=new Map();
 const ctx={console,Math:math,window:{},navigator:{maxTouchPoints:0},document:{getElementById:element,querySelectorAll(){return [];},body:element('body')},localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,String(v)),removeItem:k=>storage.delete(k)},addEventListener(){},matchMedia:()=>({matches:false}),requestAnimationFrame:f=>{frameCallback=f;},setTimeout(){},clearTimeout(){}};
 vm.createContext(ctx);
-for(const name of ['data.js','art.js','animated-kanto.js'])vm.runInContext(fs.readFileSync(path.join(root,'js',name),'utf8'),ctx,{filename:name});
+for(const name of ['data.js','art.js','art2.js','animated-kanto.js'])vm.runInContext(fs.readFileSync(path.join(root,'js',name),'utf8'),ctx,{filename:name});
 const MS=ctx.window.MS;
 MS.Sfx=new Proxy({isOn:()=>false},{get:(obj,key)=>obj[key]||(()=>{})});
 let engine=fs.readFileSync(path.join(root,'js/game.js'),'utf8');
@@ -41,17 +41,17 @@ for(const [sp,S] of Object.entries(MS.SPECIES)){
   assert(MS.WEAPONS[S.weapon],sp+' weapon');assert(S.types.every(t=>MS.TYPE_COLOR[t]&&MS.TYPE_NAME[t]),sp+' types');
   assert(MS.Art.draw(sp,{f:30,blink:false,bob:0,step:0,breath:0,x:0}),sp+' drawing');
 }
-for(let i=0;i<5;i++){
+for(let i=0;i<MS.STAGES.length;i++){
   debug.newCampaign('charmander');debug.beginStage(i);hooks.renderAll();
   const battle=debug.get();assert.equal(battle.stageIdx,i);assert(battle.units.every(u=>Number.isFinite(u.hp)&&u.hp>0));
   for(let n=0;n<60;n++)frameCallback();
 }
 assert.deepEqual(Array.from(MS.STAGES[1].enemies),['caterpie','beedrill','pidgey']);
-assert.deepEqual(Array.from(MS.STAGES[3].enemies),['rattata','dugtrio','starmie']);
+assert.deepEqual(Array.from(MS.STAGES[3].enemies),['zubat','dugtrio','geodude']);
 assert(MS.STAGES[0].guests.some(g=>g.sp==='jigglypuff'));
 assert(MS.STAGES[2].guests.some(g=>g.sp==='exeggutor'));
-assert(MS.STAGES[4].guests.some(g=>g.sp==='snorlax'&&g.stayRounds===7));
-for(const [sp,stage] of [['jigglypuff',0],['exeggutor',2],['snorlax',4]]){
+assert(MS.STAGES[10].guests.some(g=>g.sp==='snorlax'&&g.stayRounds===7));
+for(const [sp,stage] of [['jigglypuff',0],['exeggutor',2],['snorlax',10]]){
  debug.newCampaign('charmander');debug.beginStage(stage);
  const original=MS.STAGES[stage].guests;const def=original.find(g=>g.sp===sp);MS.STAGES[stage].guests=[{...def,rarity:1}];
  for(let i=0;i<10&&!debug.get().guest;i++)hooks.roundEnd();
@@ -74,4 +74,27 @@ for(const sp of Object.keys(chosen)){
  hooks.saveGame();assert.equal(hooks.loadSave().roster[0],sp,sp+' saved game loads');
 }
 assert([...elements.values()].every(e=>!/(?:NaN|undefined)/.test(e.innerHTML)), 'all rendered layers have defined coordinates and fills');
-console.log('OK: Veneno, 5 fases, visitantes, captura, 5 ataques, renderização e saves.');
+console.log('OK: Veneno, 11 fases, visitantes, captura, 5 ataques, renderização e saves.');
+
+// ---- segunda leva: variantes de golpe, Gelo/Lutador/Fantasma, fases novas, Magikarp -> Gyarados e saves antigos ----
+assert.equal(MS.SPECIES.magikarp.evo,'gyarados');assert(MS.SPECIES.gyarados&&MS.SPECIES.magikarp.xpMul>1);
+assert.equal(MS.typeMult('ice',['grass','flying']),4);assert.equal(MS.typeMult('fighting',['normal']),2);assert.equal(MS.typeMult('ghost',['ghost']),2);
+assert(MS.typeMult('normal',['ghost'])<1&&MS.typeMult('fire',['ice'])===2);
+assert.equal(MS.STAGES.length,11);
+for(const st of MS.STAGES){assert(MS.THEMES[st.theme],st.name+' theme');for(const e of st.enemies.concat((st.guests||[]).map(g=>g.sp)))assert(MS.SPECIES[e],e+' exists');
+  for(const w of (st.weather||[]))assert(['rain','sun','storm','snow'].includes(w.type));}
+assert(!MS.STAGES[3].weather,'a Caverna não tem clima');
+for(const [sp,S] of Object.entries(MS.SPECIES)){
+  for(const k of (S.altKeys||[]))assert(MS.WEAPONS[k],sp+' alt '+k);
+  for(const mv of ['b','a','c','b+a','b+c']){const m=MS.movesOf(sp,mv);assert(m.length>=1&&m.every(k=>MS.WEAPONS[k]),sp+' '+mv);}
+  for(let i=0;i<20;i++)assert(MS.cleanMv(sp,MS.rollMoves(sp,.2)),sp+' roll');
+}
+assert.deepEqual(Array.from(MS.movesOf('pikachu','b+c')),['volt','volt~pikachu1']);
+assert(MS.WEAPONS['volt~pikachu0'].dmg>MS.WEAPONS.volt.dmg&&MS.WEAPONS['volt~pikachu1'].boom>MS.WEAPONS.volt.boom,'variantes mais fortes / com mais área');
+assert.deepEqual(Array.from(MS.movesOf('magikarp','a')),['batida']);
+storage.set('ms_campaign_v1',JSON.stringify({roster:['charmander','pikachu'],xp:[0,0],great:0,ultra:0,stage:2,balls:3,weakStart:false}));
+const old=hooks.loadSave();assert.deepEqual(Array.from(old.mv),['b','b'],'save antigo sem golpes variantes');assert.equal(old.stage,2);
+debug.newCampaign('pikachu');const pk=debug.get().units[0];pk.mvs='b+c';pk.moves=MS.movesOf('pikachu','b+c');pk.mi=1;debug.setPower(60);debug.setAngle(45);debug.fire();
+assert.equal(debug.get().state,'flying','dispara a variante');
+assert([...elements.values()].every(e=>!/(?:NaN|undefined)/.test(e.innerHTML)), 'sem NaN após a segunda leva');
+console.log('OK: variantes de golpe, novos tipos, 11 fases, Magikarp -> Gyarados e saves antigos.');

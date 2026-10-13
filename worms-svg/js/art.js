@@ -677,6 +677,41 @@
              <path d="M0,0 L0,-22 L3.5,-28 L7,-21 L6,0 Z" fill="${d.col}" stroke="#fff" stroke-opacity=".7" stroke-width=".9" stroke-linejoin="round"/>
              <path d="M3.5,-28 L1.5,-20 L3,-3" fill="none" stroke="#fff" stroke-width="1.2" opacity=".6" stroke-linecap="round"/>
              <path d="M6,0 L8,-9 L12,-5 L11,0 Z" fill="${d.col}" stroke="#fff" stroke-opacity=".6" stroke-width=".8"/>`; break;
+      case 'tomb':
+        s = `<path d="M-7,0 L-7,-15 Q-7,-23 0,-23 Q7,-23 7,-15 L7,0 Z" fill="#8a8aa4" stroke="#3a3a56" stroke-width="1.2"/>
+             <path d="M0,-19 L0,-8 M-4,-15 L4,-15" stroke="#3a3a56" stroke-width="1.6" stroke-linecap="round"/>
+             <path d="M-5,-20 Q-4,-22 -1,-22.4" fill="none" stroke="#fff" stroke-width="1" opacity=".4" stroke-linecap="round"/>
+             <ellipse cx="0" cy="0" rx="10" ry="2" fill="#2a2440" opacity=".5"/>`; break;
+      case 'deadtree':
+        s = `<path d="M-2.4,0 L-1.6,-18 L1.6,-18 L2.4,0 Z" fill="#3a2a30" stroke="#1c1218" stroke-width="1"/>
+             <path d="M-1,-14 L-9,-24 M-1.6,-18 L-5,-30 M1,-16 L9,-27 M1.4,-21 L4,-33 M-6,-22 L-11,-22" stroke="#3a2a30" stroke-width="2" stroke-linecap="round" fill="none"/>`; break;
+      case 'pylon':
+        s = `<path d="M-8,0 L-2,-40 L2,-40 L8,0 M-5.6,-12 L5.6,-12 M-3.8,-26 L3.8,-26 M-8,0 L5.6,-12 L-3.8,-26 M8,0 L-5.6,-12 L3.8,-26" fill="none" stroke="#6a707e" stroke-width="1.7" stroke-linejoin="round"/>
+             <path d="M-10,-38 L10,-38 M-7,-31 L7,-31" stroke="#6a707e" stroke-width="2" stroke-linecap="round"/>
+             <circle cx="-10" cy="-38" r="1.5" fill="#d8dce6"/><circle cx="10" cy="-38" r="1.5" fill="#d8dce6"/>`; break;
+      case 'icespike':
+        s = `<path d="M-9,0 L-5,-16 L-2,-30 L2,-14 L5,-22 L10,0 Z" fill="#bfe8f8" stroke="#5a9ac0" stroke-width="1.2" stroke-linejoin="round" opacity=".95"/>
+             <path d="M-2,-30 L-4,-16 L-2,-6" fill="none" stroke="#fff" stroke-width="1.4" stroke-linecap="round" opacity=".7"/>`; break;
+      case 'snowpine':
+        s = `<rect x="-1.6" y="-8" width="3.2" height="8" fill="#5b3a1e"/>
+             <path d="M0,-36 L-9,-18 L-5,-18 L-12,-6 L12,-6 L5,-18 L9,-18 Z" fill="#3e8a5a" stroke="#1d4f35" stroke-width="1" stroke-linejoin="round"/>
+             <path d="M0,-36 L-4.4,-28 L0,-30 L4.4,-28 Z M-9,-18 L-5,-19 L0,-17.4 L5,-19 L9,-18 L5,-22 L-5,-22 Z M-12,-6 L-6,-9 L0,-7 L6,-9 L12,-6 Z" fill="#fff" opacity=".92"/>`; break;
+      case 'ember':
+        s = `<circle cy="-6" r="13" fill="#ff7a1a" opacity=".18"/>
+             <path d="M-9,0 Q-10,-8 -3,-10 Q4,-13 9,-6 Q11,-2 9,0 Z" fill="#4a2a24" stroke="#1e0e0a" stroke-width="1"/>
+             <path d="M-5,-4 L-2,-7 L2,-4 L5,-7" fill="none" stroke="#ff9a2a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>`; break;
+      case 'volrock':
+        s = `<path d="M-12,0 L-8,-14 L-2,-24 L4,-16 L8,-20 L13,0 Z" fill="#3e2a28" stroke="#1a0e0c" stroke-width="1.2" stroke-linejoin="round"/>
+             <path d="M-3,-22 L-2,-12 L-6,-4 M5,-17 L3,-8" fill="none" stroke="#ff8a1a" stroke-width="1.5" stroke-linecap="round"/>`; break;
+      case 'pillar':
+        s = `<rect x="-6.5" y="-30" width="13" height="30" fill="#d8c8a8" stroke="#7a6a48" stroke-width="1.2"/>
+             <rect x="-8.5" y="-33" width="17" height="4" rx="1" fill="#e6d8b8" stroke="#7a6a48" stroke-width="1.1"/>
+             <rect x="-8.5" y="-3" width="17" height="3.4" rx="1" fill="#e6d8b8" stroke="#7a6a48" stroke-width="1.1"/>
+             <path d="M-2.4,-28 L-2.4,-5 M2.4,-28 L2.4,-5" stroke="#a8966a" stroke-width="1" opacity=".7"/>`; break;
+      case 'banner':
+        s = `<rect x="-1" y="-40" width="2" height="40" fill="#5a3a1e"/>
+             <path d="M1,-38 L16,-38 L12,-30 L16,-22 L1,-22 Z" fill="#d9382e" stroke="#7a1a14" stroke-width="1"/>
+             <circle cx="8" cy="-30" r="3.2" fill="#fff" stroke="#7a1a14" stroke-width=".8"/>`; break;
       default:
         s = `<path d="M0,0 Q1,-4 0,-8" fill="none" stroke="#3f8a2a" stroke-width="1.2"/>
              <circle cx="-2" cy="-9" r="1.9" fill="${d.col}"/><circle cx="2" cy="-9" r="1.9" fill="${d.col}"/>
@@ -744,6 +779,8 @@
 
   MS.Art = {
     draw(sp, c) { return BODIES[sp](c); },
+    register(sp, fn) { BODIES[sp] = fn; },
+    h: { eye, feet, puff, f1 },
     ball, trainer, trainerFront, decor, cityStatic,
     typeDots(types, cx, y, colors) {      // bolinhas coloridas dos tipos, centralizadas em cx
       const n = types.length, w = n * 8;

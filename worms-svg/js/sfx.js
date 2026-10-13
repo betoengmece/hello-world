@@ -116,6 +116,15 @@
           case 'poison':
             noise({ t: 0.18, vol: 0.16, ftype: 'highpass', f: 2200, f2: 1200 });
             tone({ type: 'triangle', f: 850, f2: 300, t: 0.16, vol: 0.10 }); break;
+          case 'ice':
+            tone({ type: 'triangle', f: 1800, f2: 900, t: 0.22, vol: 0.09 });
+            noise({ t: 0.3, vol: 0.14, ftype: 'highpass', f: 5000 }); break;
+          case 'ghost':
+            tone({ type: 'sine', f: 220, f2: 90, t: 0.5, vol: 0.14 });
+            tone({ type: 'sine', f: 225, f2: 70, t: 0.5, vol: 0.08, delay: 0.05 }); break;
+          case 'punch':
+            tone({ type: 'square', f: 200, f2: 90, t: 0.12, vol: 0.12 });
+            noise({ t: 0.14, vol: 0.22, ftype: 'bandpass', f: 800, q: 1.4 }); break;
           case 'dragon':
             noise({ t: 0.7, vol: 0.35, ftype: 'lowpass', f: 1200, f2: 150 });
             tone({ type: 'sawtooth', f: 130, f2: 55, t: 0.6, vol: 0.14 });
@@ -152,6 +161,15 @@
           case 'poison':
             noise({ t: 0.35, vol: 0.25, ftype: 'bandpass', f: 1100, f2: 350, q: 0.8 });
             tone({ type: 'sine', f: 300, f2: 100, t: 0.22, vol: 0.14 }); break;
+          case 'ice':
+            noise({ t: 0.5, vol: 0.3, ftype: 'highpass', f: 4200, f2: 1800 });
+            for (let i = 0; i < 4; i++) tone({ f: r(1400, 2600), f2: r(500, 900), t: 0.08, vol: 0.06, delay: 0.04 + i * 0.05 }); break;
+          case 'ghost':
+            noise({ t: 0.6, vol: 0.2, ftype: 'lowpass', f: 600, f2: 120 });
+            tone({ type: 'sine', f: 180, f2: 50, t: 0.6, vol: 0.28 }); break;
+          case 'punch':
+            noise({ t: 0.4, vol: 0.45, f: 1200, f2: 100 });
+            tone({ f: 120, f2: 40, t: 0.3, vol: 0.5 }); break;
           case 'dragon':
             noise({ t: 1.1, vol: 0.65, f: 1200, f2: 60 });
             tone({ type: 'sawtooth', f: 100, f2: 28, t: 0.8, vol: 0.5 }); break;

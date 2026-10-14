@@ -238,6 +238,7 @@
     </linearGradient>
   </defs>
 
+  <defs id="shDefs"></defs>
   <!-- fundo -->
   <rect width="800" height="500" fill="url(#sky)"/>
   <g id="Lsky">
@@ -260,10 +261,10 @@
     <path id="tbackGrass" fill="none" stroke="#3a6b25" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>
   </g>
   <g clip-path="url(#tclip)">
-    <rect width="800" height="500" fill="url(#dirt)"/>
+    <rect id="dirtRect" width="800" height="500" fill="url(#dirt)"/>
     <path id="strata1" fill="#4a2c16" opacity=".5"/>
     <path id="strata2" fill="#2a180c" opacity=".7"/>
-    <rect width="800" height="500" fill="url(#dirtTex)"/>
+    <rect id="dirtTexRect" width="800" height="500" fill="url(#dirtTex)"/>
   </g>
   <path id="edgeBurnt" fill="none" stroke="#1e130b" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
   <path id="edgeGrass" fill="none" stroke="#3f8a2a" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
@@ -312,7 +313,7 @@
 <div id="help">
   <kbd>←</kbd> <kbd>→</kbd> andar &nbsp;·&nbsp; <kbd>↑</kbd> <kbd>↓</kbd> mirar &nbsp;·&nbsp;
   segure <kbd>ESPAÇO</kbd> para força e solte para atirar &nbsp;·&nbsp; <kbd>B</kbd> Pokébola (inimigo fraco) &nbsp;·&nbsp; <kbd>G</kbd> troca de golpe &nbsp;·&nbsp;
-  <kbd>TAB</kbd> troca de parceiro &nbsp;·&nbsp; <kbd>R</kbd> reinicia &nbsp;·&nbsp; <kbd>M</kbd> som &nbsp;·&nbsp; <kbd>ESC</kbd> menu
+  <kbd>Q</kbd> <kbd>E</kbd> olham o mapa (arraste na tela) &nbsp;·&nbsp; <kbd>TAB</kbd> troca de parceiro &nbsp;·&nbsp; <kbd>R</kbd> reinicia &nbsp;·&nbsp; <kbd>M</kbd> som &nbsp;·&nbsp; <kbd>ESC</kbd> menu
 </div>
 <div id="rotate">📱 Gire o celular para o modo paisagem (deitado) para jogar melhor.</div>
 </div>

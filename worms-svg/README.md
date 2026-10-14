@@ -23,6 +23,12 @@ Jogo de artilharia por turnos feito inteiramente com SVG. Personagens, terreno d
 
 11. **Golpes variantes (★):** cada indivíduo tem o seu conjunto de golpes. Além do golpe padrão da espécie, existem variantes (por exemplo um Pikachu com **Trovão**, mais forte, ou **Descarga Ampla**, mais área; Machop com **Mil Socos**, vários tiros, etc.). Indivíduos variantes aparecem com **★** ao lado do nome; os raros (**★★**) têm **os dois golpes** e você alterna entre eles com **G** (ou o botão **GOLPE**). A captura guarda o golpe do indivíduo, e a tela de escolha do time mostra os golpes de cada um. Nas fases mais avançadas as variantes ficam mais comuns. A IA dos selvagens com dois golpes simula os dois e usa o que promete mais dano.
 12. **Novos Pokémon:** Geodude, Zubat/Golbat, Gastly/Gengar, Machop/Machamp, Growlithe/Arcanine, Seel, Lapras, Magnemite, Electabuzz, Magmar e Scyther, com os novos tipos **Fantasma**, **Gelo** e **Lutador**. O Magikarp também pode ter a variante **Batida** (um golpe fraco de verdade).
+13. **Mapas que mudam a cada partida:** a largura, o relevo (colinas, planície, vale, ladeira, platôs, pontas), as posições iniciais (lados opostos, trocados ou misturados pelo mapa), os selvagens extras do cenário (além dos fixos da fase), as Pokébolas espalhadas e a decoração mudam toda vez. Dá para ver as espécies extras na tela de escolher fase ("às vezes: ...").
+14. **Mapas largos:** alguns mapas têm 1100, 1400 ou 1700 de largura (a tela mostra 800). Aparece um **minimapa** no topo direito com o terreno, os Pokémon, as Pokébolas e a janela da câmera. Para olhar o resto do mapa: **Q / E** (ou arraste na tela, ou toque/arraste no minimapa); **C** volta a seguir o seu Pokémon. A câmera também volta sozinha ao começar o turno. Mapas largos dão um pouco mais de caminhada por turno e os selvagens avançam na sua direção.
+15. **Visitantes em qualquer lugar:** o visitante pode aparecer em qualquer ponto do mapa, **se mexe** antes de atacar (anda, ou voa) e mira em quem estiver perto. Os voadores (Pidgey, Pidgeotto, Butterfree, Zubat, Golbat, Scyther, Beedrill) e os flutuantes (Gastly, Magnemite) aparecem **no ar**, pairando acima do terreno.
+16. **✨ Shiny:** cada selvagem (inclusive visitantes) tem **1 chance em 1000** de ser shiny, com a cor trocada, brilhinhos e ✨ no nome. Dá para capturar e ele continua shiny (salvo no jogo, mantido ao evoluir).
+17. **Golpes com personalidade:** os ataques agora se comportam de forma diferente. Os pesados (**pedra, pedrada, lama, golpe corporal**) quase ignoram o vento, fazem a tela tremer e a pedra é maior; os leves (**folhas, ventania, vento prateado, Onda Sônica**) são levados pelo vento. Efeitos: **queimadura** (Fogo) e **veneno** causam dano por 3 turnos; **congelar** (Gelo), **paralisar** (Elétrico, Lambida) e **dormir** (Canto, Pó do Sono) fazem perder a vez; o raio dá **arco elétrico** que salta para outro alvo; **Avalanche** e **Sementes** se dividem no ar; **Rolamento** quica; **Terremoto** abala o solo inteiro; **Lama** ergue terreno; **Sombra** atravessa o chão; **Psíquico** persegue o alvo; golpes de lutador/investida têm **crítico**; Folha Navalha 2 **rouba PV**. A descrição do golpe aparece no painel do topo.
+
 
 ## Tipos e ataques
 
@@ -37,28 +43,28 @@ Ataques com o tipo certo causam **o dobro de dano** ("Super efetivo!"); com o ti
 | Rattata | Normal | Investida |
 | Pidgey | Normal/Voador | Ventania: duas rajadas que empurram |
 | Caterpie | Inseto | Teia: o atingido perde a caminhada no próximo turno |
-| Starmie | Água/Psíquico | Hidro Pulso: dois jatos |
+| Starmie | Água/Psíquico | Psíquico: esfera que persegue o alvo (variante: Hidro Pulso) |
 | Magikarp | Água | Splash: não faz nada (mas é fácil de capturar) |
 | Dratini | Dragão | Fúria do Dragão (chefe da campanha, pequeno e frágil) |
-| Onix | Pedra/Terra | Lançar Pedra: pedra pesada que abre cratera (aparece como visitante na Caverna e no Covil) |
+| Onix | Pedra/Terra | Lançar Pedra: pedra grande e pesada, ignora o vento e faz tudo tremer (variante: Avalanche) |
 | Beedrill | Inseto/Veneno | Ferrão Venenoso: dois ferrões roxos, pouco dano ao terreno |
-| Jigglypuff | Normal | Pancada: golpe que empurra o alvo |
-| Dugtrio | Terra | Bomba de Lama: projétil pesado que abre cratera |
+| Jigglypuff | Normal | Canto: onda sonora leve que põe para dormir (variante: Pancada) |
+| Dugtrio | Terra | Bomba de Lama: pesada, ergue terreno (variante: Terremoto) |
 | Exeggutor | Planta/Psíquico | Bomba de Sementes: dois projéteis de Planta |
 | Snorlax | Normal | Golpe Corporal: ataque forte que empurra o alvo |
-| Geodude | Pedra/Terra | Atirar Pedra |
+| Geodude | Pedra/Terra | Atirar Pedra (variante: Rolamento, que quica) |
 | Zubat / Golbat | Veneno/Voador | Onda Sônica (2 rajadas) / Presa Venenosa |
 | Gastly / Gengar | Fantasma/Veneno | Lambida / Bola Sombria |
 | Machop / Machamp | Lutador | Soco Focado / Golpe de Caratê (2 socos) |
 | Growlithe / Arcanine | Fogo | Presa de Fogo / Roda de Fogo (2 bolas) |
 | Seel / Lapras | Água/Gelo | Raio Aurora / Nevasca (2 estilhaços) |
 | Magnemite | Elétrico | Onda de Choque (2 raios) |
-| Electabuzz | Elétrico | Soco Trovão |
+| Electabuzz | Elétrico | Soco Trovão (visual remasterizado) |
 | Magmar | Fogo | Brasas (3 brasas) |
 | Scyther | Inseto/Voador | Corte Duplo |
 | Charmeleon / Ivysaur / Wartortle | Fogo / Planta / Água | versões mais fortes dos ataques iniciais |
 | Raticate / Pidgeotto | Normal / Normal+Voador | Hiperpresa / Furacão |
-| Butterfree | Inseto/Voador | Vento Prateado: três rajadas |
+| Butterfree | Inseto/Voador | Vento Prateado: três rajadas (variante: Pó do Sono) |
 | Gyarados | Água/Voador | Hidro Bomba |
 | Dragonair | Dragão | Cometa Dragão |
 
@@ -70,6 +76,7 @@ Relações usadas: Pedra > Fogo, Voador, Inseto · Terra > Fogo, Elétrico, Pedr
 |---|---|
 | ← / → | andar (limite por turno) |
 | ↑ / ↓ | mirar |
+| Q / E | olhar o mapa à esquerda / direita (mapas largos); C recentraliza |
 | Segurar ESPAÇO | carregar força; soltar para atirar |
 | B | ativar/cancelar a Pokébola (campanha) |
 | G | trocar de golpe (quando o Pokémon tem dois) |
@@ -79,7 +86,7 @@ Relações usadas: Pedra > Fogo, Voador, Inseto · Terra > Fogo, Elétrico, Pedr
 | O (ou botão ⚙) | menu lateral de ajustes: brilho da tela e volume do som (o jogo pausa; ← → ajusta, ↑ ↓ escolhe). Fica salvo no navegador |
 | ESC | volta ao menu |
 
-**No celular:** botões na tela (◀ ▶ andar, ▲ ▼ mirar, segure TIRO para carregar e solte para atirar, BOLA, GOLPE (quando houver dois golpes), ⇄ troca, ↻ reinicia, ☰ menu, 🔊 som). Jogue com o celular deitado. Menus funcionam por toque.
+**No celular:** botões na tela (◀ ▶ andar, ▲ ▼ mirar, segure TIRO para carregar e solte para atirar, BOLA, GOLPE (quando houver dois golpes), ⇄ troca, ↻ reinicia, ☰ menu, 🔊 som). Jogue com o celular deitado. Menus funcionam por toque. Em mapas largos, arraste na tela ou toque no minimapa para olhar o resto do mapa.
 
 ## Visual 2.5D e som
 
@@ -94,7 +101,7 @@ index.html      esqueleto SVG (gradientes, camadas, botões)
 js/sfx.js       sons e música
 js/data.js      tipos, ataques, variantes de golpe, espécies, cenários e fases
 js/art.js       desenhos dos personagens, Pokébola, treinador e cenário
-js/art2.js      desenhos da segunda leva de Pokémon (Fantasma, Gelo, Lutador...)
+js/art2.js      desenhos da segunda leva de Pokémon (Fantasma, Gelo, Lutador...), Electabuzz remasterizado
 js/animated-kanto.js  animações das cinco versões de Pokémon aprovadas
 js/game.js      motor: física, turnos, IA, captura, fase inicial, campanha e menus
 animated-kanto/index.html  prévia das cinco animações com controles

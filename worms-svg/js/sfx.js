@@ -125,6 +125,12 @@
           case 'punch':
             tone({ type: 'square', f: 200, f2: 90, t: 0.12, vol: 0.12 });
             noise({ t: 0.14, vol: 0.22, ftype: 'bandpass', f: 800, q: 1.4 }); break;
+          case 'psy':
+            tone({ type: 'sine', f: 400, f2: 1300, t: 0.4, vol: 0.12 }); tone({ type: 'sine', f: 410, f2: 1250, t: 0.4, vol: 0.08, delay: 0.05 }); break;
+          case 'sound':
+            for (let i = 0; i < 3; i++) tone({ type: 'sine', f: 520 + i * 160, f2: 540 + i * 160, t: 0.2, vol: 0.1, delay: i * 0.14 }); break;
+          case 'powder':
+            noise({ t: 0.4, vol: 0.14, ftype: 'highpass', f: 3500 }); tone({ type: 'sine', f: 900, f2: 600, t: 0.3, vol: 0.05 }); break;
           case 'dragon':
             noise({ t: 0.7, vol: 0.35, ftype: 'lowpass', f: 1200, f2: 150 });
             tone({ type: 'sawtooth', f: 130, f2: 55, t: 0.6, vol: 0.14 });
@@ -170,6 +176,12 @@
           case 'punch':
             noise({ t: 0.4, vol: 0.45, f: 1200, f2: 100 });
             tone({ f: 120, f2: 40, t: 0.3, vol: 0.5 }); break;
+          case 'psy':
+            tone({ type: 'sine', f: 1200, f2: 200, t: 0.5, vol: 0.2 }); noise({ t: 0.3, vol: 0.12, ftype: 'bandpass', f: 2000, q: 2 }); break;
+          case 'sound':
+            tone({ type: 'sine', f: 700, f2: 300, t: 0.4, vol: 0.18 }); tone({ type: 'sine', f: 350, f2: 150, t: 0.5, vol: 0.12, delay: 0.1 }); break;
+          case 'powder':
+            noise({ t: 0.6, vol: 0.14, ftype: 'highpass', f: 4000, f2: 2000 }); tone({ type: 'sine', f: 600, f2: 400, t: 0.4, vol: 0.06 }); break;
           case 'dragon':
             noise({ t: 1.1, vol: 0.65, f: 1200, f2: 60 });
             tone({ type: 'sawtooth', f: 100, f2: 28, t: 0.8, vol: 0.5 }); break;
@@ -178,6 +190,8 @@
             for (let i = 0; i < 5; i++) { const f = r(300, 800); tone({ f, f2: f * 1.6, t: 0.07, vol: 0.07, delay: 0.08 + i * 0.06 }); }
         }
       },
+
+      shiny() { [1318.5, 1568, 2093, 2637, 3136].forEach((f, i) => tone({ type: 'sine', f, t: 0.35, vol: 0.09, delay: i * 0.07 })); },
 
       splash() {
         noise({ t: 0.5, vol: 0.3, ftype: 'bandpass', f: 1000, f2: 250, q: 0.7 });

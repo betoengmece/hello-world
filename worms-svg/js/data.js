@@ -83,6 +83,45 @@
     ball:      { label: 'Pokébola',        type: 'normal',   style: 'ball',    count: 1, spread: 0, speed: 1.0,  grav: 1.0, boom: 0,  carve: 0,  dmg: 0 }
   };
 
+  // ---------- Mecânicas dos golpes ----------
+  // windMul: quanto o vento empurra (pedra pesada quase ignora; folha e rajada são levadas) · size: tamanho do projétil · shake: tremor da câmera
+  // st: efeito de status {type,p} (burn/poison = dano por turno, freeze/sleep/para = perde a vez) · chain: arco elétrico (raio em px)
+  // drain: cura quem ataca · bounce: quicadas no chão · phase: atravessa o terreno · split: abre em vários ao chegar no topo
+  // homing: curva em direção ao inimigo · quake: abalo sísmico em quem está no chão · build: ergue terreno · crit: chance de golpe crítico
+  Object.assign(MS.WEAPONS, {
+    psiquico:  { label: 'Psíquico',        type: 'psychic',  style: 'psy',    count: 1, spread: 0, speed: 1.0,  grav: 0.75, boom: 30, carve: 4,  dmg: 36, windMul: 0.4, homing: 0.05 },
+    canto:     { label: 'Canto',           type: 'normal',   style: 'sound',  count: 1, spread: 0, speed: 0.95, grav: 0.6,  boom: 54, carve: 0,  dmg: 12, windMul: 1.5, st: { type: 'sleep', p: 0.6 } },
+    po:        { label: 'Pó do Sono',      type: 'bug',      style: 'powder', count: 1, spread: 0, speed: 0.95, grav: 0.5,  boom: 50, carve: 0,  dmg: 8,  windMul: 1.9, st: { type: 'sleep', p: 0.7 } },
+    pedrinha:  { label: 'Pedregulho',      type: 'rock',     style: 'rock',   count: 1, spread: 0, speed: 1.0,  grav: 1.3,  boom: 24, carve: 10, dmg: 24, windMul: 0.3, size: 0.7 },
+    avalanche: { label: 'Avalanche',       type: 'rock',     style: 'rock',   count: 1, spread: 0, speed: 1.1,  grav: 1.3,  boom: 22, carve: 8,  dmg: 26, windMul: 0.25, size: 1.3, split: { n: 5, wk: 'pedrinha' } },
+    rolamento: { label: 'Rolamento',       type: 'rock',     style: 'rock',   count: 1, spread: 0, speed: 1.0,  grav: 1.2,  boom: 30, carve: 12, dmg: 32, windMul: 0.3, size: 1.1, bounce: 3 },
+    terremoto: { label: 'Terremoto',       type: 'ground',   style: 'rock',   count: 1, spread: 0, speed: 1.05, grav: 1.3,  boom: 22, carve: 14, dmg: 30, windMul: 0.3, size: 1.1, quake: 170, shake: 10 },
+    semente:   { label: 'Semente',         type: 'grass',    style: 'leaf',   count: 1, spread: 0, speed: 1.0,  grav: 1.0,  boom: 20, carve: 6,  dmg: 17 }
+  });
+  const P = (k, o) => Object.assign(MS.WEAPONS[k], o);
+  // pesados
+  P('pedra',   { speed: 1.12, grav: 1.45, boom: 42, dmg: 52, windMul: 0.2, size: 1.55, shake: 12 });
+  P('pedrada', { speed: 1.1,  grav: 1.35, boom: 36, dmg: 42, windMul: 0.25, size: 1.2, shake: 9 });
+  P('lama',    { speed: 1.0,  grav: 1.3,  windMul: 0.35, size: 1.1, build: 22, carve: 0, shake: 7 });
+  P('corporal',{ windMul: 0.35, grav: 1.25, shake: 11, push: 12 });
+  P('pancada', { windMul: 0.6 });
+  // leves (o vento leva)
+  P('planta',  { windMul: 1.7 }); P('planta2', { windMul: 1.6, drain: 0.25 });
+  P('ventania',{ windMul: 2.0 }); P('furacao', { windMul: 1.8 }); P('vento', { windMul: 1.8 }); P('sonico', { windMul: 1.7 });
+  P('teia',    { windMul: 1.3 });
+  P('sementes',{ count: 1, spread: 0, boom: 22, dmg: 20, windMul: 1.1, split: { n: 3, wk: 'semente' } });
+  // rápidos e secos
+  P('investida', { windMul: 0.6, crit: 0.15 }); P('hiperpresa', { windMul: 0.6, crit: 0.3 }); P('corte', { windMul: 0.5, crit: 0.3 });
+  P('soco', { crit: 0.2, push: 11, windMul: 0.5 }); P('karate', { push: 12, windMul: 0.5, crit: 0.15 });
+  // efeitos de status
+  P('fogo',   { st: { type: 'burn', p: 0.35 } }); P('fogo2', { st: { type: 'burn', p: 0.45 } });
+  P('brasas', { st: { type: 'burn', p: 0.3 } }); P('presafogo', { st: { type: 'burn', p: 0.5 } }); P('rodafogo', { st: { type: 'burn', p: 0.4 } });
+  P('ferrao', { st: { type: 'poison', p: 0.45 } }); P('presa', { st: { type: 'poison', p: 0.5 } });
+  P('gelo', { st: { type: 'freeze', p: 0.3 } }); P('aurora', { st: { type: 'freeze', p: 0.3 } }); P('gelo2', { st: { type: 'freeze', p: 0.35 } });
+  P('volt', { chain: 75, st: { type: 'para', p: 0.25 } }); P('choque', { chain: 55, st: { type: 'para', p: 0.35 } }); P('socotrovao', { st: { type: 'para', p: 0.4 } });
+  P('lambida', { phase: true, st: { type: 'para', p: 0.35 } }); P('sombra', { phase: true });
+  P('hidro', { windMul: 0.8 }); P('agua', { windMul: 0.9 });
+
   // ---------- Variantes de golpe ----------
   // Cada indivíduo tem um "conjunto de golpes": 'b' = golpe padrão da espécie, 'a' / 'c' = variantes da espécie
   // e combinações raras como 'b+a' (o Pokémon tem os dois e o jogador alterna entre eles).
@@ -105,7 +144,7 @@
     rattata:    { name: 'Rattata',    types: ['normal'],            weapon: 'investida', maxhp: 70,  h: 32, hitY: 9,  hitR: 11, catch: 1.0,  mouth: [12, -15], evo: 'raticate', evoXp: 170 },
     pidgey:     { name: 'Pidgey',     types: ['normal', 'flying'],  weapon: 'ventania',  maxhp: 70,  h: 40, hitY: 13, hitR: 12, catch: 1.0,  mouth: [14, -22], evo: 'pidgeotto', evoXp: 170 },
     caterpie:   { name: 'Caterpie',   types: ['bug'],               weapon: 'teia',      maxhp: 60,  h: 32, hitY: 8,  hitR: 11, catch: 1.1,  mouth: [15, -8], evo: 'butterfree', evoXp: 130 },
-    starmie:    { name: 'Starmie',    types: ['water', 'psychic'],  weapon: 'hidro',     maxhp: 90,  h: 46, hitY: 22, hitR: 15, catch: 0.55, mouth: [14, -26] },
+    starmie:    { name: 'Starmie',    types: ['water', 'psychic'],  weapon: 'psiquico',     maxhp: 90,  h: 46, hitY: 22, hitR: 15, catch: 0.55, mouth: [14, -26] },
     magikarp:   { name: 'Magikarp',   types: ['water'],             weapon: 'splash',    maxhp: 50,  h: 38, hitY: 11, hitR: 13, catch: 1.25, mouth: [14, -9], evo: 'gyarados', evoXp: 120, xpMul: 1.5 },
     dratini:    { name: 'Dratini',    types: ['dragon'],            weapon: 'furia',     maxhp: 90, h: 36, hitY: 13, hitR: 12, catch: 0.5, mouth: [16, -20], scale: 1.0, evo: 'dragonair', evoXp: 260 },
     // formas evoluídas (um estágio só) e visitantes
@@ -120,7 +159,7 @@
     onix:       { name: 'Onix',       types: ['rock', 'ground'],    weapon: 'pedra',      maxhp: 170, h: 70, hitY: 30, hitR: 19, catch: 0.3,  mouth: [18, -48] },
     // Conceitos aprovados: versões fixadas em animated-kanto.js.
     beedrill:   { name: 'Beedrill',   types: ['bug', 'poison'],     weapon: 'ferrao',     maxhp: 95, h: 43, hitY: 19, hitR: 13, catch: 0.55, mouth: [13, -20] },
-    jigglypuff: { name: 'Jigglypuff', types: ['normal'],            weapon: 'pancada',    maxhp: 80, h: 40, hitY: 18, hitR: 15, catch: 0.85, mouth: [13, -24] },
+    jigglypuff: { name: 'Jigglypuff', types: ['normal'],            weapon: 'canto',    maxhp: 80, h: 40, hitY: 18, hitR: 15, catch: 0.85, mouth: [13, -24] },
     dugtrio:    { name: 'Dugtrio',    types: ['ground'],            weapon: 'lama',       maxhp: 105, h: 39, hitY: 17, hitR: 15, catch: 0.60, mouth: [9, -23] },
     exeggutor:  { name: 'Exeggutor',  types: ['grass', 'psychic'],  weapon: 'sementes',   maxhp: 125, h: 49, hitY: 22, hitR: 16, catch: 0.40, mouth: [12, -27] },
     snorlax:    { name: 'Snorlax',    types: ['normal'],            weapon: 'corporal',   maxhp: 175, h: 43, hitY: 18, hitR: 18, catch: 0.25, mouth: [11, -23], scale: 1.1 },
@@ -137,7 +176,7 @@
     seel:       { name: 'Seel',       types: ['water', 'ice'],      weapon: 'aurora',     maxhp: 100, h: 32, hitY: 12, hitR: 14, catch: 0.7,  mouth: [14, -12] },
     lapras:     { name: 'Lapras',     types: ['water', 'ice'],      weapon: 'gelo2',      maxhp: 175, h: 54, hitY: 20, hitR: 19, catch: 0.22, mouth: [18, -34], scale: 1.1 },
     magnemite:  { name: 'Magnemite',  types: ['electric'],          weapon: 'choque',     maxhp: 70,  h: 40, hitY: 20, hitR: 12, catch: 0.7,  mouth: [10, -20] },
-    electabuzz: { name: 'Electabuzz', types: ['electric'],          weapon: 'socotrovao', maxhp: 125, h: 52, hitY: 21, hitR: 15, catch: 0.35, mouth: [13, -26] },
+    electabuzz: { name: 'Electabuzz', types: ['electric'],          weapon: 'socotrovao', maxhp: 125, h: 62, hitY: 26, hitR: 16, catch: 0.35, mouth: [14, -34] },
     magmar:     { name: 'Magmar',     types: ['fire'],              weapon: 'brasas',     maxhp: 125, h: 50, hitY: 20, hitR: 15, catch: 0.35, mouth: [14, -24] },
     scyther:    { name: 'Scyther',    types: ['bug', 'flying'],     weapon: 'corte',      maxhp: 115, h: 56, hitY: 22, hitR: 14, catch: 0.35, mouth: [14, -26] }
   };
@@ -151,7 +190,7 @@
     rattata:    [['sniper', 'Investida Rápida'], ['power', 'Mordida Forte']],
     pidgey:     [['power', 'Rajada Cortante'], ['multi', 'Tornado']],
     caterpie:   [['area', 'Teia Gigante']],
-    starmie:    [['multi', 'Jato Giratório'], ['area', 'Maré Cósmica']],
+    starmie:    [{ wk: 'hidro' }, ['area', 'Maré Cósmica']],
     magikarp:   [{ wk: 'batida' }],
     dratini:    [['power', 'Fúria Intensa'], ['area', 'Onda Dracônica']],
     charmeleon: [['power', 'Chama Intensa+'], ['multi', 'Rajada Ígnea']],
@@ -159,16 +198,16 @@
     wartortle:  [['power', 'Jato Potente+'], ['area', 'Maremoto']],
     raticate:   [['sniper', 'Presa Veloz'], ['area', 'Mordida Brutal']],
     pidgeotto:  [['power', 'Furacão Cortante'], ['multi', 'Tornado Duplo']],
-    butterfree: [['area', 'Pó Prateado'], ['multi', 'Vendaval de Asas']],
+    butterfree: [{ wk: 'po' }, ['multi', 'Vendaval de Asas']],
     gyarados:   [['area', 'Maremoto Furioso'], ['sniper', 'Jato Perfurante']],
     dragonair:  [['power', 'Cometa Brutal'], ['area', 'Aurora Dracônica']],
-    onix:       [['area', 'Avalanche'], ['sniper', 'Pedrada Veloz']],
+    onix:       [{ wk: 'avalanche' }, ['sniper', 'Pedrada Veloz']],
     beedrill:   [['multi', 'Chuva de Ferrões'], ['power', 'Ferrão Mortal']],
-    jigglypuff: [['area', 'Canto Sonoro'], ['power', 'Pancada Cantada']],
-    dugtrio:    [['area', 'Terremoto'], ['power', 'Lama Pesada']],
+    jigglypuff: [{ wk: 'pancada' }, ['area', 'Canto Sonoro']],
+    dugtrio:    [{ wk: 'terremoto' }, ['power', 'Lama Pesada']],
     exeggutor:  [['multi', 'Chuva de Sementes'], ['power', 'Semente Explosiva']],
     snorlax:    [['area', 'Pancada Gigante'], ['power', 'Hiperpresa Pesada']],
-    geodude:    [['area', 'Rolamento'], ['sniper', 'Pedrada Veloz']],
+    geodude:    [{ wk: 'rolamento' }, ['sniper', 'Pedrada Veloz']],
     zubat:      [['multi', 'Onda Sônica Tripla'], ['power', 'Asa Cortante']],
     golbat:     [['power', 'Presa Letal'], ['multi', 'Chuva de Presas']],
     gastly:     [['area', 'Nuvem Sombria'], ['power', 'Lambida Gélida']],
@@ -309,6 +348,33 @@
 
   // ---------- Fases da campanha ----------
   // err: erro de mira do inimigo em graus (menor = mais preciso); wind: vento máximo
+  // ---------- Voadores (visitantes ficam no ar), shiny e notas dos golpes ----------
+  ['pidgey', 'pidgeotto', 'butterfree', 'zubat', 'golbat', 'scyther', 'beedrill', 'gastly', 'magnemite'].forEach(k => { if (MS.SPECIES[k]) MS.SPECIES[k].fly = true; });
+  // rotação de matiz (graus) do visual shiny, por tipo principal; a espécie pode definir `sh` próprio
+  const SH_TYPE = { fire: 180, water: 130, grass: 100, electric: 160, normal: 200, bug: 120, flying: 150, psychic: 120, dragon: 140, rock: 60, ground: 320, poison: 80, ice: 100, fighting: 160, ghost: 140 };
+  Object.keys(MS.SPECIES).forEach(k => { const S = MS.SPECIES[k]; if (S.sh === undefined) S.sh = SH_TYPE[S.types[0]] || 150; });
+  MS.SHINY_P = 1 / 1000;
+  const NOTE = { windMul: v => (v <= 0.35 ? 'pesado' : v >= 1.4 ? 'leve (vento leva)' : ''), };
+  MS.moveNote = wp => {
+    const a = [];
+    if (wp.windMul !== undefined && wp.windMul <= 0.35) a.push('pesado: ignora o vento');
+    else if (wp.windMul >= 1.4) a.push('leve: o vento leva');
+    if (wp.bounce) a.push('quica ' + wp.bounce + 'x');
+    if (wp.split) a.push('se divide no ar');
+    if (wp.homing) a.push('busca o alvo');
+    if (wp.phase) a.push('atravessa o chão');
+    if (wp.quake) a.push('abala o solo todo');
+    if (wp.build) a.push('ergue terreno');
+    if (wp.chain) a.push('arco elétrico');
+    if (wp.drain) a.push('rouba PV');
+    if (wp.crit) a.push('crítico ' + Math.round(wp.crit * 100) + '%');
+    if (wp.st) a.push({ burn: 'queima', poison: 'envenena', freeze: 'congela', sleep: 'põe p/ dormir', para: 'paralisa' }[wp.st.type] + ' ' + Math.round(wp.st.p * 100) + '%');
+    if (wp.web) a.push('prende na teia');
+    if (wp.push) a.push('empurra');
+    if (wp.count > 1) a.push(wp.count + ' projéteis');
+    return a.join(' · ');
+  };
+
   MS.STAGES = [
     { name: 'Rota 1',               theme: 'campo',    enemies: ['rattata', 'pidgey'],               err: 12,  hpMult: 1.0,  wind: 2, guests: [{ sp: 'pikachu', rarity: 0.2 }, { sp: 'jigglypuff', rarity: 0.24 }, { sp: 'machop', rarity: 0.06 }],
       weather: [{ type: 'sun', p: 0.3 }, { type: 'rain', p: 0.25 }, { type: 'storm', p: 0.15 }] },
@@ -331,4 +397,13 @@
       weather: [{ type: 'sun', p: 0.25 }, { type: 'storm', p: 0.2 }, { type: 'rain', p: 0.15 }] },
     { name: 'Covil do Dragão',      theme: 'montanha', enemies: ['dratini'],                         err: 3.5, hpMult: 1.9,  wind: 3, boss: true, weather: [{ type: 'storm', p: 0.35 }, { type: 'rain', p: 0.15 }], guests: [{ sp: 'onix', rarity: 0.2 }, { sp: 'dragonair', rarity: 0.08 }, { sp: 'snorlax', rarity: 0.08, stayRounds: 7 }] }
   ];
+
+  // espécies extras que podem se juntar aos selvagens de cada cenário (além dos fixos da fase)
+  const POOL = {
+    campo: ['caterpie', 'pidgey', 'rattata'], floresta: ['caterpie', 'beedrill', 'pidgey', 'rattata'], praia: ['magikarp', 'starmie', 'seel'],
+    caverna: ['zubat', 'geodude', 'dugtrio', 'machop'], noite: ['gastly', 'zubat', 'golbat'], usina: ['magnemite', 'geodude', 'zubat'],
+    cabo: ['seel', 'starmie', 'geodude', 'magikarp'], gelo: ['seel', 'zubat', 'golbat', 'lapras'], lava: ['growlithe', 'magmar', 'geodude'],
+    vitoria: ['machop', 'scyther', 'geodude', 'golbat'], montanha: []
+  };
+  MS.STAGES.forEach(st => { st.pool = POOL[st.theme] || []; });
 })();

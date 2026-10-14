@@ -215,25 +215,35 @@
 
   // ---------- Electabuzz ----------
   function electabuzz(c) {
-    const punch = c.breath > 0 ? 7 : 0, sp = c.charge || c.breath > 0;
-    return feet(c.step, 'url(#gBee)', '#5a3a08', 5.4) + `
+    const punch = c.breath > 0 ? 6 : 0, sp = c.charge || c.breath > 0, K = '#2a2433', O = '#5a3a08';
+    const arm = (sx, sy, ex, ey, fx, fy) => `<path d="M${sx},${sy} Q${ex},${ey - 2} ${fx},${fy}" fill="none" stroke="${O}" stroke-width="8.6" stroke-linecap="round"/>
+      <path d="M${sx},${sy} Q${ex},${ey - 2} ${fx},${fy}" fill="none" stroke="#f6cf2c" stroke-width="6.4" stroke-linecap="round"/>`;
+    const band = (x, y, w) => `<path d="M${x - w},${y} l${w * 0.5},-2.6 l${w * 0.5},2.6 l${w * 0.5},-2.6 l${w * 0.5},2.6 l0,2.6 l${-w * 0.5},-2.6 l${-w * 0.5},2.6 l${-w * 0.5},-2.6 l${-w * 0.5},2.6 Z" fill="${K}"/>`;
+    const spark = sp ? `<path d="M-19,-38 l4,3 l-3,2 l4,4 M21,-40 l-4,3 l3,2 l-4,4" fill="none" stroke="#fff27a" stroke-width="1.5" stroke-linejoin="round"/>` : '';
+    return `<ellipse cx="0" cy=".5" rx="15" ry="2.6" fill="#000" opacity=".2"/>` + feet(c.step, 'url(#gBee)', O, 6) + `
     <g transform="translate(0 ${f1(c.bob)})">
-      <path d="M-8,-12 Q-17,-14 -18,-22 L-14,-22 Q-13,-17 -8,-16 Z" fill="#2a2433" stroke="#2a2433" stroke-width="1" stroke-linejoin="round"/>
-      <path d="M-5,-20 L-14,-13" stroke="#5a3a08" stroke-width="5.4" stroke-linecap="round"/><path d="M-5,-20 L-14,-13" stroke="#f2c230" stroke-width="3.8" stroke-linecap="round"/>
-      <ellipse cx="0" cy="-15" rx="10.4" ry="12.4" fill="url(#gBee)" stroke="#5a3a08" stroke-width="1.3"/>
-      <path d="M-9.8,-18 Q0,-15 9.8,-18 L9.6,-15 Q0,-12 -9.6,-15 Z M-8.6,-11.4 Q0,-8.4 8.6,-11.4 L8,-8.6 Q0,-5.8 -8,-8.6 Z M-9,-24 Q0,-21 9,-24 L8,-21.6 Q0,-18.6 -8,-21.6 Z" fill="#2c2433"/>
-      <ellipse cx="2" cy="-35" rx="9.6" ry="8.6" fill="url(#gBee)" stroke="#5a3a08" stroke-width="1.3"/>
-      <path d="M-2,-42 L-4,-52 M7,-42.4 L10,-52" stroke="#2c2433" stroke-width="2.2" stroke-linecap="round"/>
-      <circle cx="-4" cy="-52" r="1.7" fill="${sp ? '#fff27a' : '#2c2433'}"/><circle cx="10" cy="-52" r="1.7" fill="${sp ? '#fff27a' : '#2c2433'}"/>
-      <path d="M-5,-37 L-7.6,-39.4 L-5,-33 Z" fill="url(#gBee)" stroke="#5a3a08" stroke-width="1" stroke-linejoin="round"/>
-      ${eye(5, -35.4, 2.8, '#222', c.blink)}${eye(10.4, -35.4, 2.2, '#222', c.blink)}
-      <path d="M2,-38.6 L6.6,-37.6 M9,-37.6 L12.6,-38.6" stroke="#2c2433" stroke-width="1.5" stroke-linecap="round"/>
-      <path d="M5,-30 Q8.6,-28 12,-30" fill="none" stroke="#5a3a08" stroke-width="1.1" stroke-linecap="round"/>
-      <path d="M6,-19 L${f1(13 + punch)},${f1(-19 - punch * 0.15)}" stroke="#5a3a08" stroke-width="6" stroke-linecap="round"/><path d="M6,-19 L${f1(13 + punch)},${f1(-19 - punch * 0.15)}" stroke="#f2c230" stroke-width="4.3" stroke-linecap="round"/>
-      <circle cx="${f1(14 + punch)}" cy="${f1(-19 - punch * 0.15)}" r="3.6" fill="url(#gBee)" stroke="#5a3a08" stroke-width="1.1"/>
-      <path d="M8.6,-21.4 l1,4.4" stroke="#2c2433" stroke-width="1.6"/>
-      ${sp ? `<path d="M-16,-30 l4,3 l-3,2 l4,4 M18,-30 l-4,3 l3,2 l-4,4" fill="none" stroke="#fff27a" stroke-width="1.4" stroke-linejoin="round"/>` : ''}
-      ${puff(c, [13, -26], '#fff27a', '#ffffff')}
+      <path d="M-8,-15 L-15,-17 L-13,-22 L-22,-24 L-18,-29 L-28,-34 L-14,-31 L-17,-26 L-9,-24 Z" fill="${K}" stroke="#14101c" stroke-width=".8" stroke-linejoin="round"/>
+      ${arm(-10, -31, -17, -23, -12, -16)}
+      <rect x="-9.4" y="-13" width="6.2" height="12" rx="3" fill="url(#gBee)" stroke="${O}" stroke-width="1.2"/><rect x="3.2" y="-13" width="6.2" height="12" rx="3" fill="url(#gBee)" stroke="${O}" stroke-width="1.2"/>
+      <path d="M-9,-8 h5.6 M3.6,-8 h5.6" stroke="${K}" stroke-width="2" stroke-linecap="round"/>
+      <path d="M-8.6,-11 Q-14.6,-22 -12.4,-33 Q0,-39.4 12.6,-33 Q14.6,-22 8.6,-11 Q0,-8 -8.6,-11 Z" fill="url(#gBee)" stroke="${O}" stroke-width="1.4" stroke-linejoin="round"/>
+      <path d="M-12.2,-30 l4,2.6 l3.4,-3 l3.6,3 l3.6,-3 l3.4,3 l3.6,-3 l4,2.6 l.2,3 l-4,-2.4 l-3.2,3 l-3.6,-3 l-3.6,3 l-3.4,-3 l-3.6,3 l-4,-2.4 Z" fill="${K}"/>
+      ${band(-9.4, -21.4, 9.4)}${band(-7.4, -13.4, 7.4)}
+      <path d="M-8,-33 Q0,-37 8,-33" fill="none" stroke="#fff" stroke-width="1.4" stroke-linecap="round" opacity=".4"/>
+      ${arm(10, -31, 18.5, -26 - punch * 0.1, 14 + punch * 1.4, -24 - punch * 0.3)}
+      <path d="M13.2,-29.2 l.8,3 M16.8,-27.6 l.8,3" stroke="${K}" stroke-width="2.1" stroke-linecap="round"/>
+      <circle cx="${f1(21 + punch * 1.4)}" cy="${f1(-25 - punch * 0.3)}" r="4.8" fill="url(#gBee)" stroke="${O}" stroke-width="1.3"/>
+      <path d="M${f1(19.4 + punch * 1.4)},${f1(-27.2 - punch * 0.3)} l0.8,3.4 M${f1(22.4 + punch * 1.4)},${f1(-27.4 - punch * 0.3)} l0.8,3.4" stroke="${O}" stroke-width=".9" stroke-linecap="round"/>
+      <ellipse cx="4" cy="-42.6" rx="10.6" ry="9.2" fill="url(#gBee)" stroke="${O}" stroke-width="1.4"/>
+      <path d="M-4,-49.6 C-8.4,-53 -7,-60 -11,-62 C-5.4,-60.6 -2,-55.4 0,-50 Z M8.4,-50 C9.4,-55 14,-60 18,-60.4 C14.6,-57.4 14,-53.6 12.6,-49 Z" fill="${K}" stroke="#14101c" stroke-width=".8" stroke-linejoin="round"/>
+      <circle cx="-11" cy="-62" r="1.8" fill="${sp ? '#fff27a' : '#6a5a7a'}"/><circle cx="18" cy="-60.4" r="1.8" fill="${sp ? '#fff27a' : '#6a5a7a'}"/>
+      <path d="M-3.6,-42.4 L-6.4,-45.4 L-4.4,-38.4 Z" fill="url(#gBee)" stroke="${O}" stroke-width="1" stroke-linejoin="round"/>
+      <path d="M1.4,-49.4 L4,-46 L6.4,-49.4" fill="none" stroke="${K}" stroke-width="1.7" stroke-linejoin="round" stroke-linecap="round"/>
+      ${eye(5.6, -43.2, 3, '#222', c.blink)}${eye(11.6, -43.2, 2.4, '#222', c.blink)}
+      <path d="M2.2,-47.4 L7.6,-45.6 M9.6,-45.8 L14.2,-47.6" stroke="${K}" stroke-width="1.8" stroke-linecap="round"/>
+      <path d="M7,-36.6 Q10.6,-34.2 14,-36.6" fill="none" stroke="${O}" stroke-width="1.3" stroke-linecap="round"/>
+      ${spark}
+      ${puff(c, [14, -34], '#fff27a', '#ffffff')}
     </g>`;
   }
 

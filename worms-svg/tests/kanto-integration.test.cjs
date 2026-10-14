@@ -98,3 +98,42 @@ debug.newCampaign('pikachu');const pk=debug.get().units[0];pk.mvs='b+c';pk.moves
 assert.equal(debug.get().state,'flying','dispara a variante');
 assert([...elements.values()].every(e=>!/(?:NaN|undefined)/.test(e.innerHTML)), 'sem NaN após a segunda leva');
 console.log('OK: variantes de golpe, novos tipos, 11 fases, Magikarp -> Gyarados e saves antigos.');
+
+// ---- terceira leva: golpes com peso/efeitos, shiny, voadores, mapas largos e variedade ----
+{
+  const W_=MS.WEAPONS;
+  assert(W_.pedra.windMul<=0.3&&W_.ventania.windMul>=1.5,'pedra é pesada; ventania é leve');
+  assert(W_.pedra.size>1.3&&W_.pedra.shake>=10,'pedra grande e com tremor');
+  assert(W_.volt.chain>0&&W_.fogo.st.type==='burn'&&W_.avalanche.split&&W_.rolamento.bounce&&W_.terremoto.quake&&W_.lama.build,'mecânicas novas nos dados');
+  assert.notEqual(MS.moveNote(W_.pedra),'');
+  for(const k of ['pidgey','butterfree','zubat','gastly'])assert(MS.SPECIES[k].fly,k+' voa');
+  assert(!MS.SPECIES.geodude.fly);
+  assert.equal(MS.SHINY_P,1/1000);
+  for(const s of Object.values(MS.SPECIES))assert(Number.isFinite(s.sh),s.name+' tem matiz shiny');
+  for(const st of MS.STAGES)assert(Array.isArray(st.pool),st.name+' pool');
+  // saves com shiny e migração
+  storage.set('ms_campaign_v1',JSON.stringify({roster:['charmander','pikachu'],xp:[0,0],mv:['b','b'],sh:[0,1],great:0,ultra:0,stage:1,balls:3,weakStart:false}));
+  assert.deepEqual(Array.from(hooks.loadSave().sh),[0,1],'shiny salvo');
+  storage.set('ms_campaign_v1',JSON.stringify({roster:['charmander','pikachu'],xp:[0,0],great:0,ultra:0,stage:1,balls:3,weakStart:false}));
+  assert.deepEqual(Array.from(hooks.loadSave().sh),[0,0],'save antigo sem shiny');
+  // todas as fases em larguras e relevos diferentes
+  for(const w of [800,1100,1400,1700])for(const arch of ['rolling','flat','valley','slope','mesas','spires']){
+    debug.setMap({w,arch});debug.newCampaign('charmander');debug.beginStage(Math.floor(Math.random()*11));hooks.renderAll();
+    const g=debug.get();assert.equal(debug.W,w);assert.equal(debug.heights.length,w);
+    assert(g.units.every(u=>u.x>=0&&u.x<=w&&Number.isFinite(u.y)&&u.y<480),'posições válidas '+w+arch);
+    assert(g.teams[0].units.length>=1&&g.teams[1].units.length>=1);
+  }
+  debug.setMap(null);
+  // shiny forçado
+  debug.setShinyP(1);debug.setMap({w:800,arch:'rolling'});debug.newCampaign('charmander');debug.beginStage(0);
+  assert(debug.get().teams[1].units.every(u=>u.sh),'selvagens shiny com chance 1');
+  assert(debug.shF('pikachu',true).includes('url(#fh'));assert.equal(debug.shF('pikachu',false),'');
+  debug.setShinyP(1/1000);debug.setMap(null);
+  // visitante voador aparece no ar
+  debug.newCampaign('charmander');debug.setMap({w:1400,arch:'rolling'});debug.beginStage(1);debug.forceGuest('butterfree');
+  for(let i=0;i<10&&!debug.get().guest;i++)hooks.roundEnd();
+  const fg=debug.get().guest;assert(fg&&fg.flying&&fg.alt>50&&fg.y<fg.alt+500,'visitante voador no ar');
+  debug.setMap(null);
+  assert([...elements.values()].every(e=>!/(?:NaN|undefined)/.test(e.innerHTML)), 'sem NaN após a terceira leva');
+  console.log('OK: golpes pesados/leves, efeitos, shiny, voadores, mapas largos e variedade.');
+}

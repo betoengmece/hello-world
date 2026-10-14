@@ -310,6 +310,86 @@
     </g>`;
   }
 
-  const NEW = { geodude, zubat, golbat, gastly, gengar, machop, machamp, growlithe, arcanine, seel, lapras, magnemite, electabuzz, magmar, scyther };
+  // ---------- Metapod (casulo endurecido: Caterpie -> Metapod -> Butterfree) ----------
+  function metapod(c) {
+    const sway = Math.sin(c.f * 0.05 + c.x) * 2.2, squish = c.breath > 0 ? 0.92 : 1;
+    const band = y => `<path d="M${f1(-7.6 + (-y - 14) * 0.02)},${y} Q0,${f1(y + 2.4)} ${f1(7.6 - (-y - 14) * 0.02)},${y}" fill="none" stroke="#56662c" stroke-width="1.1" opacity=".55"/>`;
+    return `<ellipse cx="0" cy=".5" rx="8" ry="1.9" fill="#000" opacity=".2"/>
+    <g transform="translate(0 ${f1(c.bob * 0.4)}) rotate(${f1(sway)} 0 0) scale(1 ${squish})">
+      <path d="M0,0 C-6,-6 -10,-14 -8,-20 C-6,-27 -3,-30 0,-30 C3,-30 6,-27 8,-20 C10,-14 6,-6 0,0 Z" fill="#b9cc7e" stroke="#4e5e26" stroke-width="1.3" stroke-linejoin="round"/>
+      <path d="M-4,-26 Q-6,-18 -4.6,-8" fill="none" stroke="#f0f8c8" stroke-width="1.6" stroke-linecap="round" opacity=".55"/>
+      ${band(-11)}${band(-16)}${band(-21)}${band(-26)}
+      <path d="M-1,-30 Q0.6,-34 3.4,-33.6" fill="none" stroke="#4e5e26" stroke-width="1.2" stroke-linecap="round"/>
+      ${c.blink ? `<path d="M-4.6,-20 h2.6 M1.2,-20 h2.6" stroke="#2a3414" stroke-width="1.2" stroke-linecap="round"/>`
+                : `<circle cx="-3.2" cy="-20" r="1.9" fill="#fff" stroke="#2a3414" stroke-width=".7"/><circle cx="-2.8" cy="-19.8" r="1" fill="#1e2a0c"/>
+                   <circle cx="3.2" cy="-20" r="1.9" fill="#fff" stroke="#2a3414" stroke-width=".7"/><circle cx="3.6" cy="-19.8" r="1" fill="#1e2a0c"/>`}
+      ${puff(c, [6, -14], '#e8f6b0', '#ffffff')}
+    </g>`;
+  }
+
+  // ---------- Graveler (Geodude evoluído: maior, com espinhos de pedra e braços pesados) ----------
+  function graveler(c) {
+    const lift = c.breath > 0 ? -8 : 0, sh = Math.sin(c.f * 0.06 + c.x) * 0.8;
+    const spike = (x, y, r) => `<path d="M${x - 3},${y} L${x + r * 0.2},${y - 8 * r} L${x + 3},${y} Z" fill="url(#gGeo)" stroke="#4a463e" stroke-width="1"/>`;
+    return `<ellipse cx="0" cy=".5" rx="19" ry="3" fill="#000" opacity=".22"/>
+    <g transform="translate(0 ${f1(c.bob + sh)})">
+      <ellipse cx="-17" cy="-10" rx="6" ry="5.4" fill="url(#gGeo)" stroke="#4a463e" stroke-width="1.3"/>
+      ${spike(-7, -27, 1.1)}${spike(4, -30, 1.3)}${spike(14, -25, 1)}
+      <path d="M-16,-6 Q-20,-24 -4,-28 Q5,-32 13,-26 Q21,-18 17,-6 Q12,1 0,1 Q-12,1 -16,-6 Z" fill="url(#gGeo)" stroke="#4a463e" stroke-width="1.4" stroke-linejoin="round"/>
+      <path d="M-9,-19 l3.4,2.4 l-1.2,3.4 M-2,-6 l4.4,-1.6 M9,-7 l3.6,1.6 M4,-22 l2.4,2.6" fill="none" stroke="#6a665e" stroke-width="1.1" stroke-linecap="round"/>
+      <path d="M-7,-24 Q-1,-27.6 6,-26.4" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" opacity=".42"/>
+      ${eye(3.6, -16.6, 2.9, '#222', c.blink)}${eye(11.4, -16.4, 2.9, '#222', c.blink)}
+      <path d="M-1,-19.4 L6,-17.4 M9.4,-17.4 L15.4,-19.6" stroke="#2e2a24" stroke-width="2.4" stroke-linecap="round"/>
+      <path d="M4,-9.4 Q8.4,-6.4 12.8,-9.4" fill="none" stroke="#3a362e" stroke-width="1.3" stroke-linecap="round"/>
+      <g transform="translate(0 ${f1(lift)})"><ellipse cx="20.6" cy="-10.4" rx="6.6" ry="5.6" fill="url(#gGeo)" stroke="#4a463e" stroke-width="1.3"/>
+        <circle cx="19.2" cy="-14.4" r="1.8" fill="url(#gGeo)" stroke="#4a463e" stroke-width=".9"/><circle cx="23.2" cy="-13.8" r="1.8" fill="url(#gGeo)" stroke="#4a463e" stroke-width=".9"/></g>
+      ${puff(c, [18, -14], '#c8b8a0', '#f4ecd8')}
+    </g>`;
+  }
+
+  // ---------- Magneton (Magnemite evoluído: dois corpos ligados por uma barra, três ímãs) ----------
+  function magneton(c) {
+    const hv = Math.sin(c.f * 0.1 + c.x) * 2, sp = c.breath > 0 || c.charge;
+    const magnet = (sx, y) => `<g transform="translate(${sx * 19} ${y}) scale(${sx} 1)">
+      <path d="M6,-7 L6,7 L12,7 L12,4 L9,4 L9,-4 L12,-4 L12,-7 Z" fill="${sx > 0 ? '#e0433a' : '#3a6ee0'}" stroke="#2a2a3a" stroke-width="1" stroke-linejoin="round"/>
+      <path d="M11,-7 L11,-4 L12,-4 L12,-7 Z M11,4 L11,7 L12,7 L12,4 Z" fill="#e8e8f0"/></g>`;
+    const orb = (x) => `<circle cx="${x}" cy="-18" r="8.6" fill="url(#gMag)" stroke="#4a5060" stroke-width="1.2"/>
+      <path d="M${x - 5.6},-22.6 Q${x - 1.6},-25.6 ${x + 3},-24.6" fill="none" stroke="#fff" stroke-width="1.2" stroke-linecap="round" opacity=".5"/>
+      ${c.blink ? `<path d="M${x - 3.6},-18 h7.2" stroke="#222" stroke-width="1.4" stroke-linecap="round"/>`
+                : `<circle cx="${x}" cy="-18" r="4.4" fill="#fff" stroke="#222" stroke-width=".9"/><circle cx="${x + 1.2}" cy="-17.8" r="2.2" fill="#222"/><circle cx="${x + 2}" cy="-19" r=".8" fill="#fff"/>`}`;
+    return `<ellipse cx="0" cy=".5" rx="${f1(20 - hv * 0.4)}" ry="2.2" fill="#000" opacity=".2"/>
+    <g transform="translate(0 ${f1(hv)})">
+      ${magnet(-1, -18)}${magnet(1, -18)}
+      <rect x="-12" y="-23.4" width="24" height="4.4" rx="1.6" fill="#9aa0ac" stroke="#4a5060" stroke-width="1"/>
+      <rect x="-2" y="-34" width="4" height="7" rx="1" fill="#9aa0ac" stroke="#4a5060" stroke-width="1"/>
+      ${orb(-9.6)}${orb(9.6)}
+      <path d="M-14,-5 Q0,-1 14,-5" fill="none" stroke="#4a5060" stroke-width="1" opacity=".6"/>
+      ${sp ? `<path d="M-26,-30 l4,3 l-3,2 l4,4 M26,-30 l-4,3 l3,2 l-4,4" fill="none" stroke="#fff27a" stroke-width="1.5" stroke-linejoin="round"/>` : ''}
+      ${puff(c, [20, -18], '#fff27a', '#ffffff')}
+    </g>`;
+  }
+
+  // ---------- Dewgong (Seel evoluído: corpo longo, chifre de gelo e cauda) ----------
+  function dewgong(c) {
+    const fl = Math.sin(c.f * 0.1 + c.x) * 3 + (c.breath > 0 ? -6 : 0), wag = Math.sin(c.f * 0.08 + c.x) * 3;
+    return `<ellipse cx="0" cy=".5" rx="22" ry="3" fill="#000" opacity=".2"/>
+    <g transform="translate(0 ${f1(c.bob)})">
+      <path d="M-20,-9 Q-32,-10 -30,${f1(-18 + wag)} Q-26,-14 -18,-13 Z" fill="url(#gSeel)" stroke="#6a7e9c" stroke-width="1.2" stroke-linejoin="round"/>
+      <ellipse cx="-2" cy="-10" rx="19.6" ry="9.4" fill="url(#gSeel)" stroke="#6a7e9c" stroke-width="1.3"/>
+      <ellipse cx="4" cy="-4" rx="8.4" ry="3.6" fill="url(#gSeel)" stroke="#6a7e9c" stroke-width="1" transform="rotate(${f1(fl)} 4 -4)"/>
+      <ellipse cx="14.4" cy="-17.6" rx="9.6" ry="8.2" fill="url(#gSeel)" stroke="#6a7e9c" stroke-width="1.3"/>
+      <path d="M12,-24.6 L16.6,-36 L19.4,-23.4 Z" fill="#dff4ff" stroke="#6a7e9c" stroke-width="1.1" stroke-linejoin="round"/>
+      <path d="M14.8,-27 L16.4,-31" stroke="#ffffff" stroke-width="1" opacity=".8"/>
+      <path d="M5,-22 L3,-26 L8,-23.4 Z" fill="#fff" stroke="#6a7e9c" stroke-width="1" stroke-linejoin="round"/>
+      <ellipse cx="22.6" cy="-14.8" rx="5.2" ry="3.8" fill="url(#gSeel)" stroke="#6a7e9c" stroke-width="1"/>
+      <ellipse cx="25.8" cy="-16.4" rx="2.2" ry="1.6" fill="#2a2a3a"/>
+      <path d="M22,-12.6 L26.6,-11.8 M22,-11.4 L26,-9.6" stroke="#6a7e9c" stroke-width=".7" opacity=".8"/>
+      ${eye(17.4, -19.4, 2.7, '#222', c.blink)}
+      <path d="M19.4,-11.6 Q22.6,-10 25.2,-12.2" fill="none" stroke="#6a7e9c" stroke-width="1.1" stroke-linecap="round"/>
+      ${puff(c, [25, -15], '#bfe9ff', '#ffffff')}
+    </g>`;
+  }
+
+  const NEW = { geodude, zubat, golbat, gastly, gengar, machop, machamp, growlithe, arcanine, seel, lapras, magnemite, electabuzz, magmar, scyther, metapod, graveler, magneton, dewgong };
   for (const k in NEW) A.register(k, NEW[k]);
 })();

@@ -15,7 +15,7 @@ Jogo de artilharia por turnos feito inteiramente com SVG. Personagens, terreno d
 4. **Captura:** quando um inimigo fica fraco (≤ 35% de PV) aparece uma Pokébola sobre ele. Aperte **B** (ou o botão **BOLA**), mire e arremesse. Se acertar um inimigo fraco, a chance de captura depende da espécie e de quão machucado ele está (aparece em % quando a bola está ativa). Acertar um inimigo ainda forte desperdiça a bola.
 5. **Itens no campo:** cada fase tem Pokébolas espalhadas pelo chão. Ande até elas para pegar: Pokébola comum (+1), **Great Ball** (chance de captura ×1,5) e **Ultra Ball** (×2,3). As bolas melhores ficam guardadas entre as fases. Se o seu último tiro foi uma Pokébola, a próxima vez já começa com ela pronta (até você dar um tiro normal). Com a bola ativa, **B** de novo troca para a Great/Ultra e depois guarda.
 6. **Clima:** nos cenários ao ar livre cada fase pode ter clima sorteado (a Caverna nunca tem): **Chuva** (golpes de Água +50%), **Sol forte** (Fogo e Planta +40%), **Tempestade** com relâmpagos e sem chuva (Elétrico +50%) e **Neve** (Gelo +50%). **O clima muda sozinho no meio da fase** (a cada 3 a 6 rodadas, com aviso na tela e transição suave). Vale para os dois lados e aparece num selo no topo. O chefe do Covil do Dragão tem bem mais PV que um Dratini comum.
-7. **Evolução:** ao vencer uma fase, quem lutou ganha XP (mais se causou dano). Ao encher a barra (aparece na tela de escolha do time) o Pokémon evolui, com uma cena de evolução: Charmander → Charmeleon, Bulbasaur → Ivysaur, Squirtle → Wartortle, Rattata → Raticate, Pidgey → Pidgeotto, Caterpie → Butterfree, Magikarp → Gyarados, Dratini → Dragonair, Zubat → Golbat, Gastly → Gengar, Machop → Machamp, Growlithe → Arcanine. Gyarados e as evoluções são bem mais fortes.
+7. **Evolução:** ao vencer uma fase, quem lutou ganha XP (mais se causou dano). Ao encher a barra (aparece na tela de escolha do time) o Pokémon evolui, com uma cena de evolução: Charmander → Charmeleon, Bulbasaur → Ivysaur, Squirtle → Wartortle, Rattata → Raticate, Pidgey → Pidgeotto, Caterpie → Metapod → Butterfree, Geodude → Graveler, Magnemite → Magneton, Seel → Dewgong, Magikarp → Gyarados, Dratini → Dragonair, Zubat → Golbat, Gastly → Gengar, Machop → Machamp, Growlithe → Arcanine. Gyarados e as evoluções são bem mais fortes.
    **Como upar o Magikarp:** ele ganha XP só por participar do time na fase (não precisa causar dano; e ganha 50% a mais de XP). Leve-o nas fases e, ao vencer, ele evolui para Gyarados (a barra de XP aparece na tela de escolha do time). Dá para rejogar uma fase pelo menu para treinar.
 8. **Visitantes neutros:** em cada fase um Pokémon neutro pode aparecer no meio do campo ("VISITANTE"), ficar por 2 a 4 rodadas atacando um lado sorteado (avisa antes qual), e depois ir embora e voltar mais tarde, ou não. Cada cenário tem os seus, com raridades diferentes (na Caverna, o Onix é o mais comum). Dá para derrubá-lo ou, melhor, enfraquecer e capturar com a Pokébola.
 9. Seus Pokémon se curam entre as fases. Quando seu time passa de 3, você escolhe quais 3 levar. O progresso é salvo no navegador ao concluir cada fase.
@@ -65,6 +65,10 @@ Ataques com o tipo certo causam **o dobro de dano** ("Super efetivo!"); com o ti
 | Charmeleon / Ivysaur / Wartortle | Fogo / Planta / Água | versões mais fortes dos ataques iniciais |
 | Raticate / Pidgeotto | Normal / Normal+Voador | Hiperpresa / Furacão |
 | Butterfree | Inseto/Voador | Vento Prateado: três rajadas (variante: Pó do Sono) |
+| Metapod | Inseto | Casca Dura: casca de pedra leve que cai perto (evolui de Caterpie e vira Butterfree) |
+| Graveler | Pedra/Terra | Pedra: pedra pesada, ignora o vento (evolução de Geodude) |
+| Magneton | Elétrico/Voador | Raio em Corrente: arco elétrico que salta (evolução de Magnemite) |
+| Dewgong | Água/Gelo | Gelo Forte: congela, com chance de deixar sem ação (evolução de Seel) |
 | Gyarados | Água/Voador | Hidro Bomba |
 | Dragonair | Dragão | Cometa Dragão |
 

@@ -137,3 +137,19 @@ console.log('OK: variantes de golpe, novos tipos, 11 fases, Magikarp -> Gyarados
   assert([...elements.values()].every(e=>!/(?:NaN|undefined)/.test(e.innerHTML)), 'sem NaN após a terceira leva');
   console.log('OK: golpes pesados/leves, efeitos, shiny, voadores, mapas largos e variedade.');
 }
+
+// ---- quarta leva: Metapod e novas evoluções (Graveler, Magneton, Dewgong) ----
+{
+  assert.equal(MS.SPECIES.caterpie.evo,'metapod');assert.equal(MS.SPECIES.metapod.evo,'butterfree');
+  assert.equal(MS.SPECIES.geodude.evo,'graveler');assert.equal(MS.SPECIES.magnemite.evo,'magneton');assert.equal(MS.SPECIES.seel.evo,'dewgong');
+  for(const k of ['metapod','graveler','magneton','dewgong'])assert(MS.SPECIES[k],k);
+  assert(MS.WEAPONS.casca&&MS.WEAPONS.casca.dmg>0,'Metapod tem golpe próprio');
+  assert(MS.SPECIES.magneton.fly,'Magneton flutua');assert(!MS.SPECIES.metapod.fly,'Metapod não voa');
+  for(const k of ['metapod','graveler','magneton','dewgong'])for(const mv of ['b','a','b+a'])assert(MS.movesOf(k,mv).every(w=>MS.WEAPONS[w]),k+' '+mv);
+  // evolução de verdade: Caterpie com XP quase cheio evolui para Metapod ao vencer a fase
+  debug.newCampaign('caterpie');debug.beginStage(0);
+  const cs=debug.get().campaign;cs.xp[0]=105;
+  debug.stageClear();
+  assert.equal(debug.get().campaign.roster[0],'metapod','Caterpie evolui para Metapod');
+  console.log('OK: Metapod e evoluções Graveler, Magneton e Dewgong.');
+}

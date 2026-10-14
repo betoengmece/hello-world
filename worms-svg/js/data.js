@@ -99,6 +99,8 @@
     semente:   { label: 'Semente',         type: 'grass',    style: 'leaf',   count: 1, spread: 0, speed: 1.0,  grav: 1.0,  boom: 20, carve: 6,  dmg: 17 }
   });
   const P = (k, o) => Object.assign(MS.WEAPONS[k], o);
+  const P0 = (k, o) => { MS.WEAPONS[k] = o; };
+  P0('casca', { label: 'Casca Dura', type: 'bug', style: 'rock', count: 1, spread: 0, speed: 1.0, grav: 1.1, boom: 26, carve: 4, dmg: 16, windMul: 0.6, size: 0.85, shake: 4 });
   // pesados
   P('pedra',   { speed: 1.12, grav: 1.45, boom: 42, dmg: 52, windMul: 0.2, size: 1.55, shake: 12 });
   P('pedrada', { speed: 1.1,  grav: 1.35, boom: 36, dmg: 42, windMul: 0.25, size: 1.2, shake: 9 });
@@ -143,7 +145,7 @@
     pikachu:    { name: 'Pikachu',    types: ['electric'],          weapon: 'volt',      maxhp: 100, h: 44, hitY: 14, hitR: 14, catch: 0.45, mouth: [0, -34] },
     rattata:    { name: 'Rattata',    types: ['normal'],            weapon: 'investida', maxhp: 70,  h: 32, hitY: 9,  hitR: 11, catch: 1.0,  mouth: [12, -15], evo: 'raticate', evoXp: 170 },
     pidgey:     { name: 'Pidgey',     types: ['normal', 'flying'],  weapon: 'ventania',  maxhp: 70,  h: 40, hitY: 13, hitR: 12, catch: 1.0,  mouth: [14, -22], evo: 'pidgeotto', evoXp: 170 },
-    caterpie:   { name: 'Caterpie',   types: ['bug'],               weapon: 'teia',      maxhp: 60,  h: 32, hitY: 8,  hitR: 11, catch: 1.1,  mouth: [15, -8], evo: 'butterfree', evoXp: 130 },
+    caterpie:   { name: 'Caterpie',   types: ['bug'],               weapon: 'teia',      maxhp: 60,  h: 32, hitY: 8,  hitR: 11, catch: 1.1,  mouth: [15, -8], evo: 'metapod', evoXp: 110 },
     starmie:    { name: 'Starmie',    types: ['water', 'psychic'],  weapon: 'psiquico',     maxhp: 90,  h: 46, hitY: 22, hitR: 15, catch: 0.55, mouth: [14, -26] },
     magikarp:   { name: 'Magikarp',   types: ['water'],             weapon: 'splash',    maxhp: 50,  h: 38, hitY: 11, hitR: 13, catch: 1.25, mouth: [14, -9], evo: 'gyarados', evoXp: 120, xpMul: 1.5 },
     dratini:    { name: 'Dratini',    types: ['dragon'],            weapon: 'furia',     maxhp: 90, h: 36, hitY: 13, hitR: 12, catch: 0.5, mouth: [16, -20], scale: 1.0, evo: 'dragonair', evoXp: 260 },
@@ -164,7 +166,7 @@
     exeggutor:  { name: 'Exeggutor',  types: ['grass', 'psychic'],  weapon: 'sementes',   maxhp: 125, h: 49, hitY: 22, hitR: 16, catch: 0.40, mouth: [12, -27] },
     snorlax:    { name: 'Snorlax',    types: ['normal'],            weapon: 'corporal',   maxhp: 175, h: 43, hitY: 18, hitR: 18, catch: 0.25, mouth: [11, -23], scale: 1.1 },
     // ---- segunda leva: Fantasma, Gelo e Lutador ----
-    geodude:    { name: 'Geodude',    types: ['rock', 'ground'],    weapon: 'pedrada',    maxhp: 95,  h: 30, hitY: 11, hitR: 13, catch: 0.6,  mouth: [12, -14] },
+    geodude:    { name: 'Geodude',    types: ['rock', 'ground'],    weapon: 'pedrada',    maxhp: 95,  h: 30, hitY: 11, hitR: 13, catch: 0.6,  mouth: [12, -14], evo: 'graveler', evoXp: 200 },
     zubat:      { name: 'Zubat',      types: ['poison', 'flying'],  weapon: 'sonico',     maxhp: 60,  h: 44, hitY: 20, hitR: 12, catch: 0.9,  mouth: [10, -18], evo: 'golbat', evoXp: 170 },
     golbat:     { name: 'Golbat',     types: ['poison', 'flying'],  weapon: 'presa',      maxhp: 115, h: 52, hitY: 22, hitR: 14, catch: 0.45, mouth: [12, -20], scale: 1.12 },
     gastly:     { name: 'Gastly',     types: ['ghost', 'poison'],   weapon: 'lambida',    maxhp: 65,  h: 46, hitY: 22, hitR: 13, catch: 0.7,  mouth: [10, -22], evo: 'gengar', evoXp: 300 },
@@ -173,12 +175,17 @@
     machamp:    { name: 'Machamp',    types: ['fighting'],          weapon: 'karate',     maxhp: 170, h: 54, hitY: 22, hitR: 17, catch: 0.2,  mouth: [14, -26], scale: 1.1 },
     growlithe:  { name: 'Growlithe',  types: ['fire'],              weapon: 'presafogo',  maxhp: 100, h: 34, hitY: 13, hitR: 13, catch: 0.5,  mouth: [14, -16], evo: 'arcanine', evoXp: 300 },
     arcanine:   { name: 'Arcanine',   types: ['fire'],              weapon: 'rodafogo',   maxhp: 160, h: 50, hitY: 19, hitR: 17, catch: 0.2,  mouth: [18, -24], scale: 1.12 },
-    seel:       { name: 'Seel',       types: ['water', 'ice'],      weapon: 'aurora',     maxhp: 100, h: 32, hitY: 12, hitR: 14, catch: 0.7,  mouth: [14, -12] },
+    seel:       { name: 'Seel',       types: ['water', 'ice'],      weapon: 'aurora',     maxhp: 100, h: 32, hitY: 12, hitR: 14, catch: 0.7,  mouth: [14, -12], evo: 'dewgong', evoXp: 200 },
     lapras:     { name: 'Lapras',     types: ['water', 'ice'],      weapon: 'gelo2',      maxhp: 175, h: 54, hitY: 20, hitR: 19, catch: 0.22, mouth: [18, -34], scale: 1.1 },
-    magnemite:  { name: 'Magnemite',  types: ['electric'],          weapon: 'choque',     maxhp: 70,  h: 40, hitY: 20, hitR: 12, catch: 0.7,  mouth: [10, -20] },
+    magnemite:  { name: 'Magnemite',  types: ['electric'],          weapon: 'choque',     maxhp: 70,  h: 40, hitY: 20, hitR: 12, catch: 0.7,  mouth: [10, -20], evo: 'magneton', evoXp: 180 },
     electabuzz: { name: 'Electabuzz', types: ['electric'],          weapon: 'socotrovao', maxhp: 125, h: 62, hitY: 26, hitR: 16, catch: 0.35, mouth: [14, -34] },
     magmar:     { name: 'Magmar',     types: ['fire'],              weapon: 'brasas',     maxhp: 125, h: 50, hitY: 20, hitR: 15, catch: 0.35, mouth: [14, -24] },
-    scyther:    { name: 'Scyther',    types: ['bug', 'flying'],     weapon: 'corte',      maxhp: 115, h: 56, hitY: 22, hitR: 14, catch: 0.35, mouth: [14, -26] }
+    scyther:    { name: 'Scyther',    types: ['bug', 'flying'],     weapon: 'corte',      maxhp: 115, h: 56, hitY: 22, hitR: 14, catch: 0.35, mouth: [14, -26] },
+    // evoluções novas: Caterpie -> Metapod -> Butterfree, Geodude -> Graveler, Magnemite -> Magneton, Seel -> Dewgong
+    metapod:    { name: 'Metapod',    types: ['bug'],               weapon: 'casca',      maxhp: 80,  h: 30, hitY: 9,  hitR: 11, catch: 0.9,  mouth: [10, -14], evo: 'butterfree', evoXp: 240 },
+    graveler:   { name: 'Graveler',   types: ['rock', 'ground'],    weapon: 'pedra',      maxhp: 140, h: 40, hitY: 15, hitR: 16, catch: 0.35, mouth: [16, -20], scale: 1.1 },
+    magneton:   { name: 'Magneton',   types: ['electric'],          weapon: 'volt',       maxhp: 115, h: 44, hitY: 22, hitR: 14, catch: 0.4,  mouth: [14, -26], scale: 1.05 },
+    dewgong:    { name: 'Dewgong',    types: ['water', 'ice'],      weapon: 'gelo2',      maxhp: 150, h: 40, hitY: 14, hitR: 17, catch: 0.3,  mouth: [22, -16], scale: 1.1 }
   };
 
   // Variantes por espécie: [modo, nome]. 'a' = 1ª variante, 'c' = 2ª. { wk } usa um golpe já existente.
@@ -349,7 +356,7 @@
   // ---------- Fases da campanha ----------
   // err: erro de mira do inimigo em graus (menor = mais preciso); wind: vento máximo
   // ---------- Voadores (visitantes ficam no ar), shiny e notas dos golpes ----------
-  ['pidgey', 'pidgeotto', 'butterfree', 'zubat', 'golbat', 'scyther', 'beedrill', 'gastly', 'magnemite'].forEach(k => { if (MS.SPECIES[k]) MS.SPECIES[k].fly = true; });
+  ['pidgey', 'pidgeotto', 'butterfree', 'zubat', 'golbat', 'scyther', 'beedrill', 'gastly', 'magnemite', 'magneton'].forEach(k => { if (MS.SPECIES[k]) MS.SPECIES[k].fly = true; });
   // rotação de matiz (graus) do visual shiny, por tipo principal; a espécie pode definir `sh` próprio
   const SH_TYPE = { fire: 180, water: 130, grass: 100, electric: 160, normal: 200, bug: 120, flying: 150, psychic: 120, dragon: 140, rock: 60, ground: 320, poison: 80, ice: 100, fighting: 160, ghost: 140 };
   Object.keys(MS.SPECIES).forEach(k => { const S = MS.SPECIES[k]; if (S.sh === undefined) S.sh = SH_TYPE[S.types[0]] || 150; });
@@ -400,9 +407,9 @@
 
   // espécies extras que podem se juntar aos selvagens de cada cenário (além dos fixos da fase)
   const POOL = {
-    campo: ['caterpie', 'pidgey', 'rattata'], floresta: ['caterpie', 'beedrill', 'pidgey', 'rattata'], praia: ['magikarp', 'starmie', 'seel'],
-    caverna: ['zubat', 'geodude', 'dugtrio', 'machop'], noite: ['gastly', 'zubat', 'golbat'], usina: ['magnemite', 'geodude', 'zubat'],
-    cabo: ['seel', 'starmie', 'geodude', 'magikarp'], gelo: ['seel', 'zubat', 'golbat', 'lapras'], lava: ['growlithe', 'magmar', 'geodude'],
+    campo: ['caterpie', 'pidgey', 'rattata', 'metapod'], floresta: ['caterpie', 'metapod', 'beedrill', 'pidgey', 'rattata'], praia: ['magikarp', 'starmie', 'seel'],
+    caverna: ['zubat', 'geodude', 'graveler', 'dugtrio', 'machop'], noite: ['gastly', 'zubat', 'golbat'], usina: ['magnemite', 'magneton', 'geodude', 'zubat'],
+    cabo: ['seel', 'dewgong', 'starmie', 'geodude', 'magikarp'], gelo: ['seel', 'dewgong', 'zubat', 'golbat', 'lapras'], lava: ['growlithe', 'magmar', 'geodude'],
     vitoria: ['machop', 'scyther', 'geodude', 'golbat'], montanha: []
   };
   MS.STAGES.forEach(st => { st.pool = POOL[st.theme] || []; });

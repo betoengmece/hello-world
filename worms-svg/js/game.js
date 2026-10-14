@@ -46,6 +46,22 @@
   };
 
   const $ = id => document.getElementById(id);
+  // não reescreve o DOM quando o conteúdo é idêntico ao do quadro anterior (menos repintura = menos calor/bateria)
+  const _setHtml = typeof Element !== 'undefined' ? Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML') : null;
+  function cacheHtml(ids) {
+    if (!_setHtml) return;
+    for (const id of ids) {
+      const el = document.getElementById(id); let last = null;
+      Object.defineProperty(el, 'innerHTML', { configurable: true, get() { return last === null ? _setHtml.get.call(el) : last; },
+        set(v) { v = String(v); if (v === last) return; last = v; _setHtml.set.call(el, v); } });
+    }
+  }
+  const _attrCache = new Map();
+  function setAttrOnce(id, name, val) {
+    const key = id + '|' + name;
+    if (_attrCache.get(key) === val) return;
+    _attrCache.set(key, val); $(id).setAttribute(name, val);
+  }
   const f1 = v => (+v).toFixed(1);
   const rnd = (a, b) => a + Math.random() * (b - a);
   const pick = arr => arr[Math.floor(Math.random() * arr.length)];
@@ -58,6 +74,8 @@
   let heights, grass, tuft, decor = [], graves = [], parts = [], floaters = [], clouds = [], cloudEls = [], fx = [], projs = [];
   let units = [], teams = [], turnTeam = 0, state = 'aim', wind = 0, power = 0, charging = false, angle = 45;
   let walkBudget = WALK_MAX, dirty = true, msg = '', msgT = 0, keys = {};
+  let camMoving = false;
+  let kbd = false;            // última entrada foi o teclado (Enter numa fase inicia; toque só seleciona)
   let menuPage = 'main', pageNo = 0, wxRounds = 3, wxPrev = null, wxK = 1;
   let guest = null, gCool = 1, gMode = '', gT = 0, gSide = 1, gDelay = 100, lastShotGuest = false, splashU = null, evo = null;
   let weather = null, lightT = 300, bolt = null;
@@ -94,6 +112,7 @@
     else if ((state === 'aim' || state === 'ai') && charging && scene === 'battle') {
       const u = activeUnit(); if (u) { tx = u.x; ty = u.y - 30; tz = 1.15; k = 0.04; }
     }
+    camMoving = Math.abs(tz - cam.z) * 60 + Math.abs(tx - cam.x) + Math.abs(ty - cam.y) > 1.5;
     cam.z += (tz - cam.z) * k * 0.8;
     cam.x += (tx - cam.x) * k;
     cam.y += (ty - cam.y) * k;
@@ -1435,11 +1454,15 @@
     $('waveFront').setAttribute('d', front + ` L${W},${H} Z`);
   }
 
-  function renderClouds() {
-    clouds.forEach((c, i) => {
+  function stepClouds() {
+    for (const c of clouds) {
       c.x += c.sp + wind * 0.04;
       if (c.x > W + 110) c.x = -110;
       if (c.x < -110) c.x = W + 110;
+    }
+  }
+  function renderClouds() {
+    clouds.forEach((c, i) => {
       cloudEls[i].setAttribute('transform', `translate(${f1(c.x)} ${f1(c.y)}) scale(${c.s.toFixed(2)})`);
     });
   }
@@ -1468,7 +1491,7 @@
     if (w === 'rain') {
       s += `<rect width="800" height="500" fill="#0a1a33" opacity=".3"/>`;
       const sl = -wind * 0.1 - 0.12;
-      for (let i = 0; i < 90; i++) {
+      for (let i = 0; i < 64; i++) {
         const sp = 15 + (i % 5) * 2.5, y = ((frameNo * sp + i * 53) % 540) - 20, x = ((i * 131.7) % 880) - 40 + y * -sl;
         s += `<line x1="${f1(x)}" y1="${f1(y)}" x2="${f1(x + sl * 16)}" y2="${f1(y + 16)}" stroke="#cfe9ff" stroke-width="${i % 3 ? 1.1 : 1.6}" opacity="${(0.28 + (i % 4) * 0.08).toFixed(2)}" stroke-linecap="round"/>`;
       }
@@ -1782,12 +1805,12 @@
     if (dirty) { renderTerrain(); dirty = false; }
     renderWater();
     renderClouds();
-    $('Lsky').setAttribute('transform', camT(0.08));
-    $('Lfar').setAttribute('transform', camT(0.25));
-    $('Lnear').setAttribute('transform', camT(0.5));
-    $('Lmid').setAttribute('transform', camT(0.65));
-    $('Lworld').setAttribute('transform', camT(1));
-    $('Lfore').setAttribute('transform', camT(1.3));
+    setAttrOnce('Lsky', 'transform', camT(0.08));
+    setAttrOnce('Lfar', 'transform', camT(0.25));
+    setAttrOnce('Lnear', 'transform', camT(0.5));
+    setAttrOnce('Lmid', 'transform', camT(0.65));
+    setAttrOnce('Lworld', 'transform', camT(1));
+    setAttrOnce('Lfore', 'transform', camT(1.3));
 
     const inBattle = scene === 'battle';
     const act = inBattle && state !== 'over' && teams[turnTeam] ? activeUnit() : null;
@@ -1891,14 +1914,14 @@
     const cols = 4, cw = 168, ch = 68, gx = 12, gy_ = 10, x0 = Math.round((W - (cols * cw + (cols - 1) * gx)) / 2), y0 = 84;
     let s = `<rect width="800" height="500" fill="#0b1630" opacity=".62"/>
       <text x="400" y="40" text-anchor="middle" font-size="26" font-weight="800" fill="#fff">Escolher fase</text>
-      <text x="400" y="62" text-anchor="middle" font-size="12" fill="#cfe">Volte a uma fase anterior para capturar o que ficou para trás (seus Pokémon e XP são mantidos).</text>`;
+      <text x="400" y="62" text-anchor="middle" font-size="12" fill="#cfe">Toque numa fase para ver o que dá para capturar, e em Jogar para entrar. Seus Pokémon e XP são mantidos.</text>`;
     STAGES.forEach((st, i) => {
       const col = i % cols, row = Math.floor(i / cols), x = x0 + col * (cw + gx), y = y0 + row * (ch + gy_);
       const locked = i > sv.stage, cleared = sv.done || i < sv.stage, cur = i === sv.stage && !sv.done;
       const sel = i === uiSel;
-      uiList.push({ x, y, w: cw, h: ch, fn: () => playStage(i), disabled: locked });
+      uiList.push({ x, y, w: cw, h: ch, fn: () => { if (kbd && !locked) playStage(i); }, disabled: false });
       s += `<g opacity="${locked ? 0.42 : 1}"><rect x="${x}" y="${y}" width="${cw}" height="${ch}" rx="12" fill="${sel && !locked ? '#ffb347' : '#1b2a44'}" fill-opacity="${sel && !locked ? 0.96 : 0.92}"
-          stroke="${cur ? '#8fe070' : '#fff'}" stroke-opacity="${cur ? 1 : 0.55}" stroke-width="${cur ? 3 : 1.6}"/>
+          stroke="${sel ? '#ffb347' : cur ? '#8fe070' : '#fff'}" stroke-opacity="${sel || cur ? 1 : 0.55}" stroke-width="${sel || cur ? 3 : 1.6}"/>
         <text x="${x + 16}" y="${y + 40}" font-size="30" font-weight="900" fill="${sel && !locked ? '#241400' : '#ffd34d'}">${i + 1}</text>
         <text x="${x + 44}" y="${y + 29}" font-size="12.5" font-weight="bold" fill="${sel && !locked ? '#241400' : '#fff'}">${st.name}</text>
         <text x="${x + 44}" y="${y + 47}" font-size="10" fill="${sel && !locked ? '#3a2400' : '#bfe3ff'}">${locked ? 'bloqueada' : cleared ? '✔ concluída' : 'fase atual'}${st.boss ? ' · CHEFE' : ''}</text>
@@ -1915,7 +1938,8 @@
       <text x="${x0 + 16}" y="${iy + 42}" font-size="11.5" fill="#fff">Selvagens: <tspan fill="#ffb3a8">${names(F.enemies)}</tspan></text>
       <text x="${x0 + 16}" y="${iy + 60}" font-size="11.5" fill="#fff">Visitantes: <tspan fill="#ffe27a">${names((F.guests || []).map(g => g.sp)) || '—'}</tspan></text>
       <text x="${x0 + 16}" y="${iy + 78}" font-size="11.5" fill="#fff">Clima: <tspan fill="#9fe0ff">${wx}</tspan></text>`;
-    s += uiBtn(300, 436, 200, 42, '◀ Voltar', () => { menuPage = 'main'; uiSel = 1; }, { fs: 17 });
+    s += uiBtn(170, 436, 210, 42, '◀ Voltar', () => { menuPage = 'main'; uiSel = 1; }, { fs: 17 });
+    s += uiBtn(420, 436, 210, 42, 'Jogar ▶', () => { if (fi <= sv.stage) playStage(fi); }, { fs: 17, disabled: fl });
     return s;
   }
 
@@ -2196,7 +2220,7 @@
       else if (e.key === 'ArrowLeft' || (!gridN && e.key === 'ArrowUp')) { uiSel = (uiSel + n - 1) % n; Sfx.click(); e.preventDefault(); }
       else if (gridN && e.key === 'ArrowDown') { uiSel = uiSel + gridN < nGrid ? uiSel + gridN : (uiSel < nGrid ? n - 1 : uiSel); Sfx.click(); e.preventDefault(); }
       else if (gridN && e.key === 'ArrowUp') { uiSel = uiSel >= nGrid ? nGrid - 1 : Math.max(0, uiSel - gridN); Sfx.click(); e.preventDefault(); }
-      else if (e.key === 'Enter' || e.code === 'Space') { e.preventDefault(); if (!e.repeat) activate(uiSel); }
+      else if (e.key === 'Enter' || e.code === 'Space') { e.preventDefault(); if (!e.repeat) { kbd = true; activate(uiSel); kbd = false; } }
       else if (e.key === 'Escape') { if (scene === 'menu') { if (menuPage === 'stages') { menuPage = 'main'; uiSel = 1; } } else initMenu(); }
       return;
     }
@@ -2245,10 +2269,11 @@
     }
   }
 
-  function frame() {
+  // lógica do jogo: sempre em passos fixos de 1/60 s (iPhones ProMotion chamam o quadro a 120 Hz)
+  function tick() {
     frameNo++;
     drawerT = Math.max(0, Math.min(1, drawerT + (settingsOpen ? 0.09 : -0.09)));
-    if (settingsOpen) { updateCamera(); renderAll(); requestAnimationFrame(frame); return; }   // pausado
+    if (settingsOpen) { updateCamera(); return; }   // pausado
     for (const u of units) {
       if (u.breath > 0) u.breath--;
       if (u.hurt > 0) u.hurt--;
@@ -2258,6 +2283,7 @@
     else if (scene === 'intro') stepIntro();
     updateUnits();
     stepParts();
+    stepClouds();
     flash.a *= 0.86;
     for (const f of fx) f.t++;
     fx = fx.filter(f => f.t < f.max);
@@ -2265,8 +2291,32 @@
     floaters = floaters.filter(f => f.t < 60);
     if (msgT > 0 && --msgT === 0) msg = '';
     updateCamera();
-    renderAll();
+  }
+
+  // há movimento rápido na tela? então desenha a 60 fps; parado (mirando, menus) desenha a 30 fps
+  function busy() {
+    if (settingsOpen) return drawerT > 0 && drawerT < 1;
+    return projs.length > 0 || charging || !!cap || fx.length > 0 || floaters.length > 0 || flash.a > 0.02 || cam.shake > 0 ||
+      !!(evo) || ['flying', 'capture', 'settle', 'guest', 'skip', 'evolve'].includes(state) || scene === 'intro' ||
+      !!(keys.left || keys.right || keys.up || keys.down) || camMoving;
+  }
+
+  const STEP = 1000 / 60;
+  let lastTs = 0, acc = 0, renderPar = 0;
+  function frame(ts) {
     requestAnimationFrame(frame);
+    let steps = 1;
+    if (typeof ts === 'number') {
+      if (!lastTs) lastTs = ts;
+      acc += Math.min(100, ts - lastTs); lastTs = ts;
+      steps = 0;
+      while (acc >= STEP - 2 && steps < 3) { acc -= STEP; steps++; }
+      if (acc < -STEP) acc = 0;
+      if (acc > STEP * 3) acc = 0;
+    }
+    if (!steps) return;
+    for (let i = 0; i < steps; i++) tick();
+    if (steps > 1 || busy() || (++renderPar & 1)) renderAll();
   }
 
   // para testes automatizados
@@ -2298,6 +2348,7 @@
     }
   };
 
+  cacheHtml(['introBack', 'decor', 'intro', 'aim', 'worms', 'proj', 'pshadow', 'parts', 'fx', 'floaters', 'powerbar', 'hud', 'msgbox', 'overlay']);
   applySettings();
   initMenu();
   requestAnimationFrame(frame);

@@ -47,26 +47,38 @@
 
   // ---------- Gastly e Gengar ----------
   function gastly(c) {
-    const t = c.f * 0.07 + c.x, hv = Math.sin(t) * 2.2;
-    let gas = '';
-    for (let i = 0; i < 7; i++) {
-      const a = t * 1.3 + i * 0.9, r = 11 + (i % 3) * 2.4;
-      gas += `<circle cx="${f1(Math.cos(a) * r)}" cy="${f1(Math.sin(a * 0.8) * r * 0.9)}" r="${f1(3.4 + (i % 3) * 1.2)}" fill="#7a56b4" opacity="${(0.28 + (i % 2) * 0.12).toFixed(2)}"/>`;
+    // gás roxo-escuro: corpo redondo com franjas de fumaça na base, olhos grandes e um sorriso com presas
+    const t = c.f * 0.07 + c.x, hv = Math.sin(t) * 2.2, sw = Math.sin(t * 1.1);
+    const tail = (k, x, len, ph) => {
+      const xe = x + Math.sin(t * 1.4 + ph) * 3, ye = len;
+      return `<path d="M${f1(x - 4)},-6 Q${f1(x + Math.sin(t + ph) * 4)},${f1(ye * 0.5)} ${f1(xe)},${f1(ye)} Q${f1(x + 4)},${f1(ye * 0.5)} ${f1(x + 4)},-6 Z" fill="#4a2c7e" stroke="#120e22" stroke-width=".7" opacity="${k}"/>`;
+    };
+    const wisps = [];
+    for (let i = 0; i < 4; i++) {
+      const a = t * 0.9 + i * 1.7, r = 14 + (i % 2) * 2.5;
+      wisps.push(`<circle cx="${f1(Math.cos(a) * r)}" cy="${f1(Math.sin(a * 0.9) * r * 0.8 - 6)}" r="${f1(3 + (i % 2) * 1.4)}" fill="#7a56b4" opacity="${(0.3 + (i % 2) * 0.15).toFixed(2)}"/>`);
     }
+    const eyes = c.blink
+      ? `<path d="M-6.4,-14.2 Q-3.6,-12.2 -.8,-14.2 M3.2,-14.2 Q6,-12.2 8.8,-14.2" fill="none" stroke="#f2e8ff" stroke-width="1.6" stroke-linecap="round"/>`
+      : `<ellipse cx="-3.4" cy="-13.6" rx="3.4" ry="4.4" fill="#f4eeff" stroke="#120e22" stroke-width=".8"/>
+         <ellipse cx="5.6" cy="-13.6" rx="3.4" ry="4.4" fill="#f4eeff" stroke="#120e22" stroke-width=".8"/>
+         <ellipse cx="-2.6" cy="-12.6" rx="1.7" ry="2.5" fill="#6a2aa8"/><ellipse cx="6.4" cy="-12.6" rx="1.7" ry="2.5" fill="#6a2aa8"/>
+         <circle cx="-2.0" cy="-13.8" r=".7" fill="#fff"/><circle cx="7.0" cy="-13.8" r=".7" fill="#fff"/>`;
     return `<ellipse cx="0" cy=".5" rx="${f1(9 - hv * 0.5)}" ry="2" fill="#000" opacity=".2"/>
     <g transform="translate(0 ${f1(-23 + hv)})">
-      ${gas}
-      <circle r="13.4" fill="#9a7ac8" opacity=".22"/>
-      <circle r="11.6" fill="url(#gBlack)" stroke="#120e22" stroke-width="1.3"/>
-      <path d="M-8,-7 Q-3,-11 3,-10" fill="none" stroke="#fff" stroke-width="1.3" stroke-linecap="round" opacity=".28"/>
-      <path d="M-1,-8 L5,-5.6 M9.4,-5.4 L14,-7.6" stroke="#120e22" stroke-width="2" stroke-linecap="round" opacity="0"/>
-      ${c.blink ? `<path d="M-0.6,-2 h5 M7,-2 h5" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/>`
-                : `<ellipse cx="2" cy="-2.4" rx="3.2" ry="4" fill="#fff" stroke="#120e22" stroke-width=".8"/><ellipse cx="9.4" cy="-2.2" rx="2.8" ry="3.6" fill="#fff" stroke="#120e22" stroke-width=".8"/>
-                   <circle cx="3.2" cy="-2.2" r="1.7" fill="#5a2a8a"/><circle cx="10.2" cy="-2" r="1.5" fill="#5a2a8a"/><circle cx="3.6" cy="-3" r=".6" fill="#fff"/>`}
-      <path d="M-1.4,-6.6 L4.6,-5.8 M7.4,-5.6 L12.6,-7" stroke="#120e22" stroke-width="1.4" stroke-linecap="round"/>
-      <path d="M-1.6,4.4 Q5,12 12,4.2 Q5,7.2 -1.6,4.4 Z" fill="#d03a6a" stroke="#120e22" stroke-width="1"/>
-      <path d="M2.4,9.4 Q5,12.6 7.6,9.4" fill="#ff7a9a" stroke="none"/>
-      ${puff(c, [10, 4], '#9a7ac8', '#e0d0f8')}
+      ${wisps.join('')}
+      <circle r="15" fill="#9a7ac8" opacity=".2"/>
+      ${tail(0.55, -7, 14 + sw * 1.5, 0)}${tail(0.7, 0, 16 - sw * 1.5, 2)}${tail(0.5, 7, 12 + sw, 4)}
+      <path d="M-13,-3 C-17,-15 -9,-23 0,-23 C10,-23 17,-15 13,-3 C12,2 10,-1 8,2 C6,-2 4,4 2,0 C0,4 -2,-2 -4,2 C-6,-2 -8,3 -10,0 C-11,1 -12,0 -13,-3 Z" fill="url(#gBlack)" stroke="#120e22" stroke-width="1.3" stroke-linejoin="round"/>
+      <path d="M-8,-16 Q-4,-20.4 3,-20.4" fill="none" stroke="#c8b0ec" stroke-width="1.5" stroke-linecap="round" opacity=".35"/>
+      <path d="M8.6,-11 Q10.6,-7 9.2,-4" fill="none" stroke="#7a56b4" stroke-width="1.2" stroke-linecap="round" opacity=".5"/>
+      <path d="M-10,-19 q-2,-3 -5,-3 M11,-19.4 q2,-3 5,-3" fill="none" stroke="#9a7ac8" stroke-width="1.3" stroke-linecap="round" opacity=".7"/>
+      ${eyes}
+      <path d="M-7.2,-19 L-3.4,-17.4 M8.2,-19.4 L4.4,-17.6" stroke="#120e22" stroke-width="1.5" stroke-linecap="round" opacity=".8"/>
+      <path d="M-8.4,-5.2 Q0,6.6 9.6,-6.2 Q4,-1.6 0,-1.4 Q-4.6,-1.4 -8.4,-5.2 Z" fill="#2a0a20" stroke="#120e22" stroke-width=".9" stroke-linejoin="round"/>
+      <path d="M-5.2,-3.6 L-4.4,0.6 L-2.8,-2.4 M2.4,-2.6 L3.6,1.6 L5.2,-2.8" fill="#fff" stroke="#120e22" stroke-width=".5" stroke-linejoin="round"/>
+      <path d="M-1.2,2.2 Q1.2,4 3.8,2" fill="none" stroke="#ff6a9a" stroke-width="1.2" stroke-linecap="round" opacity=".8"/>
+      ${puff(c, [11, 0], '#9a7ac8', '#e0d0f8')}
     </g>`;
   }
 

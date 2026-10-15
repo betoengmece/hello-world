@@ -47,31 +47,32 @@
 
   // ---------- Gastly e Gengar ----------
   function gastly(c) {
-    // bola de gás: esfera escura cercada de línguas de gás roxo ondulando, olhos grandes e sorriso largo
-    const t = c.f * 0.07 + c.x, hv = Math.sin(t) * 2.2;
-    const P = (r, a) => `${f1(Math.cos(a) * r)},${f1(Math.sin(a) * r)}`;
-    let gas = '';
-    const N = 9;
+    // esfera preta envolta numa névoa de gás roxo e fofo; olhos grandes inclinados e sorriso enorme com presinhas
+    const t = c.f * 0.07 + c.x, hv = Math.sin(t) * 2.2, N = 13;
+    let outer = '', inner = '';
     for (let i = 0; i < N; i++) {
-      const a = i * (Math.PI * 2 / N) + Math.sin(t * 0.6) * 0.15, tip = 19 + Math.sin(t * 1.5 + i * 1.9) * 3 + (i % 3) * 1.6;
-      gas += `<path d="M${P(8.4, a - 0.5)} C${P(15, a - 0.55)} ${P(tip + 1, a - 0.1)} ${P(tip, a + 0.38)} C${P(tip - 3, a + 0.12)} ${P(14, a + 0.4)} ${P(8.4, a + 0.5)} Z" fill="${i % 2 ? '#8a62c4' : '#6a46a8'}" opacity=".78"/>`;
+      const a = i * (Math.PI * 2 / N) + t * 0.22, r = 13.6 + Math.sin(t * 1.3 + i * 2.1) * 1.6;
+      const pr = 5.6 + (i % 3) * 1.1 + Math.sin(t * 1.7 + i) * 0.8;
+      const x = Math.cos(a), y = Math.sin(a) * 0.94;
+      outer += `<circle cx="${f1(x * (r + 1.5))}" cy="${f1(y * (r + 1.5))}" r="${f1(pr + 1.8)}" fill="#b89ce2" opacity=".3"/>`;
+      inner += `<circle cx="${f1(x * (r - 2.4))}" cy="${f1(y * (r - 2.4))}" r="${f1(pr)}" fill="${i % 2 ? '#7d55bf' : '#6643a8'}" opacity=".78"/>`;
     }
     const eyes = c.blink
-      ? `<path d="M-6.6,-3 Q-3.6,-1 -.6,-3 M3.8,-3 Q6.8,-1 9.8,-3" fill="none" stroke="#f4eeff" stroke-width="1.7" stroke-linecap="round"/>`
-      : `<path d="M-8,-4 Q-4,-11 0.6,-5.4 Q-1,0 -5,0 Q-8.4,-0.6 -8,-4 Z" fill="#fff" stroke="#120e22" stroke-width=".9" stroke-linejoin="round"/>
-         <path d="M3,-5.4 Q7.6,-11 11.6,-4 Q11.4,-0.6 7.8,0 Q4,0 3,-5.4 Z" fill="#fff" stroke="#120e22" stroke-width=".9" stroke-linejoin="round"/>
-         <ellipse cx="-3" cy="-3.4" rx="1.5" ry="2.8" fill="#1a1030"/><ellipse cx="7.6" cy="-3.4" rx="1.5" ry="2.8" fill="#1a1030"/>`;
-    return `<ellipse cx="0" cy=".5" rx="${f1(9 - hv * 0.5)}" ry="2" fill="#000" opacity=".2"/>
+      ? `<path d="M-8.6,-6.4 Q-4.6,-2.6 -0.8,-4.2 M13,-6.4 Q9,-2.6 5.2,-4.2" fill="none" stroke="#f4eeff" stroke-width="1.6" stroke-linecap="round"/>`
+      : `<path d="M-9.2,-9 Q-9.4,-2.2 -4.4,-1.2 Q-0.6,-1 -0.6,-4.6 Q-4.2,-5.4 -9.2,-9 Z" fill="#fff" stroke="#120e22" stroke-width=".8" stroke-linejoin="round"/>
+         <path d="M13.6,-9 Q13.8,-2.2 8.8,-1.2 Q5,-1 5,-4.6 Q8.6,-5.4 13.6,-9 Z" fill="#fff" stroke="#120e22" stroke-width=".8" stroke-linejoin="round"/>
+         <circle cx="-3.4" cy="-3.2" r="1.35" fill="#120e22"/><circle cx="8" cy="-3.2" r="1.35" fill="#120e22"/>`;
+    return `<ellipse cx="0" cy=".5" rx="${f1(10 - hv * 0.5)}" ry="2.2" fill="#000" opacity=".2"/>
     <g transform="translate(0 ${f1(-23 + hv)})">
-      <circle r="16.5" fill="#9a7ac8" opacity=".14"/>
-      ${gas}
-      <circle r="12.4" fill="url(#gBlack)" stroke="#120e22" stroke-width="1.4"/>
-      <path d="M-8,-8 Q-3,-12.4 3,-11.4" fill="none" stroke="#c8b0ec" stroke-width="1.4" stroke-linecap="round" opacity=".3"/>
+      ${outer}${inner}
+      <circle r="12.2" fill="url(#gBlack)" stroke="#1a1030" stroke-width="1.2"/>
+      <circle r="11" fill="none" stroke="#6a46a8" stroke-width="1.2" opacity=".35"/>
+      <path d="M-8.4,-7.6 Q-5,-10.8 -1,-11.2" fill="none" stroke="#d8c8f4" stroke-width="1.2" stroke-linecap="round" opacity=".35"/>
       ${eyes}
-      <path d="M-9,-8.6 L-1.4,-6.6 M12.4,-8.4 L4.6,-6.6" stroke="#120e22" stroke-width="1.6" stroke-linecap="round"/>
-      <path d="M-8.4,3.6 Q1.6,12.6 11.6,2.6 Q4,5.4 -8.4,3.6 Z" fill="#c4306a" stroke="#120e22" stroke-width="1" stroke-linejoin="round"/>
-      <path d="M-2,6.4 Q2.6,11.6 7,6.4 Q2.6,8.2 -2,6.4 Z" fill="#ff7a9a"/>
-      ${puff(c, [12, 4], '#9a7ac8', '#e0d0f8')}
+      <path d="M-8.8,1.4 Q2.2,4.6 13.2,1.4 Q10,11.2 2.2,11.4 Q-5.6,11.2 -8.8,1.4 Z" fill="#7a1434" stroke="#120e22" stroke-width=".9" stroke-linejoin="round"/>
+      <path d="M-2.2,9.6 Q2.2,6.2 6.6,9.6 Q2.2,11.6 -2.2,9.6 Z" fill="#ff7c9e"/>
+      <path d="M-6.8,2.4 L-5.4,5.8 L-4,2.9 Z M11.2,2.4 L9.8,5.8 L8.4,2.9 Z" fill="#fff" stroke="#120e22" stroke-width=".5" stroke-linejoin="round"/>
+      ${puff(c, [12, 5], '#9a7ac8', '#e0d0f8')}
     </g>`;
   }
 

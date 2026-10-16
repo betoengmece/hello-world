@@ -29,6 +29,15 @@ Jogo de artilharia por turnos feito inteiramente com SVG. Personagens, terreno d
 16. **✨ Shiny:** cada selvagem (inclusive visitantes) tem **1 chance em 1000** de ser shiny, com a cor trocada, brilhinhos e ✨ no nome. Dá para capturar e ele continua shiny (salvo no jogo, mantido ao evoluir).
 17. **Golpes com personalidade:** os ataques agora se comportam de forma diferente. Os pesados (**pedra, pedrada, lama, golpe corporal**) quase ignoram o vento, fazem a tela tremer e a pedra é maior; os leves (**folhas, ventania, vento prateado, Onda Sônica**) são levados pelo vento. Efeitos: **queimadura** (Fogo) e **veneno** causam dano por 3 turnos; **congelar** (Gelo), **paralisar** (Elétrico, Lambida) e **dormir** (Canto, Pó do Sono) fazem perder a vez; o raio dá **arco elétrico** que salta para outro alvo; **Avalanche** e **Sementes** se dividem no ar; **Rolamento** quica; **Terremoto** abala o solo inteiro; **Lama** ergue terreno; **Sombra** atravessa o chão; **Psíquico** persegue o alvo; golpes de lutador/investida têm **crítico**; Folha Navalha 2 **rouba PV**. A descrição do golpe aparece no painel do topo.
 
+18. **Batalha no estilo dos mobiles (GunBound):**
+    - **Ilhas flutuantes:** as fases agora são ilhas soltas no céu, com vãos entre elas e rocha pendurada por baixo. Quem cai das ilhas vai para a água e está fora.
+    - **Terreno destrutível de verdade:** cada explosão abre um buraco redondo, que pode virar cratera funda, túnel ou partir a ilha. Quem está em cima despenca. A grama queima onde o golpe passou.
+    - **Andar como os mobiles:** o Pokémon sobe degraus pequenos, para em paredes e tetos de túnel, cai em buracos e **inclina o corpo** com o morro. Dá para andar até a beira e cair (a IA não faz isso).
+    - **Ordem por atraso:** não é mais um time de cada vez. Joga o Pokémon (de qualquer lado) com menos **atraso** acumulado. Golpes fortes custam mais atraso; andar e demorar também. O painel **ORDEM · ATRASO** (topo esquerdo) mostra quem vem a seguir. O time com menos Pokémon paga menos atraso por ação, para 1 contra 3 continuar justo.
+    - **Mira relativa ao corpo:** o ângulo é medido a partir do corpo inclinado, então num morro o mesmo ângulo sai mais alto ou mais baixo. Virar para o outro lado espelha a mira.
+    - **Vento em qualquer direção:** muda a cada turno, inclusive para cima e para baixo (bússola no topo).
+    - **Barra de baixo:** mostrador do ângulo, força com a **marca do último tiro** daquele Pokémon e barra de movimento. Cada turno tem **30 segundos**; se acabar, passa a vez. **P** (ou o botão **PASSAR**) passa a vez de propósito.
+    - **Cavar (Onix):** o golpe entra no chão, abre um túnel e explode lá dentro.
 
 ## Tipos e ataques
 
@@ -46,7 +55,7 @@ Ataques com o tipo certo causam **o dobro de dano** ("Super efetivo!"); com o ti
 | Starmie | Água/Psíquico | Psíquico: esfera que persegue o alvo (variante: Hidro Pulso) |
 | Magikarp | Água | Splash: não faz nada (mas é fácil de capturar) |
 | Dratini | Dragão | Fúria do Dragão (chefe da campanha, pequeno e frágil) |
-| Onix | Pedra/Terra | Lançar Pedra: pedra grande e pesada, ignora o vento e faz tudo tremer (variante: Avalanche) |
+| Onix | Pedra/Terra | Cavar: entra no chão, abre um túnel e explode lá dentro (variantes: Avalanche, Cavar Veloz) |
 | Beedrill | Inseto/Veneno | Ferrão Venenoso: dois ferrões roxos, pouco dano ao terreno |
 | Jigglypuff | Normal | Canto: onda sonora leve que põe para dormir (variante: Pancada) |
 | Dugtrio | Terra | Bomba de Lama: pesada, ergue terreno (variante: Terremoto) |
@@ -84,13 +93,13 @@ Relações usadas: Pedra > Fogo, Voador, Inseto · Terra > Fogo, Elétrico, Pedr
 | Segurar ESPAÇO | carregar força; soltar para atirar |
 | B | ativar/cancelar a Pokébola (campanha) |
 | G | trocar de golpe (quando o Pokémon tem dois) |
-| TAB | trocar de parceiro |
+| P | passar a vez (a ordem dos turnos é por atraso) |
 | R | reiniciar a fase |
 | M | liga/desliga o som |
 | O (ou botão ⚙) | menu lateral de ajustes: brilho da tela e volume do som (o jogo pausa; ← → ajusta, ↑ ↓ escolhe). Fica salvo no navegador |
 | ESC | volta ao menu |
 
-**No celular:** botões na tela (◀ ▶ andar, ▲ ▼ mirar, segure TIRO para carregar e solte para atirar, BOLA, GOLPE (quando houver dois golpes), ⇄ troca, ↻ reinicia, ☰ menu, 🔊 som). Jogue com o celular deitado. Menus funcionam por toque. Em mapas largos, arraste na tela ou toque no minimapa para olhar o resto do mapa.
+**No celular:** botões na tela (◀ ▶ andar, ▲ ▼ mirar, segure TIRO para carregar e solte para atirar, BOLA, GOLPE (quando houver dois golpes), PASSAR, ↻ reinicia, ⚙ ajustes à esquerda, ☰ menu, 🔊 som). Jogue com o celular deitado. Menus funcionam por toque. Em mapas largos, arraste na tela ou toque no minimapa para olhar o resto do mapa.
 
 ## Visual 2.5D e som
 

@@ -60,7 +60,7 @@
     <linearGradient id="seaFront" x1="0" y1="0" x2="0" y2="1">
       <stop id="seaFS0" offset="0" stop-color="#4aa3e0" stop-opacity=".92"/><stop id="seaFS1" offset="1" stop-color="#123a63"/>
     </linearGradient>
-    <clipPath id="tclip"><path id="tclipPath"/></clipPath>
+    <clipPath id="tclip"><path id="tclipPath" clip-rule="evenodd"/></clipPath>
 
     <!-- personagens -->
     <radialGradient id="gOrange" cx=".38" cy=".3" r=".8">
@@ -254,9 +254,9 @@
   <g id="Lworld">
   <path id="waveBack" fill="url(#seaBack)"/>
 
-  <!-- terreno: uma "fatia de trás" deslocada dá espessura (2.5D) e mostra o fundo das crateras -->
+  <!-- terreno: ilhas flutuantes destrutíveis; a "fatia de trás" deslocada dá espessura (2.5D) e aparece pelos buracos -->
   <g transform="translate(7 -9)">
-    <path id="tback" fill="#3d2818"/>
+    <path id="tback" fill="#3d2818" fill-rule="evenodd"/>
     <path id="tbackBurnt" fill="none" stroke="#1a100a" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
     <path id="tbackGrass" fill="none" stroke="#3a6b25" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>
   </g>
@@ -265,7 +265,9 @@
     <path id="strata1" fill="#4a2c16" opacity=".5"/>
     <path id="strata2" fill="#2a180c" opacity=".7"/>
     <rect id="dirtTexRect" width="800" height="500" fill="url(#dirtTex)"/>
+    <g id="scorch" fill="none" stroke="#1a0f08" stroke-width="5" opacity=".42"></g>
   </g>
+  <path id="tedge" fill="none" stroke="#1e130b" stroke-opacity=".55" stroke-width="2" stroke-linejoin="round" fill-rule="evenodd"/>
   <path id="edgeBurnt" fill="none" stroke="#1e130b" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
   <path id="edgeGrass" fill="none" stroke="#3f8a2a" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
   <path id="edgeGrassHi" fill="none" stroke="#8fd14f" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" transform="translate(0 -2.5)"/>
@@ -300,7 +302,7 @@
     <g class="btn" data-act="up"><rect x="548" y="420" width="62" height="62" rx="14"/><text x="579" y="461">▲</text></g>
     <g class="btn" data-act="down"><rect x="618" y="420" width="62" height="62" rx="14"/><text x="649" y="461">▼</text></g>
     <g class="btn" data-act="fire"><circle cx="738" cy="436" r="46"/><text x="738" y="444" style="font-size:18px">TIRO</text></g>
-    <g class="btn" data-act="switch"><rect x="676" y="8" width="56" height="44" rx="10"/><text x="704" y="39" style="font-size:22px">⇄</text></g>
+    <g class="btn" data-act="pass"><rect x="676" y="8" width="56" height="44" rx="10"/><text x="704" y="36" style="font-size:12px">PASSAR</text></g>
     <g class="btn" data-act="restart"><rect x="738" y="8" width="54" height="44" rx="10"/><text x="765" y="39" style="font-size:22px">↻</text></g>
   </g>
   <g class="btn" id="moveBtn" data-act="move" style="display:none"><circle cx="766" cy="284" r="28"/><text x="766" y="291" style="font-size:13px">GOLPE</text></g>
@@ -313,7 +315,7 @@
 <div id="help">
   <kbd>←</kbd> <kbd>→</kbd> andar &nbsp;·&nbsp; <kbd>↑</kbd> <kbd>↓</kbd> mirar &nbsp;·&nbsp;
   segure <kbd>ESPAÇO</kbd> para força e solte para atirar &nbsp;·&nbsp; <kbd>B</kbd> Pokébola (inimigo fraco) &nbsp;·&nbsp; <kbd>G</kbd> troca de golpe &nbsp;·&nbsp;
-  <kbd>Q</kbd> <kbd>E</kbd> olham o mapa (arraste na tela) &nbsp;·&nbsp; <kbd>TAB</kbd> troca de parceiro &nbsp;·&nbsp; <kbd>R</kbd> reinicia &nbsp;·&nbsp; <kbd>M</kbd> som &nbsp;·&nbsp; <kbd>ESC</kbd> menu
+  <kbd>Q</kbd> <kbd>E</kbd> olham o mapa (arraste na tela) &nbsp;·&nbsp; <kbd>P</kbd> passa a vez (joga quem tem menos atraso) &nbsp;·&nbsp; <kbd>R</kbd> reinicia &nbsp;·&nbsp; <kbd>M</kbd> som &nbsp;·&nbsp; <kbd>ESC</kbd> menu
 </div>
 <div id="rotate">📱 Gire o celular para o modo paisagem (deitado) para jogar melhor.</div>
 </div>

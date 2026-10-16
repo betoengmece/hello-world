@@ -153,3 +153,49 @@ console.log('OK: variantes de golpe, novos tipos, 11 fases, Magikarp -> Gyarados
   assert.equal(debug.get().campaign.roster[0],'metapod','Caterpie evolui para Metapod');
   console.log('OK: Metapod e evoluções Graveler, Magneton e Dewgong.');
 }
+
+// ---- quinta leva: ilhas flutuantes, terreno destrutível de verdade, andar estilo mobile e ordem por atraso ----
+{
+  // ilhas: o mapa tem vãos (colunas sem chão) e a máscara bate com a superfície
+  debug.setMap({w:1100,arch:'rolling'});debug.newCampaign('charmander');debug.beginStage(2);
+  const W=debug.W,H=500;let gaps=0;for(let x=0;x<W;x++)if(debug.surf(x)>H)gaps++;
+  assert(gaps>40,'mapa em ilhas tem vãos');
+  const g=debug.get();
+  for(const u of g.units){assert(debug.surf(u.x)<480,'todos nascem em chão firme');assert(!u.air);}
+  // explosão abre um buraco de verdade e quem está em cima cai
+  const me=g.units[0],y0=me.y;assert(debug.solid(me.x,me.y+2));
+  debug.carve(me.x,me.y+14,26);assert(!debug.solid(me.x,me.y+2),'buraco embaixo do Pokémon');
+  for(let i=0;i<40;i++)frameCallback();
+  assert(me.y>y0+8,'Pokémon caiu no buraco');
+  // túnel: carve no meio da ilha deixa chão em cima e embaixo
+  const tx=Math.round(g.units[g.units.length-1].x),top=debug.surf(tx);
+  debug.carve(tx,top+40,12);assert(debug.solid(tx,top+2)&&!debug.solid(tx,top+40)&&debug.solid(tx,top+60),'túnel com teto e chão');
+  assert(debug.terrainPath().length>100,'contorno do terreno desenhado');
+  debug.setMap(null);
+}
+{
+  // ordem por atraso: joga quem tem menos atraso, de qualquer time
+  debug.newCampaign('charmander');debug.beginStage(1);let g=debug.get();
+  const o=debug.turnOrder();assert(o[0]===g.units.find(u=>g.teams[g.turnTeam].units[g.teams[g.turnTeam].cur]===u),'quem joga é o primeiro da ordem');
+  const me=g.teams[0].units[0];const d0=me.delay;
+  debug.passTurn();assert(me.delay>d0+200,'passar a vez soma atraso');
+  for(let i=0;i<20;i++)frameCallback();
+  // golpe forte custa mais atraso que golpe fraco
+  assert(MS.WEAPONS.fogo2.dmg>MS.WEAPONS.teia.dmg);
+  // vento tem componente vertical
+  let vy=0;for(let i=0;i<30;i++){debug.newCampaign('charmander');debug.beginStage(9);vy=Math.max(vy,Math.abs(debug.windY));}
+  assert(vy>0.3,'vento sopra também para cima/baixo');
+}
+{
+  // Cavar (Onix): o golpe atravessa o chão abrindo um túnel
+  assert.equal(MS.SPECIES.onix.weapon,'cavar');assert(MS.WEAPONS.cavar.dig>0);assert(MS.moveNote(MS.WEAPONS.cavar).includes('túnel'));
+  debug.setMap({w:800,arch:'flat',layout:'sides'});debug.newCampaign('onix');debug.beginStage(3);
+  const u=debug.get().units[0];let before=0;const m=debug.mask;for(let i=0;i<m.length;i++)before+=m[i];
+  debug.setAngle(4);debug.setPower(12);debug.fire();
+  for(let i=0;i<500&&debug.get().state==='flying';i++)frameCallback();
+  let after=0;const m2=debug.mask;for(let i=0;i<m2.length;i++)after+=m2[i];
+  assert(before-after>1500,'Cavar removeu bastante terra (túnel + explosão)');
+  debug.setMap(null);
+}
+assert([...elements.values()].every(e=>!/(?:NaN|undefined)/.test(e.innerHTML)), 'camadas sem NaN depois das ilhas');
+console.log('OK: ilhas flutuantes, buracos e túneis, queda, ordem por atraso, vento 2D e Cavar.');

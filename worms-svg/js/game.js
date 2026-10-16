@@ -8,6 +8,7 @@
   const GRAV = 0.2;           // gravidade base (px/frame²)
   const WALK_MAX = 120;       // distância máxima de caminhada por turno (mapas largos dão um pouco mais)
   const walkMax = () => WALK_MAX + Math.max(0, W - 800) * 0.07;
+  const TURN_TIME = 30 * 60;  // 30 s para mirar e atirar (estourou: passa a vez)
   const WEAK = 0.35;          // abaixo dessa fração de PV o inimigo pode ser capturado
   const PLAYER_COL = '#3a9bff', WILD_COL = '#e0433a', GUEST_COL = '#ffd34d';
   const SAVE_KEY = 'ms_campaign_v1', SET_KEY = 'ms_settings_v1';
@@ -96,6 +97,7 @@
   let menuPage = 'main', pageNo = 0, wxRounds = 3, wxPrev = null, wxK = 1;
   let guest = null, gCool = 1, gMode = '', gT = 0, gSide = 1, gDelay = 100, lastShotGuest = false, splashU = null, evo = null;
   let weather = null, lightT = 300, bolt = null;
+  let terrAt = 0, windY = 0, windA = 0, windS = 0, turnT = 0, roundTurns = 0;   // vento em qualquer direção; tempo do turno; turnos na rodada
   let ballMode = false, ballType = 'ball', lastBall = false, lastBallType = 'ball', pickups = [], ai = null, cap = null, panel = null, pendingPanel = null;
   let campaign = null, stageIdx = 0, stageCaught = [], intro = null, teamSel = null;
   let uiList = [], uiSel = 0, themeKey = 'campo';
@@ -113,6 +115,25 @@
   const stars = mvs => (mvs === 'b' ? '' : mvs.includes('+') ? '★★' : '★');
   const centerOf = u => ({ x: u.x, y: u.y - spOf(u).hitY * u.scale });
   const hitRof = u => spOf(u).hitR * u.scale * (u.hrMul || 1);
+  // a mira é relativa ao corpo: num morro, o ângulo acompanha a inclinação (como os mobiles)
+  const tiltDeg = u => (u && !u.flying && scene === 'battle' ? (u.tilt || 0) * 180 / Math.PI : 0);
+  // boca (de onde sai o golpe) girada junto com o corpo inclinado
+  function mouthAt(u, face, ball) {
+    const S = spOf(u), dx = face * (ball ? 8 : S.mouth[0]) * u.scale, dy = (ball ? -S.h * 0.6 : S.mouth[1]) * u.scale;
+    const t = u.flying ? 0 : (u.tilt || 0), c = Math.cos(t), sn = Math.sin(t);
+    return { x: u.x + dx * c - dy * sn, y: u.y + dx * sn + dy * c };
+  }
+  // atraso: golpes fortes custam mais; andar e demorar também (quem tiver menos atraso joga antes)
+  const shotDelay = wk => { const w = WEAPONS[wk]; return w.none ? 400 : Math.round(520 + Math.min(420, (w.dmg || 10) * (w.count || 1) * 3.4)); };
+  const extraDelay = () => Math.round((1 - Math.max(0, walkBudget) / walkMax()) * 120 + Math.max(0, TURN_TIME - turnT) / 60 * 5);
+  // time menor paga menos atraso por ação: os dois lados atacam no mesmo ritmo (1 contra 3 não fica injusto)
+  function teamMul(u) {
+    const own = units.filter(v => v.alive && v.team === u.team).length, other = units.filter(v => v.alive && v.team !== u.team && v.team !== 2).length;
+    return u.team === 2 || !own || !other ? 1 : Math.sqrt(own / other);
+  }
+  function payDelay(u, base) { if (u) u.delay = (u.delay || 0) + Math.round((base + extraDelay()) * teamMul(u)); }
+  // ordem dos próximos a jogar (sem os visitantes)
+  const turnOrder = () => units.filter(v => v.alive && !v.hidden && v.team !== 2 && teams[v.team]).sort((a, b) => a.delay - b.delay || a.team - b.team);
 
   // ---------- Câmera 2.5D ----------
   const cam = { x: 400, y: 250, z: 1, shake: 0, sx: 0, sy: 0 };
@@ -217,6 +238,97 @@
     return 'rolling';
   }
 
+  // ---------- Terreno destrutível: máscara de pixels (1 = chão) ----------
+  // A física usa a máscara (buracos, túneis e ilhas de verdade); a tela usa o contorno dela, desenhado em SVG.
+  let mask = new Uint8Array(VW * H), terrDirty = true, scorch = [];
+  const solid = (x, y) => { x = Math.floor(x); y = Math.floor(y); return x >= 0 && x < W && y >= 0 && y < H && mask[y * W + x] === 1; };
+  // primeira linha de chão na coluna x, procurando de y0 para baixo (H + 200 = nada: vão / água)
+  function surf(x, y0 = 0) {
+    x = Math.floor(x); if (x < 0 || x >= W) return H + 200;
+    for (let y = Math.max(0, Math.floor(y0)); y < H; y++) if (mask[y * W + x]) return y;
+    return H + 200;
+  }
+  function syncTop(x0, x1) { for (let x = Math.max(0, x0 | 0); x <= Math.min(W - 1, Math.ceil(x1)); x++) heights[x] = surf(x, 0); }
+  function fillMask(top, bot) {
+    mask = new Uint8Array(W * H); scorch = [];
+    for (let x = 0; x < W; x++) {
+      if (bot[x] < 0) continue;
+      for (let y = Math.max(0, Math.ceil(top[x])), y1 = Math.min(H, Math.floor(bot[x])); y < y1; y++) mask[y * W + x] = 1;
+    }
+    syncTop(0, W - 1); terrDirty = true; dirty = true;
+  }
+  // divide o mapa em ilhas: mapas largos têm mais ilhas, sempre com vãos para cair
+  function islandSpans() {
+    const n = Math.max(2, Math.round(W / rnd(320, 470)));
+    const x0 = rnd(0, 24), x1 = W - rnd(0, 24);
+    const gaps = Array.from({ length: n - 1 }, () => rnd(44, 92));
+    const ws = Array.from({ length: n }, () => rnd(0.7, 1.3)), sw = ws.reduce((a, b) => a + b, 0);
+    const usable = x1 - x0 - gaps.reduce((a, b) => a + b, 0);
+    const out = []; let x = x0;
+    for (let i = 0; i < n; i++) { const w = usable * ws[i] / sw; out.push([x, x + w]); x += w + (gaps[i] || 0); }
+    return out;
+  }
+  // um ponto de pé firme perto de x (longe das bordas das ilhas)
+  function landX(x) {
+    const ok = xx => xx > 14 && xx < W - 14 && [-16, 0, 16].every(d => surf(xx + d) < WATER - 30) && Math.abs(surf(xx - 12) - surf(xx + 12)) < 30;
+    for (let d = 0; d < W; d += 3) for (const s of [1, -1]) { const xx = x + s * d; if (ok(xx)) return xx; }
+    return x;
+  }
+  // contorno da máscara (marching squares em grade de 2 px), suavizado: vira o "d" de um path SVG
+  function terrainPath() {
+    const C = 2, GW = Math.ceil(W / C) + 3, GH = Math.ceil(H / C) + 3;
+    const v = new Uint8Array(GW * GH);
+    for (let j = 0; j < GH; j++) for (let i = 0; i < GW; i++) {
+      const x = (i - 1) * C, y = (j - 1) * C;
+      v[j * GW + i] = (x >= 0 && x < W && y >= 0 && y < H && mask[y * W + x]) ? 1 : 0;
+    }
+    // arestas: id par = horizontal (i,j)-(i+1,j), ímpar = vertical (i,j)-(i,j+1); cada ponto de aresta liga 2 segmentos
+    const link = new Map();
+    const add = (a, b) => { (link.get(a) || link.set(a, []).get(a)).push(b); (link.get(b) || link.set(b, []).get(b)).push(a); };
+    for (let j = 0; j < GH - 1; j++) for (let i = 0; i < GW - 1; i++) {
+      const tl = v[j * GW + i], tr = v[j * GW + i + 1], br = v[(j + 1) * GW + i + 1], bl = v[(j + 1) * GW + i];
+      const c = tl * 8 + tr * 4 + br * 2 + bl;
+      if (c === 0 || c === 15) continue;
+      const T = (j * GW + i) * 2, B = ((j + 1) * GW + i) * 2, L = (j * GW + i) * 2 + 1, R = (j * GW + i + 1) * 2 + 1;
+      switch (c) {
+        case 1: case 14: add(L, B); break;
+        case 2: case 13: add(B, R); break;
+        case 3: case 12: add(L, R); break;
+        case 4: case 11: add(T, R); break;
+        case 6: case 9: add(T, B); break;
+        case 7: case 8: add(L, T); break;
+        case 5: add(L, T); add(B, R); break;
+        case 10: add(T, R); add(L, B); break;
+      }
+    }
+    const pt = id => { const e = id >> 1, i = e % GW, j = (e - i) / GW; return (id & 1) ? [(i - 1) * C, (j - 1) * C + C / 2] : [(i - 1) * C + C / 2, (j - 1) * C]; };
+    const seen = new Set(); let d = '';
+    for (const start of link.keys()) {
+      if (seen.has(start)) continue;
+      const loop = []; let prev = -1, cur = start;
+      while (cur !== undefined && !seen.has(cur)) {
+        seen.add(cur); loop.push(pt(cur));
+        const nb = link.get(cur), nx = nb[0] !== prev ? nb[0] : nb[1];
+        prev = cur; cur = nx;
+      }
+      if (loop.length < 3) continue;
+      // tira pontos colineares e suaviza os cantos (um passo de Chaikin)
+      const simp = [];
+      for (let k = 0; k < loop.length; k++) {
+        const a = loop[(k + loop.length - 1) % loop.length], b = loop[k], c2 = loop[(k + 1) % loop.length];
+        if ((b[0] - a[0]) * (c2[1] - b[1]) !== (b[1] - a[1]) * (c2[0] - b[0])) simp.push(b);
+      }
+      if (simp.length < 3) continue;
+      let s2 = '';
+      for (let k = 0; k < simp.length; k++) {
+        const a = simp[k], b = simp[(k + 1) % simp.length];
+        s2 += (k ? ' L' : 'M') + f1(a[0] * 0.75 + b[0] * 0.25) + ',' + f1(a[1] * 0.75 + b[1] * 0.25) + ' L' + f1(a[0] * 0.25 + b[0] * 0.75) + ',' + f1(a[1] * 0.25 + b[1] * 0.75);
+      }
+      d += s2 + 'Z';
+    }
+    return d || 'M0,0Z';
+  }
+
   function genWorld(key, ww = VW, arch = 'rolling') {
     W = ww; mapArch = arch;
     applyTheme(key);
@@ -228,16 +340,30 @@
     const bumps = Array.from({ length: nb }, () => ({ c: rnd(40, W - 40), w: sp ? rnd(16, 38) : rnd(35, 100), h: sp ? rnd(-120, -45) : rnd(-75, 55) }));
     const vc = rnd(0.35, 0.65) * W, sl = Math.random() < 0.5 ? 1 : -1, m1 = rnd(0.2, 0.32) * W, m2 = rnd(0.68, 0.8) * W;
     heights = new Float32Array(W); grass = new Uint8Array(W).fill(1); tuft = new Float32Array(W);
+    const solidGround = arch === 'ground';            // menu e fase da cidade: chão contínuo até a água
+    const top = new Float32Array(W), bot = new Float32Array(W).fill(-1);
     for (let x = 0; x < W; x++) {
       let h = base + amp * (26 * Math.sin(x * 0.011 + p1) + 14 * Math.sin(x * 0.029 + p2) + 5 * Math.sin(x * 0.07 + p3));
       for (const b of bumps) h += amp * b.h * Math.exp(-(((x - b.c) / b.w) ** 2));
       if (arch === 'valley') h += 95 * Math.exp(-(((x - vc) / (W * 0.13)) ** 2));
       else if (arch === 'slope') h += sl * (x / W - 0.5) * 120;
       else if (arch === 'mesas') h -= 60 * (Math.exp(-(((x - m1) / (W * 0.1)) ** 4)) + Math.exp(-(((x - m2) / (W * 0.1)) ** 4)));
-      heights[x] = clamp(h, 150, 440);
+      top[x] = clamp(h, 150, solidGround ? 440 : 392);
       tuft[x] = rnd(4, 9);
     }
-    let hmin = 500; for (let x = 0; x < W; x++) hmin = Math.min(hmin, heights[x]);
+    // ilhas flutuantes: o terreno se parte em blocos com vãos; por baixo, rocha pendurada sobre a água
+    for (const [a, b] of (solidGround ? [[0, W - 1]] : islandSpans())) {
+      const depth = rnd(105, 175), q1 = rnd(0, 6.3), q2 = rnd(0, 6.3), lip = rnd(28, 48);
+      for (let x = Math.max(0, Math.ceil(a)); x <= Math.min(W - 1, Math.floor(b)); x++) {
+        if (solidGround) { bot[x] = H; continue; }
+        const t = (x - a) / (b - a), edge = Math.sin(Math.PI * t);
+        top[x] += (1 - Math.pow(edge, 0.3)) * lip;
+        const hang = depth * Math.pow(edge, 0.85) * (0.8 + 0.12 * Math.sin(x * 0.045 + q1) + 0.1 * Math.abs(Math.sin(x * 0.13 + q2)));
+        bot[x] = Math.max(top[x] + 20, Math.min(WATER - 14, top[x] + 22 + hang));
+      }
+    }
+    fillMask(top, bot);
+    let hmin = 500; for (let x = 0; x < W; x++) if (bot[x] > 0) hmin = Math.min(hmin, top[x]);
     $('dirtRect').setAttribute('width', W); $('dirtTexRect').setAttribute('width', W);
     $('dirt').setAttribute('y1', f1(hmin - 30));
     $('strata1').setAttribute('d', bandPath(x => 48 + 8 * Math.sin(x * 0.05 + p2)));
@@ -293,6 +419,7 @@
     for (let tries = 0; decor.length < nDec && tries < 300 * W / 800; tries++) {
       const x = Math.round(rnd(15, W - 15));
       if (avoid.some(a => Math.abs(a - x) < 28)) continue;
+      if (heights[x] >= WATER - 30 || Math.abs(surf(x - 7) - surf(x + 7)) > 12) continue;   // nada de árvore na beira da ilha
       if (decor.some(d => Math.abs(d.x - x) < 26)) continue;
       decor.push({ x, base: heights[x], type: pick(list), s: rnd(0.8, 1.15),
                    col: pick(['#ff6b8a', '#ffd84d', '#ffffff', '#b98cff', '#7ae8ff', '#ff9be8']) });
@@ -315,6 +442,7 @@
     power = 0; charging = false; ballMode = false; lastBall = false; pickups = []; weather = null; bolt = null; ai = null; cap = null; panel = null; pendingPanel = null;
     keys = {}; wxPrev = null; wxK = 1;
     guest = null; gCool = 1; gMode = ''; lastShotGuest = false; splashU = null; evo = null;
+    roundTurns = 0; windY = 0; windS = 0; turnT = TURN_TIME;
     cam.x = 400; cam.y = 250; cam.z = 1; cam.shake = 0;
     Sfx.chargeStop();
   }
@@ -325,13 +453,14 @@
     return { sp, name: S.name, team, x, y: gy(x), hp: maxhp, maxhp, alive: true, face: face || 1, breath: 0, hurt: 0,
              mvs, moves: MS.movesOf(sp, mvs), mi: 0,
              walkT: 0, moving: false, blinkOff: Math.floor(rnd(0, 230)), webbed: false, stuck: false, hidden: false, capScale: 1,
-             scale: S.scale || 1, hop: 0, dealt: 0, rid: -1, turnsLeft: 0, sh: false, flying: false, alt: 0, dot: null, status: null };
+             scale: S.scale || 1, hop: 0, dealt: 0, rid: -1, turnsLeft: 0, sh: false, flying: false, alt: 0, dot: null, status: null,
+             delay: 0, tilt: 0, vy: 0, air: false, lastPow: null };
   }
 
   // ---------- Menu ----------
   function initMenu() {
     scene = 'menu'; kind = 'menu'; menuPage = 'main'; resetCommon();
-    genWorld('campo'); genClouds(); genDecor([105, 185, 615, 695]);
+    genWorld('campo', VW, 'ground'); genClouds(); genDecor([105, 185, 615, 695]);
     units = [mkUnit('charmander', 105, 0, 1), mkUnit('bulbasaur', 185, 0, 1), mkUnit('squirtle', 615, 0, -1), mkUnit('pikachu', 695, 0, -1)];
     teams = []; state = 'menu'; wind = 0; msg = ''; msgT = 0; uiSel = 0;
     syncButtons();
@@ -408,14 +537,17 @@
     const wide = W > VW, r = Math.random(), n = nP + nE;
     let mode = r < (wide ? 0.4 : 0.6) ? 'sides' : r < (wide ? 0.6 : 0.85) ? 'mirror' : 'mixed';
     if (mapOverride && mapOverride.layout) mode = mapOverride.layout;
+    // com ilhas não dá para atravessar os vãos andando: os dois times nascem ao alcance de um tiro (~680 px),
+    // num trecho sorteado do mapa; o resto do mapa largo fica para itens e visitantes
+    const span = Math.min(W - 120, 680), a = rnd(60, W - 60 - span), b = a + span;
     if (mode === 'mixed') {
       const all = [];
-      for (let t = 0; t < 600 && all.length < n; t++) { const x = rnd(60, W - 60); if (all.every(a => Math.abs(a - x) > 85)) all.push(x); }
+      for (let t = 0; t < 600 && all.length < n; t++) { const x = rnd(a, b); if (all.every(q => Math.abs(q - x) > 85)) all.push(x); }
       if (all.length === n) { shuffle(all); return { mode, px: all.slice(0, nP), ex: all.slice(nP) }; }
       mode = 'sides';
     }
-    const band = Math.max(220, W * 0.3);
-    const L = spreadX(mode === 'mirror' ? nE : nP, 60, band), R = spreadX(mode === 'mirror' ? nP : nE, W - band, W - 60);
+    const band = Math.max(160, span * 0.3);
+    const L = spreadX(mode === 'mirror' ? nE : nP, a, a + band), R = spreadX(mode === 'mirror' ? nP : nE, b - band, b);
     return mode === 'mirror' ? { mode, px: R, ex: L } : { mode, px: L, ex: R };
   }
   let mapOverride = null;
@@ -437,6 +569,8 @@
     const mercy = (si === 0 && campaign.weakStart) ? 0.75 : 1;
     const foes = pickEnemies(st, ww), party = campaign.partyIdx;
     const lay = layoutSpawns(party.length, foes.length);
+    { const taken = []; const put = x => { let xx = landX(x); for (let k = 0; k < 8 && taken.some(t => Math.abs(t - xx) < 34); k++) xx = landX(xx + 40 * (k % 2 ? -1 : 1) * (k + 1)); taken.push(xx); return xx; };
+      lay.px = lay.px.map(put); lay.ex = lay.ex.map(put); }
     genDecor(lay.px.concat(lay.ex));
     units = [];
     teams = [
@@ -455,6 +589,9 @@
       units.push(u); teams[1].units.push(u);
     });
     teams[1].cur = teams[1].units.length - 1;
+    // atraso inicial: seu time começa, os selvagens entram logo em seguida, intercalados
+    teams[0].units.forEach((u, i) => { u.delay = i * 30; });
+    teams[1].units.forEach(u => { u.delay = Math.round(rnd(15, 150)); });
     spawnPickups();
     weather = null; lightT = 200 + Math.floor(Math.random() * 200); bolt = null;
     weather = rollWeather(st, null); wxRounds = 3 + Math.floor(Math.random() * 3);
@@ -666,8 +803,9 @@
 
   function initIntro() {
     scene = 'intro'; kind = 'intro'; resetCommon();
-    genWorld('cidade'); genClouds();
+    genWorld('cidade', VW, 'ground'); genClouds();
     for (let x = POND.x0; x <= POND.x1; x++) heights[x] = 420 + 32 * Math.sin(Math.PI * (x - POND.x0) / (POND.x1 - POND.x0));
+    fillMask(Float32Array.from(heights), new Float32Array(W).fill(H));
     let pond = `M${POND.x0},${POND.water}`;
     for (let x = POND.x0; x <= POND.x1; x += 2) pond += ` L${x},${f1(Math.max(heights[x], POND.water))}`;
     pond += ` L${POND.x1},${POND.water} Z`;
@@ -789,7 +927,7 @@
   function startCapture(u, x, y, success, done) {
     state = 'capture';
     cap = { u, x, y, by: y, t: 0, success, done, rot: 0, open: 0, alpha: 1, vy: 0, shakes: success ? 3 : 1 + Math.floor(Math.random() * 3),
-            groundY: gy(x) - 5, landed: false, stars: false };
+            groundY: Math.min(surf(x, y - 4), WATER) - 5, landed: false, stars: false };
     if (scene === 'intro') cap.groundY = u.sp === 'charmander' ? ROOF.top - 5 : u.sp === 'squirtle' ? POND.water - 2 : gy(x) - 5;
     u.hidden = false;
   }
@@ -868,19 +1006,25 @@
   }
 
   // ---------- Física e regras ----------
-  function carve(cx, cy, r) {
+  // explosão abre um buraco de verdade na máscara (pode virar túnel, cratera funda ou partir uma ilha)
+  function carve(cx, cy, r, burn = true) {
     if (r <= 0) return;
-    for (let x = Math.max(0, Math.floor(cx - r)); x <= Math.min(W - 1, Math.ceil(cx + r)); x++) {
-      const dd = r * r - (x - cx) * (x - cx);
-      if (dd <= 0) continue;
-      const dy = Math.sqrt(dd), top = cy - dy, bot = cy + dy;
-      if (top <= heights[x] && bot > heights[x]) { heights[x] = bot; grass[x] = 0; }
+    const x0 = Math.max(0, Math.floor(cx - r)), x1 = Math.min(W - 1, Math.ceil(cx + r));
+    const y0 = Math.max(0, Math.floor(cy - r)), y1 = Math.min(H - 1, Math.ceil(cy + r));
+    let any = false;
+    for (let y = y0; y <= y1; y++) {
+      const dy = y - cy, row = y * W;
+      for (let x = x0; x <= x1; x++) if (mask[row + x] && (x - cx) * (x - cx) + dy * dy <= r * r) { mask[row + x] = 0; any = true; }
     }
+    if (!any) return;
     for (let x = Math.max(0, Math.floor(cx - r - 8)); x <= Math.min(W - 1, Math.ceil(cx + r + 8)); x++) {
       if (Math.hypot(x - cx, heights[x] - cy) < r + 8) grass[x] = 0;
     }
+    for (let x = x0; x <= x1; x++) { const old = heights[x]; heights[x] = surf(x, 0); if (heights[x] !== old) grass[x] = 0; }
+    if (burn) { scorch.push({ x: cx, y: cy, r }); if (scorch.length > 240) scorch.shift(); }
+    terrDirty = true;
     decor = decor.filter(d => {
-      const hit = gy(d.x) > d.base + 2 || Math.hypot(d.x - cx, d.base - 10 - cy) < r;
+      const hit = surf(d.x, d.base - 3) > d.base + 2 || Math.hypot(d.x - cx, d.base - 10 - cy) < r;
       if (hit) burstDecor(d);
       return !hit;
     });
@@ -918,9 +1062,9 @@
       }
       if (wp.st && k > 0.2 && u.hp > 0 && Math.random() < wp.st.p) applyStatus(u, wp.st.type);
       if (wp.web && k > 0.15 && !(u.team === 2 && u.webbed)) { u.webbed = true; floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 34, t: 6, text: 'Preso! Perde a vez', col: '#ffffff', size: 12 }); }
-      if (wp.push) {
-        const dir = (u.x - x) >= 0 ? 1 : -1;
-        u.x = clamp(u.x + dir * wp.push * k, 8, W - 8);
+      if (wp.push) {                                  // empurrão: desliza pelo chão até bater numa parede
+        const dir = (u.x - x) >= 0 ? 1 : -1, n = Math.round(wp.push * k);
+        for (let i = 0; i < n; i++) { const ny = u.flying ? u.y : stepTo(u, u.x + dir); if (ny === null) break; u.x += dir; u.y = ny; }
       }
     }
     if (wp.build) raiseTerrain(x, wp.boom + 4, wp.build);
@@ -943,22 +1087,27 @@
   }
   // dano de queimadura/veneno ao fim do turno do time
   function applyDots(team) {
+    const only = typeof team === 'object' ? team : null;
+    if (only) team = only.team;
     for (const u of units) {
-      if (!u.alive || u.team !== team || !u.dot) continue;
+      if (!u.alive || u.team !== team || !u.dot || (only && u !== only)) continue;
       const d = u.dot.type === 'burn' ? 7 : 5;
       u.hp -= d; u.hurt = 14;
       floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 18, t: 0, text: '-' + d, col: u.dot.type === 'burn' ? '#ff9a3a' : '#c783e4' });
       if (--u.dot.turns <= 0) { u.dot = null; u.status = null; }
     }
-    for (const u of units) if (u.alive && u.team === team && u.status && !u.dot && !u.webbed) u.status = null;
+    for (const u of units) if (u.alive && u.team === team && (!only || u === only) && u.status && !u.dot && !u.webbed) u.status = null;
   }
+  // Bomba de Lama e afins: ergue chão por cima da superfície (só onde há ilha embaixo)
   function raiseTerrain(cx, r, hgt) {
     for (let x = Math.max(0, Math.floor(cx - r)); x <= Math.min(W - 1, Math.ceil(cx + r)); x++) {
       const k = 1 - Math.abs(x - cx) / r; if (k <= 0) continue;
-      heights[x] = Math.max(60, heights[x] - hgt * Math.sqrt(k));
-      if (heights[x] > WATER - 2) heights[x] = WATER - 2;
+      const t0 = heights[x]; if (t0 >= WATER - 2) continue;
+      const t1 = Math.max(60, Math.round(t0 - hgt * Math.sqrt(k)));
+      for (let y = t1; y < t0; y++) mask[y * W + x] = 1;
+      heights[x] = t1; grass[x] = 0;
     }
-    dirty = true;
+    terrDirty = true; dirty = true;
   }
   function quakeHit(x, p, wp) {
     cam.shake = Math.max(cam.shake, 9);
@@ -1002,23 +1151,27 @@
     if (state !== 'aim' && state !== 'ai') return;
     panX = null;
     const u = activeUnit(); if (!u) return;
-    const S = spOf(u), a = angle * Math.PI / 180, sp = 3 + power * 0.075;
-    u.face = Math.cos(a) >= 0 ? 1 : -1;
+    const S = spOf(u), a = (angle - tiltDeg(u)) * Math.PI / 180, sp = 3 + power * 0.075;
+    u.face = Math.cos(angle * Math.PI / 180) >= 0 ? 1 : -1;
+    u.lastPow = power;
     if (!ballMode && !teams[turnTeam].ai) lastBall = false;      // tiro normal: deixa de repetir a Pokébola
     const wk = curW(u);
     if (!ballMode && WEAPONS[wk].none) {
+      payDelay(u, shotDelay(wk));
       u.hop = 1; splashU = u; state = 'skip'; skipT = 80; walkBudget = 0; charging = false; power = 0; ai = null;
       Sfx.chargeStop(); Sfx.splash();
       showMsg(`${u.name} usou Splash! Mas nada aconteceu...`, 80);
       return;
     }
+    payDelay(u, ballMode ? 480 : shotDelay(wk));
     if (ballMode) {
-      launch('ball', u.x + u.face * 8 * u.scale, u.y - S.h * 0.6 * u.scale, a, sp, 'player', u);
+      const m = mouthAt(u, u.face, true);
+      launch('ball', m.x, m.y, a, sp, 'player', u);
       projs[projs.length - 1].bt = ballType;
       campaign[BALLS[ballType].key]--; ballMode = false; Sfx.ballThrow();
       if (!teams[turnTeam].ai) { lastBall = true; lastBallType = ballType; }
     } else {
-      const mx = u.x + u.face * S.mouth[0] * u.scale, my = u.y + S.mouth[1] * u.scale;
+      const { x: mx, y: my } = mouthAt(u, u.face, false);
       launch(wk, mx, my, a, sp, 'unit', u);
       u.breath = 18; Sfx.shoot(WEAPONS[wk].style);
       muzzle(mx, my, WEAPONS[wk].style, a);
@@ -1104,8 +1257,9 @@
       if (p.trail.length > 14) p.trail.shift();
       let outcome = null, target = null;
       for (let s = 0; s < 3 && !outcome; s++) {
-        p.vx += wind * 0.0012 * (p.wp.windMul === undefined ? 1 : p.wp.windMul);
-        p.vy += GRAV * p.wp.grav / 3;
+        const wm = p.wp.windMul === undefined ? 1 : p.wp.windMul;
+        p.vx += wind * 0.0012 * wm;
+        p.vy += GRAV * p.wp.grav / 3 + windY * 0.0012 * wm;
         if (p.wp.homing && p.age > 14) {
           const f = homingTarget(p);
           if (f) { const c = centerOf(f), ang = Math.atan2(c.y - p.y, c.x - p.x), sp = Math.hypot(p.vx, p.vy), ca = Math.atan2(p.vy, p.vx); let d = ang - ca; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; const na = ca + clamp(d, -p.wp.homing / 3, p.wp.homing / 3); p.vx = Math.cos(na) * sp; p.vy = Math.sin(na) * sp; }
@@ -1126,7 +1280,15 @@
           if (Math.hypot(c.x - p.x, c.y - p.y) < hitRof(u)) { target = u; break; }
         }
         if (target) { outcome = 'unit'; break; }
-        if (p.x >= 0 && p.x < W && p.y >= heights[Math.round(p.x)] + (p.wp.phase ? 26 : 0)) {
+        if (p.wp.dig && p.dug && !solid(p.x, p.y)) { outcome = 'ground'; break; }   // saiu do outro lado: explode na saída
+        if (p.wp.dig && solid(p.x, p.y)) {                     // Cavar: abre um túnel e explode lá dentro
+          p.dug = (p.dug || 0) + 1;
+          if (p.dug % 2 === 0) { const r = p.wp.digR || 11, sp = Math.hypot(p.vx, p.vy) || 1; carve(p.x - p.vx / sp * (r + 2), p.y - p.vy / sp * (r + 2), r, false); if (p.dug % 6 === 0) addPart({ x: p.x, y: p.y, vx: rnd(-1, 1), vy: rnd(-2, 0), g: 0.15, life: 26, max: 26, r: rnd(1.4, 2.6), col: '#8a6a48', kind: 'ember' }); }
+          p.vx *= 0.996; p.vy = p.vy * 0.996 - GRAV * p.wp.grav / 3 * 0.6;   // debaixo da terra a broca cai menos
+          if (p.dug >= p.wp.dig) { outcome = 'ground'; break; }
+          continue;
+        }
+        if (p.wp.phase ? (solid(p.x, p.y) && solid(p.x, p.y - 26)) : solid(p.x, p.y)) {
           if (p.bn > 0) { bounceProj(p); continue; }
           outcome = 'ground'; break;
         }
@@ -1161,7 +1323,7 @@
   }
   // quica no chão: perde força, levanta poeira e causa um impacto menor
   function bounceProj(p) {
-    p.bn--; p.y = heights[Math.round(p.x)] - 2;
+    p.bn--; p.y = surf(p.x, p.y - 24) - 2;
     p.vy = -Math.abs(p.vy) * 0.62; p.vx *= 0.82;
     carve(p.x, p.y + 4, 8); cam.shake = Math.max(cam.shake, 3);
     spray(p.x, p.y, 8, '#8c8f94', 2.6, 0.17, 30, 2.4, 'chunk'); Sfx.boom('rock');
@@ -1201,34 +1363,63 @@
     if (cap) cap.col = BALLS[p.bt || 'ball'].col;
   }
 
+  // ---------- Pokémon no terreno: gravidade, degraus, inclinação ----------
+  // u.y = linha dos pés (primeira linha de chão debaixo dele)
+  const onGround = u => solid(u.x - 5, u.y) || solid(u.x, u.y) || solid(u.x + 5, u.y);
+  // aonde o Pokémon chega dando um passo para nx (sobe degraus de até 8 px); null = parede ou teto de túnel
+  function stepTo(u, nx) {
+    if (nx < 6 || nx > W - 6) return null;
+    let ny = Math.floor(u.y), k = 0;
+    while (solid(nx, ny - 1) && k < 9) { ny--; k++; }
+    if (solid(nx, ny - 1)) return null;
+    const head = Math.max(12, spOf(u).h * u.scale * 0.55);
+    for (let hy = 4; hy <= head; hy += 4) if (solid(nx, ny - hy)) return null;
+    return ny;
+  }
+  // logo à frente acaba a ilha? (a IA e os visitantes não se jogam; o jogador pode)
+  const ledgeAhead = (u, dir) => surf(u.x + dir * 14, u.y - 10) > u.y + 40;
+
   function updateUnits() {
     for (const u of units) {
       if (!u.alive || (scene === 'intro')) continue;
-      const g = gy(u.x);
       if (u.flying && u.alt > 0) {                                   // voadores pairam no ar
+        const g = Math.min(gy(u.x), WATER - 30);
         const ty = Math.max(46, g - u.alt) + Math.sin(frameNo * 0.05 + u.blinkOff) * 3;
-        u.y += (ty - u.y) * 0.1;
+        u.y += (ty - u.y) * 0.1; u.air = false; u.tilt = 0;
         continue;
       }
-      if (u.y < g - 0.5) u.y = Math.min(g, u.y + 2.5);
-      else if (u.y > g + 0.5) u.y = g;
+      if (u.y > WATER) { u.air = false; u.vy = 0; continue; }       // caiu na água: o settle resolve
+      for (let k = 0; k < 14 && solid(u.x, u.y - 1); k++) u.y--;    // chão erguido embaixo dele: sobe junto
+      if (onGround(u)) { u.vy = 0; u.air = false; }
+      else {
+        u.air = true; u.vy = Math.min(8, (u.vy || 0) + 0.32);
+        const n = Math.ceil(u.vy);
+        for (let i = 0; i < n; i++) { u.y += u.vy / n; if (onGround(u)) { u.y = Math.floor(u.y); u.vy = 0; u.air = false; break; } }
+        if (u.y > WATER) { u.y = WATER + 2; u.air = false; }
+      }
+      // o corpo inclina com o chão (a mira é relativa ao corpo)
+      let t = 0;
+      if (!u.air) {
+        const s1 = surf(u.x - 9, u.y - 14), s2 = surf(u.x + 9, u.y - 14);
+        if (s1 < u.y + 24 && s2 < u.y + 24) t = clamp(Math.atan2(s2 - s1, 18), -0.42, 0.42);
+      }
+      u.tilt = (u.tilt || 0) + (t - (u.tilt || 0)) * 0.2;
     }
     for (let i = graves.length - 1; i >= 0; i--) {
       const g = graves[i];
-      g.y = Math.min(gy(g.x), g.y + 2.5);
+      if (!solid(g.x, g.y)) g.y += 2.5;
       if (g.y > WATER) graves.splice(i, 1);
     }
   }
 
   function walkUnit(u, dir) {
-    if (!u || walkBudget <= 0) return false;
-    const nx = clamp(u.x + dir * 1.5, 8, W - 8);
-    if (gy(nx) < u.y - 10) return false;                              // parede alta demais
-    if (gy(nx) > WATER - 28) return false;                            // não anda para dentro d'água
-    for (const v of units) if (v !== u && v.alive && !v.hidden && Math.abs(v.x - nx) < 12 && Math.abs(v.y - u.y) < 22) return false;
-    u.x = nx; u.moving = true; u.walkT++;
+    if (!u || walkBudget <= 0 || u.air) return false;
+    const nx = u.x + dir * 1.2, ny = stepTo(u, nx);
+    if (ny === null) return false;
+    for (const v of units) if (v !== u && v.alive && !v.hidden && Math.abs(v.x - nx) < 12 && Math.abs(v.x - nx) < Math.abs(v.x - u.x) && Math.abs(v.y - u.y) < 22) return false;
+    u.x = nx; u.y = ny; u.moving = true; u.walkT++;
     if (u.walkT % 10 === 0) Sfx.step();
-    walkBudget -= 1.5;
+    walkBudget -= 1.2;
     return true;
   }
 
@@ -1250,24 +1441,28 @@
   let dotDone = false;
   function startTurn() {
     dotDone = false; panX = null;
-    const t = teams[turnTeam];
-    // teia: quem foi preso fica sem agir neste turno do seu time
-    for (const v of t.units) { v.stuck = v.alive && v.webbed; v.webbed = false; }
-    const free = t.units.filter(v => v.alive && !v.stuck);
+    // ordem por atraso: joga o Pokémon (de qualquer lado) com menos atraso acumulado
+    const order = turnOrder();
+    if (!order.length) return;
+    const u = order[0];
+    turnTeam = u.team;
+    const t = teams[turnTeam]; t.cur = t.units.indexOf(u);
+    for (const v of units) v.stuck = false;
     ai = null; charging = false; power = 0; ballMode = false;
-    if (!free.length) {
-      const who = kind === 'campaign' ? (t.ai ? 'Os selvagens' : 'Seu time') : `Time ${t.name}`;
-      state = 'skip'; skipT = 100; walkBudget = 0;
-      showMsg(`${who}: preso na teia, perde a vez!`, 100);
-      Sfx.weakEff();
+    // vento muda a cada turno, em qualquer direção (força máxima depende da fase)
+    const wmax = kind === 'campaign' ? STAGES[stageIdx].wind : 3;
+    windA = rnd(0, Math.PI * 2); windS = Math.random() < 0.15 ? rnd(0, wmax * 0.2) : rnd(wmax * 0.15, wmax * 1.15);
+    wind = Math.cos(windA) * windS; windY = -Math.sin(windA) * windS;
+    walkBudget = walkMax(); turnT = TURN_TIME;
+    // preso na teia, congelado, dormindo ou paralisado: perde esta vez (com atraso menor)
+    if (u.webbed) {
+      u.webbed = false; u.stuck = true; u.delay += 300;
+      const why = { freeze: 'congelado', sleep: 'dormindo', para: 'paralisado' }[u.status] || 'preso na teia';
+      state = 'skip'; skipT = 90; walkBudget = 0;
+      showMsg(`${u.name}${t.ai ? ' selvagem' : ''} está ${why}: perde a vez!`, 90);
+      Sfx.weakEff(); syncButtons();
       return;
     }
-    if (t.ai) t.cur = nextFree(t, t.cur);
-    else if (!t.units[t.cur] || !t.units[t.cur].alive || t.units[t.cur].stuck) t.cur = t.units.indexOf(free[0]);
-    const u = activeUnit();
-    const wmax = kind === 'campaign' ? STAGES[stageIdx].wind : 3;
-    wind = Math.round(rnd(-wmax, wmax));
-    walkBudget = walkMax();
     const mem = lastAngles[kind + turnTeam];        // mantém o último ângulo usado
     if (t.ai) {
       state = 'ai'; ai = { phase: 'think0', t: 0 };
@@ -1276,11 +1471,20 @@
     } else {
       state = 'aim';
       angle = mem !== undefined ? mem : (u.face === 1 ? 45 : 135);
+      if ((Math.cos(angle * Math.PI / 180) >= 0 ? 1 : -1) !== u.face) angle = 180 - angle;
       const again = autoBall();
       showMsg(kind === 'campaign' ? `Sua vez: ${u.name}!${again ? ` ${BALLS[ballType].name} pronta (como no último tiro)` : ''}` : `Vez de ${t.name}!`, again ? 150 : 110);
     }
-    if (u.stuck) u.stuck = false;
     Sfx.turn(); syncButtons();
+  }
+
+  // passa a vez sem atirar (tecla P, ou quando o tempo acaba)
+  function passTurn() {
+    if (scene !== 'battle' || state !== 'aim' || teams[turnTeam].ai) return;
+    const u = activeUnit(); if (!u) return;
+    Sfx.chargeStop(); charging = false; power = 0; ballMode = false;
+    payDelay(u, 420); state = 'settle';
+    showMsg(turnT <= 0 ? 'Tempo esgotado!' : `${u.name} passou a vez`, 70);
   }
 
   // alterna entre os golpes do Pokémon da vez (quando ele tem dois)
@@ -1293,6 +1497,7 @@
   }
 
   function switchUnit() {
+    return;     // a ordem agora é por atraso: não dá para trocar quem joga
     if (scene !== 'battle' || state !== 'aim' || charging) return;
     const t = teams[turnTeam];
     const j = nextFree(t, t.cur);
@@ -1301,8 +1506,8 @@
 
   function settle() {
     if (projs.length) return;
-    if (units.some(u => u.alive && !u.hidden && !(u.flying && u.alt > 0) && u.y < gy(u.x) - 0.5)) return;   // ainda caindo
-    if (!dotDone) { dotDone = true; if (!lastShotGuest) { applyDots(turnTeam); if (turnTeam === 1) applyDots(2); } }
+    if (units.some(u => u.alive && !u.hidden && !(u.flying && u.alt > 0) && u.air)) return;   // ainda caindo
+    if (!dotDone) { dotDone = true; if (!lastShotGuest) { applyDots(activeUnit()); if (guest && guest.alive && guest.dot && roundTurns === 0) applyDots(guest); } }
     for (const u of units) {
       if (!u.alive) continue;
       const drowned = u.y > WATER - 6;
@@ -1323,10 +1528,9 @@
     {
       if (!teamAlive(teams[1])) { stageClear(); return; }
       if (!teamAlive(teams[0])) { stageLose(); return; }
-      if (lastShotGuest) { lastShotGuest = false; turnTeam = 0; startTurn(); return; }
-      const next = 1 - turnTeam;
-      turnTeam = next;
-      if (next === 0 && roundEnd()) return;     // fim da rodada: o visitante pode aparecer, atacar ou sumir
+      if (lastShotGuest) { lastShotGuest = false; startTurn(); return; }
+      // uma rodada = todos já jogaram uma vez (em média): o visitante pode aparecer, atacar ou sumir
+      if (++roundTurns >= units.filter(v => v.alive && v.team !== 2).length) { roundTurns = 0; if (roundEnd()) return; }
       startTurn();
       return;
     }
@@ -1440,10 +1644,11 @@
       const dx = g.gDest - g.x, sp = g.flying ? 1.7 : 1.3;
       if (Math.abs(dx) <= sp || gT > 240) { g.moving = false; guestWarn(g, g.gTarget); return; }
       const dir = Math.sign(dx), nx = g.x + dir * sp;
-      let blocked = !g.flying && (gy(nx) < g.y - 10 || gy(nx) > WATER - 28);
+      const ny = g.flying ? g.y : stepTo(g, nx);
+      let blocked = !g.flying && (ny === null || ledgeAhead(g, dir));
       if (!blocked) for (const v of units) if (v !== g && v.alive && !v.hidden && Math.abs(v.x - nx) < 14 && (g.flying || Math.abs(v.y - g.y) < 22)) { blocked = true; break; }
       if (blocked) { g.moving = false; guestWarn(g, g.gTarget); return; }
-      g.x = nx; g.face = dir; g.moving = !g.flying; g.walkT++;
+      g.x = nx; if (!g.flying) g.y = ny; g.face = dir; g.moving = !g.flying; g.walkT++;
       if (!g.flying && g.walkT % 10 === 0) Sfx.step();
     } else if (gMode === 'warn') {
       g.moving = false; g.face = gSide;
@@ -1474,12 +1679,14 @@
   function simShot(wp, shooter, x0, y0, a, sp, tg) {
     tg = tg || shotTargets(wp, shooter);
     let x = x0, y = y0, vx = sp * wp.speed * Math.cos(a), vy = -sp * wp.speed * Math.sin(a);
-    const gk = GRAV * wp.grav / 3, wm = wp.windMul === undefined ? 1 : wp.windMul, ph = wp.phase ? 26 : 0;
+    const gk = GRAV * wp.grav / 3, wm = wp.windMul === undefined ? 1 : wp.windMul;
+    let dug = 0;
     for (let n = 0; n < 700; n++) {
       for (let s = 0; s < 3; s++) {
-        vx += wind * 0.0012 * wm; vy += gk; x += vx / 3; y += vy / 3;
+        vx += wind * 0.0012 * wm; vy += gk + windY * 0.0012 * wm; x += vx / 3; y += vy / 3;
         if (x < -60 || x > W + 60 || y > H + 60 || y >= WATER) return null;
-        if (x >= 0 && x < W && y >= heights[Math.round(x)] + ph) return { x, y };
+        if (wp.dig) { if (solid(x, y)) { vy -= gk * 0.6; if (++dug >= wp.dig) return { x, y }; } else if (dug) return { x, y }; }
+        else if (wp.phase ? (solid(x, y) && solid(x, y - 26)) : solid(x, y)) return { x, y };
         for (let k = 0; k < tg.length; k++) {
           const dx = tg[k].x - x, dy = tg[k].y - y;
           if (dx * dx + dy * dy < tg[k].r2) return { x, y };
@@ -1511,8 +1718,8 @@
     const tg = shotTargets(wp, u);
     const heavy = wp.count >= 3 || u.moves.length > 1, aStep = heavy ? 4 : 3, pStep = heavy ? 6 : 5;
     for (let ang = 8; ang <= 172; ang += aStep) {
-      const a = ang * Math.PI / 180, face = Math.cos(a) >= 0 ? 1 : -1;
-      const x0 = u.x + face * S.mouth[0] * u.scale, y0 = u.y + S.mouth[1] * u.scale;
+      const a = ang * Math.PI / 180, face = Math.cos((ang + tiltDeg(u)) * Math.PI / 180) >= 0 ? 1 : -1;
+      const { x: x0, y: y0 } = mouthAt(u, face, false);
       for (let pw = 18; pw <= 100; pw += pStep) {
         const sp = 3 + pw * 0.075;
         let score = 0, dmin = 1e9;
@@ -1543,7 +1750,7 @@
     const pick1 = bestPlan ? bestPlan.pick : { ang: 120, pw: 60 };
     const err = STAGES[stageIdx].err;
     const e1 = (Math.random() + Math.random() - 1) * err, e2 = (Math.random() + Math.random() - 1) * err * 0.7;
-    ai.angle = clamp(pick1.ang + e1, 5, 175);
+    ai.angle = clamp(pick1.ang + e1 + tiltDeg(u), 0, 180);     // ângulo do plano é absoluto; a mira é relativa ao corpo
     ai.power = clamp(pick1.pw + e2, 15, 100);
   }
 
@@ -1566,7 +1773,7 @@
       a.phase = 'walk';
     } else if (a.phase === 'walk') {
       if (a.walkLeft > 0 && walkBudget > 0) {
-        if (walkUnit(u, a.walkDir || -1)) a.walkLeft -= 1.5; else a.walkLeft = 0;
+        if (!ledgeAhead(u, a.walkDir || -1) && walkUnit(u, a.walkDir || -1)) a.walkLeft -= 1.2; else a.walkLeft = 0;
         u.face = a.walkDir >= 0 ? 1 : -1;
       } else a.phase = 'plan';
     } else if (a.phase === 'plan') {
@@ -1581,7 +1788,7 @@
       if (power >= a.power) fire();
     } else if (a.phase === 'splash') {
       u.hop = a.t;
-      if (a.t > 80) { u.hop = 0; state = 'settle'; }
+      if (a.t > 80) { u.hop = 0; payDelay(u, 400); state = 'settle'; }
     }
   }
 
@@ -1651,7 +1858,7 @@
       p.vy += p.g; p.vx *= 0.985;
       if (p.kind === 'leaf') { p.vx += Math.sin((frameNo + i) * 0.15) * 0.05; p.vy = Math.min(p.vy, 1.2); }
       p.x += p.vx; p.y += p.vy;
-      if (p.g > 0.1 && p.x >= 0 && p.x < W && p.y >= heights[Math.round(p.x)]) { p.y = heights[Math.round(p.x)]; p.vy *= -0.3; p.vx *= 0.5; }
+      if (p.g > 0.1 && solid(p.x, p.y)) { p.y -= Math.max(1, p.vy); p.vy *= -0.3; p.vx *= 0.5; }
       if (--p.life <= 0 || p.y > H + 20) parts.splice(i, 1);
     }
   }
@@ -1683,10 +1890,12 @@
     const web = (u.webbed || u.stuck) ? `<g transform="translate(0 ${f1(-S.hitY * u.scale)})" stroke="#fff" stroke-width="1" fill="rgba(255,255,255,.18)" opacity=".9">
       <circle r="${f1(15 * u.scale)}"/><circle r="${f1(8 * u.scale)}"/>
       <path d="M-15,0H15M0,-15V15M-10.6,-10.6L10.6,10.6M10.6,-10.6L-10.6,10.6" stroke-width=".8" transform="scale(${f1(u.scale)})"/></g>` : '';
-    const shadow = opt.noShadow ? '' : `<ellipse cx="0" cy="${f1(gy(u.x) - u.y + 0.5)}" rx="${f1(11 * u.scale)}" ry="${f1(2.6 * u.scale)}" fill="#000" opacity=".25"/>`;
+    const sy = scene === 'intro' ? gy(u.x) : surf(u.x, u.y - 2);
+    const shadow = opt.noShadow || sy > WATER ? '' : `<ellipse cx="0" cy="${f1(sy - u.y + 0.5)}" rx="${f1(11 * u.scale)}" ry="${f1(2.6 * u.scale)}" fill="#000" opacity=".25"/>`;
+    const tilt = u.tilt && !u.flying ? `rotate(${f1(u.tilt * 57.3)}) ` : '';
     return `<g transform="translate(${f1(u.x)} ${f1(u.y + hop)})">
       ${shadow}
-      <g transform="scale(${f1(u.face * sc)} ${f1(sc)})"${flash ? ' opacity=".45"' : ''}><g${shF(u.sp, u.sh)}>${Art.draw(u.sp, ctx)}</g></g>
+      <g transform="${tilt}scale(${f1(u.face * sc)} ${f1(sc)})"${flash ? ' opacity=".45"' : ''}><g${shF(u.sp, u.sh)}>${Art.draw(u.sp, ctx)}</g></g>
       ${u.sh && u.capScale > 0.5 ? glint(frameNo, -S.hitR * u.scale * 0.8, -S.hitY * u.scale - 6, 1.2, u.blinkOff) + glint(frameNo, S.hitR * u.scale * 0.9, -S.hitY * u.scale + 8, 0.9, u.blinkOff + 2) + glint(frameNo, 0, -S.h * u.scale * 0.8, 1, u.blinkOff + 4) : ''}
       ${statusIcon(u)}${web}${label}</g>`;
   }
@@ -1700,20 +1909,23 @@
   }
 
   function renderTerrain() {
-    let d = 'M0,' + f1(heights[0]);
-    for (let x = 1; x < W; x++) d += ' L' + x + ',' + f1(heights[x]);
-    d += ` L${W},${f1(heights[W - 1])} L${W},${H} L0,${H} Z`;
-    $('tclipPath').setAttribute('d', d);
-    $('tback').setAttribute('d', 'M-12,' + f1(heights[0]) + d.replace(/^M/, ' L'));
-    let g = '', b = '', inG = false, inB = false, tf = '';
+    if (terrDirty) {
+      const d = terrainPath();
+      $('tclipPath').setAttribute('d', d); $('tback').setAttribute('d', d); $('tedge').setAttribute('d', d);
+      terrDirty = false;
+    }
+    $('scorch').innerHTML = scorch.map(c => `<circle cx="${f1(c.x)}" cy="${f1(c.y)}" r="${f1(c.r + 2)}"/>`).join('');
+    // grama só no topo original que ainda está de pé; queimado onde a explosão passou
+    let g = '', b = '', tf = '', lg = -9, lb = -9;
     for (let x = 0; x < W; x += 2) {
-      const y = f1(heights[x]);
-      if (grass[x]) { g += (inG ? ' L' : ' M') + x + ',' + y; inG = true; inB = false; }
-      else          { b += (inB ? ' L' : ' M') + x + ',' + y; inB = true; inG = false; }
+      const y = heights[x]; if (y >= WATER - 2) continue;
+      const cont = x >= 2 && Math.abs(y - heights[x - 2]) < 6;
+      if (grass[x]) { g += (cont && lg === x - 2 ? ' L' : ' M') + x + ',' + f1(y); lg = x; }
+      else { b += (cont && lb === x - 2 ? ' L' : ' M') + x + ',' + f1(y); lb = x; }
     }
     for (let x = 3; x < W; x += 7) {
-      if (!grass[x]) continue;
       const y = heights[x], t = tuft[x];
+      if (!grass[x] || y >= WATER - 2 || Math.abs(y - heights[x - 1]) > 4) continue;
       tf += `M${x},${f1(y)} l-2,${f1(-t * 0.7)} M${x},${f1(y)} l.6,${f1(-t)} M${x},${f1(y)} l2.6,${f1(-t * 0.6)} `;
     }
     $('edgeGrass').setAttribute('d', g); $('edgeGrassHi').setAttribute('d', g);
@@ -1855,6 +2067,47 @@
     return s;
   }
 
+  // ordem dos turnos (menor atraso joga primeiro), como no painel dos mobiles
+  function orderSvg() {
+    const list = turnOrder().slice(0, 6); if (!list.length) return '';
+    const base = list[0].delay, act = activeUnit(), y0 = 80;
+    let s = `<rect x="8" y="${y0}" width="150" height="${20 + list.length * 14}" rx="10" fill="#0d1b2a" opacity=".66"/>
+      <text x="18" y="${y0 + 13}" font-size="8.5" fill="#bfe3ff" letter-spacing="1.2">ORDEM · ATRASO</text>`;
+    list.forEach((v, i) => {
+      const y = y0 + 27 + i * 14, isAct = v === act && (state === 'aim' || state === 'ai');
+      s += `<circle cx="20" cy="${y - 3.5}" r="3.6" fill="${sideColor(v)}" stroke="${isAct ? '#fff' : '#000'}" stroke-width="${isAct ? 1.3 : 0.6}"/>
+        <text x="29" y="${y}" font-size="10" font-weight="${isAct ? 'bold' : 'normal'}" fill="${isAct ? '#ffe9a8' : '#fff'}">${v.name}${v.team === 1 ? ' (s)' : ''}</text>
+        <text x="150" y="${y}" text-anchor="end" font-size="9.5" fill="#bfe3ff">${v.delay - base}</text>`;
+    });
+    return s;
+  }
+
+  // barra de baixo: mostrador do ângulo, força (com a marca do último tiro) e movimento
+  function bottomBarSvg() {
+    if (scene !== 'battle' || !(state === 'aim' || state === 'ai') || !teams[turnTeam]) return '';
+    const u = activeUnit(); if (!u || !u.alive) return '';
+    const rel = clamp(u.face === 1 ? angle : 180 - angle, 0, 180), tilt = tiltDeg(u) * (u.face === 1 ? 1 : -1);
+    const cx = 186, cy = 476, r = 22, ar = (rel - tilt) * Math.PI / 180;
+    const bx = 216, bw = 312, py = 446, my = 476;
+    let ticks = '';
+    for (let i = 1; i < 10; i++) ticks += `M${f1(bx + bw * i / 10)},${py} v${i === 5 ? 12 : 6}`;
+    const lp = u.lastPow;
+    return `<rect x="152" y="434" width="388" height="58" rx="12" fill="#0d1b2a" opacity=".78"/>
+      <path d="M${cx - r},${cy} A${r},${r} 0 0 1 ${cx + r},${cy}" fill="#000" fill-opacity=".3" stroke="#8aa0c8" stroke-width="1"/>
+      <line x1="${f1(cx - Math.cos(-tilt * Math.PI / 180) * r)}" y1="${f1(cy - Math.sin(-tilt * Math.PI / 180) * r)}" x2="${f1(cx + Math.cos(-tilt * Math.PI / 180) * r)}" y2="${f1(cy + Math.sin(-tilt * Math.PI / 180) * r)}" stroke="#8aa0c8" stroke-width="1" stroke-dasharray="2 2"/>
+      <line x1="${cx}" y1="${cy}" x2="${f1(cx + Math.cos(ar) * r)}" y2="${f1(cy - Math.sin(ar) * r)}" stroke="#ffb43c" stroke-width="2.6" stroke-linecap="round"/>
+      <text x="${cx}" y="${cy + 12}" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">${Math.round(rel)}°</text>
+      <text x="${bx}" y="${py - 3}" font-size="8" fill="#bfe3ff" letter-spacing="1.2">FORÇA</text>
+      <rect x="${bx}" y="${py}" width="${bw}" height="12" rx="6" fill="#000" opacity=".55"/>
+      ${charging ? `<rect x="${bx + 1}" y="${py + 1}" width="${f1(Math.max(0, power / 100 * (bw - 2)))}" height="10" rx="5" fill="url(#pow)"/>` : ''}
+      <path d="${ticks}" stroke="#fff" stroke-opacity=".25" stroke-width="1"/>
+      ${lp !== null && lp !== undefined ? `<path d="M${f1(bx + bw * lp / 100)},${py - 1} l-4,-6 h8 Z" fill="#fff"/><text x="${f1(Math.min(bx + bw - 30, bx + bw * lp / 100 + 6))}" y="${py - 2}" font-size="7.5" fill="#fff" opacity=".8">último</text>` : ''}
+      <text x="${bx}" y="${my - 3}" font-size="8" fill="#bfe3ff" letter-spacing="1.2">MOVER</text>
+      <rect x="${bx + 44}" y="${my - 9}" width="${bw - 44}" height="6" rx="3" fill="#000" opacity=".55"/>
+      <rect x="${bx + 45}" y="${my - 8}" width="${f1(Math.max(0, walkBudget / walkMax()) * (bw - 46))}" height="4" rx="2" fill="#9be36a"/>
+      <text x="${bx + bw}" y="${my + 12}" text-anchor="end" font-size="8" fill="#bfe3ff">${teams[turnTeam].ai ? '' : 'P passa a vez · golpe forte = mais atraso'}</text>`;
+  }
+
   function hudSvg() {
     if (scene === 'intro') {
       let s = `<rect x="8" y="8" width="176" height="40" rx="12" fill="#0d1b2a" opacity=".72"/>
@@ -1869,22 +2122,23 @@
     let name, col;
     if (isVisit) { name = guest.name + ' (visitante)'; col = GUEST_COL; }
     else { name = t.ai ? `${u.name} selvagem` : u.name; col = t.color; }
-    const walkW = (Math.max(0, walkBudget) / walkMax()) * 170;
-    const ww = Math.abs(wind) / 3 * 50;
-    const wx = wind >= 0 ? 400 : 400 - ww;
-    const arrow = wind > 0 ? `M${f1(400 + ww)},26.5 l6,4 l-6,4 Z` : `M${f1(400 - ww)},26.5 l-6,4 l6,4 Z`;
+    const mine = !isVolt && u && !t.ai;
+    const secs = Math.max(0, Math.ceil(turnT / 60));
+    const wmax = Math.max(1, (kind === 'campaign' ? STAGES[stageIdx].wind : 3) * 1.15), wk = clamp(windS / wmax, 0, 1);
+    const wcx = 352, wcy = 25, wl = 3 + 8 * wk, wdx = Math.cos(windA), wdy = -Math.sin(windA);
     let s = `
-      <rect x="8" y="8" width="222" height="${!isVolt && u && !t.ai ? 66 : 40}" rx="12" fill="#0d1b2a" opacity=".72"/>
+      <rect x="8" y="8" width="222" height="${mine ? 66 : 40}" rx="12" fill="#0d1b2a" opacity=".72"/>
       <circle cx="26" cy="24" r="7" fill="${col}" stroke="#fff" stroke-width="2"/>
       <text x="40" y="29" font-size="14" font-weight="bold" fill="#fff">Vez: ${name}</text>
-      ${isVolt || (t && t.ai) ? '' : `<rect x="40" y="35" width="172" height="5" rx="2.5" fill="#000" opacity=".5"/>
-        <rect x="41" y="36" width="${f1(Math.max(0, walkW - 2))}" height="3" rx="1.5" fill="#9be36a"/>`}
-      ${!isVolt && u && !t.ai ? moveHud(u) : ''}
+      ${mine && state === 'aim' ? `<text x="220" y="29" text-anchor="end" font-size="13" font-weight="bold" fill="${secs <= 5 ? '#ff6b5a' : '#ffe9a8'}">${secs}s</text>` : ''}
+      ${mine ? moveHud(u) : ''}
       <rect x="330" y="8" width="140" height="34" rx="12" fill="#0d1b2a" opacity=".72"/>
-      <text x="400" y="21" text-anchor="middle" font-size="9" fill="#ddd" letter-spacing="1.5">${wind ? 'VENTO' : 'SEM VENTO'}</text>
-      <rect x="345" y="27" width="110" height="7" rx="3.5" fill="#000" opacity=".5"/>
-      <line x1="400" y1="25" x2="400" y2="36" stroke="#fff" stroke-width="1" opacity=".6"/>
-      ${wind ? `<rect x="${f1(wx)}" y="28.5" width="${f1(ww)}" height="4" rx="2" fill="#8fe0ff"/><path d="${arrow}" fill="#8fe0ff"/>` : ''}`;
+      <circle cx="${wcx}" cy="${wcy}" r="12" fill="#000" fill-opacity=".35" stroke="#8fe0ff" stroke-opacity=".5" stroke-width="1.2"/>
+      ${windS > 0.05 ? `<line x1="${f1(wcx - wdx * wl)}" y1="${f1(wcy - wdy * wl)}" x2="${f1(wcx + wdx * wl)}" y2="${f1(wcy + wdy * wl)}" stroke="#8fe0ff" stroke-width="2.4" stroke-linecap="round"/>
+        <path d="M0,-4 L6,0 L0,4 Z" fill="#8fe0ff" transform="translate(${f1(wcx + wdx * wl)} ${f1(wcy + wdy * wl)}) rotate(${f1(-windA * 57.3)})"/>` : ''}
+      <text x="372" y="21" font-size="9" fill="#ddd" letter-spacing="1.5">${windS > 0.05 ? 'VENTO' : 'SEM VENTO'}</text>
+      <text x="372" y="37" font-size="14" font-weight="bold" fill="#8fe0ff">${Math.round(windS * 8)}</text>`;
+    s += orderSvg();
     s += weatherBadge();
     if (W > VW) s += miniSvg();
     {
@@ -2131,7 +2385,8 @@
   }
 
   function renderAll() {
-    if (dirty) { renderTerrain(); dirty = false; }
+    // enquanto um golpe cava, o contorno do terreno é refeito no máximo a cada 4 quadros
+    if (dirty && (!terrDirty || state !== 'flying' || frameNo - terrAt > 3)) { renderTerrain(); dirty = false; terrAt = frameNo; }
     renderWater();
     renderClouds();
     setAttrOnce('Lsky', 'transform', camT(0.08));
@@ -2151,11 +2406,9 @@
       $('intro').innerHTML = '';
       let aim = '';
       if (inBattle && act && (state === 'aim' || (state === 'ai' && ai && ['aim', 'wait', 'charge'].includes(ai.phase)))) {
-        const S = spOf(act);
-        const a = angle * Math.PI / 180;
-        const mx = ballMode ? 8 : S.mouth[0], my = ballMode ? -S.h * 0.6 : S.mouth[1];
+        const a = (angle - tiltDeg(act)) * Math.PI / 180, m = mouthAt(act, act.face, ballMode);
         const rel = Math.round(act.face === 1 ? angle : 180 - angle);
-        aim = aimSvg(act.x + act.face * mx * act.scale, act.y + my * act.scale, a, rel);
+        aim = aimSvg(m.x, m.y, a, rel);
       }
       $('aim').innerHTML = aim;
     }
@@ -2197,9 +2450,9 @@
         font-size="${f.size || 15}" font-weight="bold" fill="${f.col}" stroke="${f.col === '#ffffff' || f.col === '#fff' ? '#000' : '#fff'}" stroke-width=".8"
         opacity="${clamp(1 - f.t / 60, 0, 1).toFixed(2)}">${f.text}</text>`).join('');
 
-    $('powerbar').innerHTML = charging
-      ? `<rect x="10" y="${scene === 'battle' && kind === 'campaign' ? 82 : 54}" width="208" height="14" rx="7" fill="#000" opacity=".45"/>
-         <rect x="12" y="${scene === 'battle' && kind === 'campaign' ? 84 : 56}" width="${f1(power * 2.04)}" height="10" rx="5" fill="url(#pow)"/>`
+    $('powerbar').innerHTML = scene === 'battle' ? bottomBarSvg() : charging
+      ? `<rect x="10" y="54" width="208" height="14" rx="7" fill="#000" opacity=".45"/>
+         <rect x="12" y="56" width="${f1(power * 2.04)}" height="10" rx="5" fill="url(#pow)"/>`
       : '';
 
     $('hud').innerHTML = weatherSvg() + (flash.a > 0.01 ? `<rect width="800" height="500" fill="${flash.col}" opacity="${flash.a.toFixed(2)}"/>` : '') + hudSvg();
@@ -2409,14 +2662,14 @@
   const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
   if (isTouch) document.body.classList.add('touch');
   else for (const id of ['soundBtn', 'menuBtn', 'settingsBtn']) $(id).setAttribute('transform', 'translate(62 0)');
-  // no celular o canto superior direito já é todo ocupado (☰ 🔊 ⇄ ↻): o ⚙ vai para o meio da base da tela
-  if (isTouch) $('settingsBtn').setAttribute('transform', 'translate(-358 424)');
+  // no celular o canto superior direito já é todo ocupado (☰ 🔊 PASSAR ↻) e a base tem a barra de mira: o ⚙ vai para a esquerda
+  if (isTouch) $('settingsBtn').setAttribute('transform', 'translate(-664 352)');
 
   function syncButtons() {
     const b = scene === 'battle' && !panel && state !== 'evolve' && !settingsOpen, i = scene === 'intro' && !settingsOpen;
     const camp = b && kind === 'campaign';
     const au = b && teams[turnTeam] && !teams[turnTeam].ai ? activeUnit() : null;
-    const show = { left: b, right: b, up: b || i, down: b || i, fire: b || i, switch: b, restart: b || i,
+    const show = { left: b, right: b, up: b || i, down: b || i, fire: b || i, pass: !!au, restart: b || i,
                    ball: camp, move: !!(au && au.moves.length > 1), menu: b || i, sound: !settingsOpen, settings: true };
     // na fase da cidade os botões vão para a esquerda, para não cobrir a lagoa e os alvos da direita
     const introPos = { up: 'translate(-536 0)', down: 'translate(-536 0)', fire: 'translate(190 452) scale(.75) translate(-738 -436)' };
@@ -2458,7 +2711,7 @@
       btn.classList.add('on');
       if (holdKey) keys[holdKey] = true;
       else if (act === 'fire') pressFire();
-      else if (act === 'switch') switchUnit();
+      else if (act === 'pass') passTurn();
       else if (act === 'restart') restart();
       else if (act === 'ball') toggleBall();
       else if (act === 'move') cycleMove();
@@ -2572,7 +2825,8 @@
     if (state === 'over') return;
     if (ARROWS[e.key]) { keys[ARROWS[e.key]] = true; e.preventDefault(); return; }
     if (e.code === 'Space') { e.preventDefault(); if (!e.repeat) pressFire(); return; }
-    if (e.key === 'Tab') { e.preventDefault(); switchUnit(); return; }
+    if (e.key === 'Tab') { e.preventDefault(); return; }
+    if (e.key === 'p' || e.key === 'P') { passTurn(); return; }
     if (e.key === 'b' || e.key === 'B') toggleBall();
     else if (e.key === 'g' || e.key === 'G') cycleMove();
     else if (e.key === 'q' || e.key === 'Q') keys.panL = true;
@@ -2595,13 +2849,19 @@
       if (keys.up)   angle = Math.min(180, angle + 1.2);
       if (keys.down) angle = Math.max(0, angle - 1.2);
       if (!charging) {
-        if (keys.left)  { panX = null; walkUnit(activeUnit(), -1); }
-        if (keys.right) { panX = null; walkUnit(activeUnit(), 1); }
+        const dir = keys.left ? -1 : keys.right ? 1 : 0;
+        if (dir) {
+          panX = null;
+          // virar para o outro lado espelha a mira (mesma elevação, como nos mobiles)
+          if ((Math.cos(angle * Math.PI / 180) >= 0 ? 1 : -1) !== dir) angle = 180 - angle;
+          walkUnit(activeUnit(), dir);
+        }
       } else {
         power = Math.min(100, power + 0.9);
         Sfx.chargeSet(power);
       }
     }
+    if (state === 'aim' && !teams[turnTeam].ai && --turnT <= 0) { if (charging) fire(); else passTurn(); }
     if (state === 'ai') stepAI();
     if (state === 'skip' && splashU) splashU.hop++;
     if (state === 'skip' && --skipT <= 0) { if (splashU) { splashU.hop = 0; splashU = null; } state = 'settle'; }
@@ -2671,7 +2931,7 @@
   // para testes automatizados
   MS.debug = {
     get lastBall() { return lastBall; },
-    get: () => ({ scene, kind, state, stageIdx, units, teams, campaign, cap, intro, panel, angle, power, wind, ballMode, turnTeam, ai, guest, gCool, gMode, evo }),
+    get: () => ({ scene, kind, state, stageIdx, units, teams, campaign, cap, intro, panel, angle, power, wind, ballMode, turnTeam, ai, guest, gCool, gMode, evo, projs }),
     get pickups() { return pickups; }, BALLS,
     setWeather: w => { weather = w; lightT = 5; $('sun').style.display = (w === 'rain' || w === 'storm') ? 'none' : ''; }, get weather() { return weather; },
     setMap: o => { mapOverride = o; }, setShinyP: v => { shinyP = v; }, get W() { return W; }, get panX() { return panX; }, get mapArch() { return mapArch; }, get cam() { return cam; }, get heights() { return heights; }, shF, rollArch, layoutSpawns, applyStatus, applyDots,
@@ -2679,14 +2939,14 @@
     forceGuest: sp => { gCool = 0; STAGES[stageIdx].guests = [{ sp, rarity: 1 }]; },
     skipEvolve, stageClear,
     initMenu, initIntro, playStage, cycleMove, maybeChangeWeather, rollWeather, initStage, newCampaign, beginStage, fire, toggleBall, pickTarget,
-    setAngle: a => { angle = a; }, setPower: p => { power = p; },
+    setAngle: a => { angle = clamp(a + tiltDeg(activeUnit()), 0, 180); }, setPower: p => { power = p; }, passTurn, turnOrder,
+    get windY() { return windY; }, solid, surf, carve, terrainPath, get mask() { return mask; },
     // procura (ângulo, força) para acertar um alvo com a arma 'wk' a partir do personagem da vez
     findShot: (target, wk) => {
       const u = activeUnit(), wp = WEAPONS[wk], S = spOf(u);
       for (let ang = 10; ang <= 170; ang += 1) {
         const a = ang * Math.PI / 180, face = Math.cos(a) >= 0 ? 1 : -1;
-        const x0 = wk === 'ball' ? u.x + face * 8 * u.scale : u.x + face * S.mouth[0] * u.scale;
-        const y0 = wk === 'ball' ? u.y - S.h * 0.6 * u.scale : u.y + S.mouth[1] * u.scale;
+        const { x: x0, y: y0 } = mouthAt(u, face, wk === 'ball');
         for (let pw = 10; pw <= 100; pw += 1) {
           const r = simShot(wp, u, x0, y0, a, 3 + pw * 0.075);
           if (!r) continue;

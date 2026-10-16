@@ -100,6 +100,8 @@
   });
   const P = (k, o) => Object.assign(MS.WEAPONS[k], o);
   const P0 = (k, o) => { MS.WEAPONS[k] = o; };
+  // Cavar: entra no chão, abre um túnel e explode lá dentro (quem estiver em cima despenca)
+  P0('cavar', { label: 'Cavar', type: 'ground', style: 'rock', count: 1, spread: 0, speed: 1.05, grav: 1.15, boom: 40, carve: 30, dmg: 50, windMul: 0.3, size: 1.2, dig: 66, digR: 12, shake: 9 });
   P0('casca', { label: 'Casca Dura', type: 'bug', style: 'rock', count: 1, spread: 0, speed: 1.0, grav: 1.1, boom: 26, carve: 4, dmg: 16, windMul: 0.6, size: 0.85, shake: 4 });
   // pesados
   P('pedra',   { speed: 1.12, grav: 1.45, boom: 42, dmg: 52, windMul: 0.2, size: 1.55, shake: 12 });
@@ -158,7 +160,7 @@
     butterfree: { name: 'Butterfree', types: ['bug', 'flying'],     weapon: 'vento',      maxhp: 95,  h: 56, hitY: 27, hitR: 15, catch: 0.4,  mouth: [10, -30], scale: 1.1 },
     gyarados:   { name: 'Gyarados',   types: ['water', 'flying'],   weapon: 'hidrobomba', maxhp: 180, h: 62, hitY: 26, hitR: 17, catch: 0.2,  mouth: [20, -42], scale: 1.1 },
     dragonair:  { name: 'Dragonair',  types: ['dragon'],            weapon: 'furia2',     maxhp: 170, h: 66, hitY: 28, hitR: 15, catch: 0.2,  mouth: [19, -39], scale: 1.1 },
-    onix:       { name: 'Onix',       types: ['rock', 'ground'],    weapon: 'pedra',      maxhp: 170, h: 70, hitY: 30, hitR: 19, catch: 0.3,  mouth: [18, -48] },
+    onix:       { name: 'Onix',       types: ['rock', 'ground'],    weapon: 'cavar',      maxhp: 170, h: 70, hitY: 30, hitR: 19, catch: 0.3,  mouth: [18, -48] },
     // Conceitos aprovados: versões fixadas em animated-kanto.js.
     beedrill:   { name: 'Beedrill',   types: ['bug', 'poison'],     weapon: 'ferrao',     maxhp: 95, h: 43, hitY: 19, hitR: 13, catch: 0.55, mouth: [13, -20] },
     jigglypuff: { name: 'Jigglypuff', types: ['normal'],            weapon: 'canto',    maxhp: 80, h: 40, hitY: 18, hitR: 15, catch: 0.85, mouth: [13, -24] },
@@ -208,7 +210,7 @@
     butterfree: [{ wk: 'po' }, ['multi', 'Vendaval de Asas']],
     gyarados:   [['area', 'Maremoto Furioso'], ['sniper', 'Jato Perfurante']],
     dragonair:  [['power', 'Cometa Brutal'], ['area', 'Aurora Dracônica']],
-    onix:       [{ wk: 'avalanche' }, ['sniper', 'Pedrada Veloz']],
+    onix:       [{ wk: 'avalanche' }, ['sniper', 'Cavar Veloz']],
     beedrill:   [['multi', 'Chuva de Ferrões'], ['power', 'Ferrão Mortal']],
     jigglypuff: [{ wk: 'pancada' }, ['area', 'Canto Sonoro']],
     dugtrio:    [{ wk: 'terremoto' }, ['power', 'Lama Pesada']],
@@ -370,6 +372,7 @@
     if (wp.split) a.push('se divide no ar');
     if (wp.homing) a.push('busca o alvo');
     if (wp.phase) a.push('atravessa o chão');
+    if (wp.dig) a.push('cava um túnel');
     if (wp.quake) a.push('abala o solo todo');
     if (wp.build) a.push('ergue terreno');
     if (wp.chain) a.push('arco elétrico');

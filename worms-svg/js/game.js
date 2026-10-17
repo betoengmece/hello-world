@@ -3702,18 +3702,14 @@
     uiSel = 0; syncButtons();
   }
 
-  function cancelFire() {
-    charging = false; power = 0; Sfx.chargeStop();
-  }
+  let fireLatch = false, fireDownAt = 0;
   function pressFire() {
-    if (glActive && glLoading) return;
     if (state === 'aim' && !charging && (scene === 'intro' ? intro.balls > 0 : !teams[turnTeam].ai)) {
       charging = true; power = 0; Sfx.unlock(); Sfx.chargeStart();
     }
   }
   function releaseFire() {
     if (!charging) return;
-    if (glActive && glLoading) { cancelFire(); return; }
     if (scene === 'intro') fireIntro();
     else if (state === 'aim') fire();
   }
@@ -3726,7 +3722,11 @@
       try { btn.setPointerCapture(e.pointerId); } catch (_) {}
       btn.classList.add('on');
       if (holdKey) keys[holdKey] = true;
-      else if (act === 'fire') pressFire();
+      else if (act === 'fire') {
+        // TIRO: segurar e soltar, ou tocar uma vez para começar a carregar e outra para soltar (bom para ponteiro de TV)
+        if (charging && fireLatch) { fireLatch = false; releaseFire(); }
+        else { pressFire(); fireDownAt = Date.now(); fireLatch = false; }
+      }
       else if (act === 'pass') passTurn();
       else if (act === 'restart') restart();
       else if (act === 'ball') toggleBall();
@@ -3739,14 +3739,14 @@
       e.preventDefault();
       btn.classList.remove('on');
       if (holdKey) keys[holdKey] = false;
-      else if (act === 'fire') releaseFire();
+      else if (act === 'fire') {
+        if (charging && !fireLatch && Date.now() - fireDownAt < 260) { fireLatch = true; showMsg('Carregando... toque TIRO de novo para soltar', 90); }
+        else if (!fireLatch) releaseFire();
+      }
     };
     btn.addEventListener('pointerdown', press);
     btn.addEventListener('pointerup', release);
-    btn.addEventListener('pointercancel', e => {
-      if (act !== 'fire') { release(e); return; }
-      e.preventDefault(); btn.classList.remove('on'); cancelFire();
-    });
+    btn.addEventListener('pointercancel', release);
   });
 
   // clique/toque nos menus: testa as áreas desenhadas no overlay
@@ -3773,10 +3773,10 @@
       return;
     }
     if (evo) { Sfx.unlock(); skipEvolve(); return; }
-    if (scene === 'battle' && W > VW && !panel && state !== 'over' && !uiList.length) {
+    if (scene === 'battle' && (W > VW || glActive) && !panel && state !== 'over' && !uiList.length) {
       const p = svgPoint(e);
       if (inMini(p)) { miniDrag = true; if (state === 'aim') miniPan(p); try { $('game').setPointerCapture(e.pointerId); } catch (_) {} return; }
-      if (state === 'aim' && !charging) { panDrag = { x0: p.x, pan0: panX === null ? cam.x : panX }; try { $('game').setPointerCapture(e.pointerId); } catch (_) {} }
+      if (state === 'aim' && !charging) { if (panX === null) panX = clamp(cam.x, VW / 2, W - VW / 2); panDrag = { x0: p.x, pan0: panX }; try { $('game').setPointerCapture(e.pointerId); } catch (_) {} }
       return;
     }
     if (!uiList.length) return;
@@ -3980,10 +3980,10 @@
   }
 
   const STEP = 1000 / 60;
-  let lastTs = 0, acc = 0, renderPar = 0, lastLiteRenderTs = null;
+  let lastTs = 0, acc = 0, renderPar = 0;
   function frame(ts) {
     requestAnimationFrame(frame);
-    if (typeof document !== 'undefined' && document.hidden) { lastTs = 0; acc = 0; lastLiteRenderTs = null; return; }   // aba escondida: não gasta nada
+    if (typeof document !== 'undefined' && document.hidden) { lastTs = 0; acc = 0; return; }   // aba escondida: não gasta nada
     let steps = 1;
     if (typeof ts === 'number') {
       if (!lastTs) lastTs = ts;
@@ -3997,18 +3997,8 @@
     for (let i = 0; i < steps; i++) tick();
     const b = busy();
     if (b) perfSample(ts); else perfLast = 0;
-    // modo leve: limita pelo relógio, sem dividir uma taxa já baixa de quadros.
-    let draw;
-    if (lite) {
-      const interval = STEP * 2, timed = typeof ts === 'number';
-      const elapsed = lastLiteRenderTs === null ? interval : ts - lastLiteRenderTs;
-      draw = !timed || elapsed >= interval - 0.5;
-      if (draw && timed) {
-        if (lastLiteRenderTs === null) lastLiteRenderTs = ts;
-        else lastLiteRenderTs += Math.max(1, Math.floor((elapsed + 0.5) / interval)) * interval;
-      }
-    } else { lastLiteRenderTs = null; draw = steps > 1 || b || (++renderPar & 1); }
-    if (draw) renderAll();
+    // modo leve: desenha no máximo a 30 quadros por segundo (a lógica continua a 60)
+    if (lite ? (++renderPar & 1) : (steps > 1 || b || (++renderPar & 1))) renderAll();
   }
 
   // para testes automatizados

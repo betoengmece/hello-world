@@ -13,15 +13,47 @@
   const PLAYER_COL = '#3a9bff', WILD_COL = '#e0433a', GUEST_COL = '#ffd34d';
   const SAVE_KEY = 'ms_campaign_v1', SET_KEY = 'ms_settings_v1';
   // ajustes (menu lateral): brilho da tela e volume do som
-  const settings = { bright: 1, vol: 0.6 };
-  try { const t = JSON.parse(localStorage.getItem(SET_KEY)); if (t) { settings.bright = Math.min(1.5, Math.max(0.6, +t.bright || 1)); settings.vol = Math.min(1, Math.max(0, t.vol === undefined ? 0.6 : +t.vol)); } } catch (_) {}
+  const settings = { bright: 1, vol: 0.6, quality: 'auto', autoLite: false };   // quality: 'auto' | 'alta' | 'leve'
+  try { const t = JSON.parse(localStorage.getItem(SET_KEY)); if (t) { settings.bright = Math.min(1.5, Math.max(0.6, +t.bright || 1)); settings.vol = Math.min(1, Math.max(0, t.vol === undefined ? 0.6 : +t.vol)); if (['auto', 'alta', 'leve'].includes(t.quality)) settings.quality = t.quality; settings.autoLite = !!t.autoLite; } } catch (_) {}
   let settingsOpen = false, drawerT = 0, settingsRow = 0, dragSlider = -1, sliderRects = [];
   const SLIDERS = [
     { key: 'bright', label: 'Brilho', min: 0.6, max: 1.5, def: 1,   fmt: v => Math.round(v * 100) + '%' },
     { key: 'vol',    label: 'Volume', min: 0,   max: 1,   def: 0.6, fmt: v => Math.round(v * 100) + '%' }
   ];
+  // modo leve: para aparelhos fracos (Fire TV, TVs, celulares antigos) — menos camadas, menos animação, 30 fps
+  let lite = false;
+  const aF = () => (lite ? frameNo & ~7 : frameNo);   // relógio das animações enfeite (no modo leve muda a cada 8 quadros)
+  const QUALITY_NAME = { auto: 'Automática', alta: 'Alta', leve: 'Leve' };
+  function applyQuality() {
+    lite = settings.quality === 'leve' || (settings.quality === 'auto' && settings.autoLite);
+    document.body.classList.toggle('lite', lite);
+    $('game').setAttribute('shape-rendering', lite ? 'optimizeSpeed' : 'auto');
+    $('game').setAttribute('text-rendering', lite ? 'optimizeSpeed' : 'auto');
+    dirty = true;
+  }
+  function cycleQuality(d = 1) {
+    const order = ['auto', 'alta', 'leve'];
+    settings.quality = order[(order.indexOf(settings.quality) + d + 3) % 3];
+    if (settings.quality === 'auto') { settings.autoLite = false; perfN = 0; perfSum = 0; }
+    applySettings(); Sfx.click();
+  }
+  // medidor: se os quadros demoram demais, liga o modo leve sozinho (e lembra para a próxima vez)
+  let perfN = 0, perfSum = 0, perfLast = 0;
+  function perfSample(ts) {
+    if (settings.quality !== 'auto' || settings.autoLite || settingsOpen || typeof ts !== 'number') { perfLast = ts; return; }
+    if (perfLast && ts - perfLast < 1000) { perfSum += ts - perfLast; perfN++; }
+    perfLast = ts;
+    if (perfN >= 90) {
+      if (perfSum / perfN > 42) {                 // abaixo de ~24 quadros por segundo
+        settings.autoLite = true; applySettings();
+        showMsg('Aparelho lento: modo leve ligado (⚙ para mudar)', 170);
+      }
+      perfN = 0; perfSum = 0;
+    }
+  }
   function applySettings() {
     $('game').style.filter = Math.abs(settings.bright - 1) < 0.005 ? '' : `brightness(${settings.bright.toFixed(2)})`;
+    applyQuality();
     Sfx.setVolume(settings.vol);
     try { localStorage.setItem(SET_KEY, JSON.stringify(settings)); } catch (_) {}
   }
@@ -796,12 +828,13 @@
 
   function pickupsSvg() {
     return pickups.map(p => {
-      const B = BALLS[p.type], y = gy(p.x), bob = Math.sin(frameNo * 0.08 + p.ph) * 3, k = 0.5 + 0.5 * Math.sin(frameNo * 0.1 + p.ph);
+      const af = lite ? frameNo & ~7 : frameNo;
+      const B = BALLS[p.type], y = gy(p.x), bob = Math.sin(af * 0.08 + p.ph) * 3, k = 0.5 + 0.5 * Math.sin(af * 0.1 + p.ph);
       const big = p.type !== 'ball';
       return `<g transform="translate(${f1(p.x)} ${f1(y)})">
         <ellipse cx="0" cy="1" rx="${f1(6 - bob * 0.4)}" ry="1.8" fill="#000" opacity=".25"/>
         <circle cx="0" cy="${f1(-12 + bob)}" r="${f1(11 + k * 3)}" fill="${B.col}" opacity="${(0.18 + k * 0.14).toFixed(2)}"/>
-        <g transform="translate(0 ${f1(-12 + bob)})">${Art.ball(big ? 7.5 : 6.5, frameNo * (big ? 2 : 0), 0, B.col)}</g>
+        <g transform="translate(0 ${f1(-12 + bob)})">${Art.ball(big ? 7.5 : 6.5, af * (big ? 2 : 0), 0, B.col)}</g>
         <path transform="translate(0 ${f1(-30 + bob)})" d="M-3.5,0 L3.5,0 L0,5 Z" fill="${big ? B.col : '#fff'}" stroke="#000" stroke-width=".8" stroke-linejoin="round"/>
         ${big ? `<text x="0" y="${f1(-35 + bob)}" text-anchor="middle" font-size="8.5" font-weight="bold" fill="${B.col}" stroke="#000" stroke-width=".6" paint-order="stroke">${p.type === 'great' ? 'GREAT' : 'ULTRA'}</text>` : ''}
       </g>`;
@@ -1520,7 +1553,7 @@
       if (!u.alive || (scene === 'intro')) continue;
       if (u.flying && u.alt > 0) {                                   // voadores pairam no ar
         const g = Math.min(gy(u.x), WATER - 30);
-        const ty = Math.max(46, g - u.alt) + Math.sin(frameNo * 0.05 + u.blinkOff) * 3;
+        const ty = Math.max(46, g - u.alt) + Math.sin(aF() * 0.05 + u.blinkOff) * 3;
         u.y += (ty - u.y) * 0.1; u.air = false; u.tilt = 0;
         continue;
       }
@@ -1850,7 +1883,7 @@
     const foes = units.filter(v => v.alive && !v.hidden && v.team !== u.team && v.team !== 2);
     let best = null, bestS = -1e9, near = null, nearD = 1e9;
     const tg = shotTargets(wp, u);
-    const heavy = wp.count >= 3 || u.moves.length > 1, aStep = heavy ? 4 : 3, pStep = heavy ? 6 : 5;
+    const heavy = wp.count >= 3 || u.moves.length > 1, aStep = (heavy ? 4 : 3) + (lite ? 2 : 0), pStep = (heavy ? 6 : 5) + (lite ? 3 : 0);
     // só os ângulos que a espécie consegue escolher, olhando para os dois lados
     const cands = [];
     for (const face of [1, -1]) { const [lo, hi] = aimWindow(u, face); for (let e = Math.max(-30, lo); e <= Math.min(180, hi) + 0.01; e += aStep) cands.push([face > 0 ? e : 180 - e, face]); }
@@ -1941,7 +1974,7 @@
   }
 
   // ---------- Partículas ----------
-  function addPart(p) { if (parts.length < 320) parts.push(p); }
+  function addPart(p) { if (parts.length < (lite ? 90 : 320)) parts.push(p); }
 
   function spray(x, y, n, col, sp, g, life, r, kind) {
     for (let i = 0; i < n; i++) {
@@ -2016,12 +2049,13 @@
 
   function unitSvg(u, opt = {}) {
     const S = spOf(u), sc = u.scale * u.capScale;
-    const bob = Math.sin(frameNo * 0.08 + u.x * 0.1) * 0.7;
+    const af = lite && !u.moving && !u.breath && !u.hurt ? frameNo & ~7 : frameNo;   // modo leve: animação parada muda a cada 8 quadros
+    const bob = Math.sin(af * 0.08 + u.x * 0.1) * 0.7;
     const step = u.moving ? Math.sin(u.walkT * 0.5) * 1.6 : 0;
     const flash = u.hurt > 0 && (u.hurt % 6 < 3);
     const col = opt.color || sideColor(u);
     const hop = u.hop ? -Math.abs(Math.sin(u.hop * 0.18)) * 16 : 0;
-    const ctx = { f: frameNo, blink: blink(u), breath: u.breath, bob, step, x: u.x, charge: !!opt.charge, flap: !!u.flying };
+    const ctx = { f: af, blink: lite ? false : blink(u), breath: u.breath, bob, step, x: u.x, charge: !!opt.charge, flap: !!u.flying };
     const ly = -(S.h * u.scale + 12);
     let label = '';
     if (!opt.noLabel && u.capScale > 0.5) {
@@ -2042,7 +2076,7 @@
     const shadow = opt.noShadow || sy > WATER ? '' : `<ellipse cx="0" cy="${f1(sy - u.y + 0.5)}" rx="${f1(11 * u.scale)}" ry="${f1(2.6 * u.scale)}" fill="#000" opacity=".25"/>`;
     const tilt = u.tilt && !u.flying ? `rotate(${f1(u.tilt * 57.3)}) ` : '';
     const lift = u.lift || 0;
-    const shield = u.shield > 0 && u.capScale > 0.5 ? `<circle cx="0" cy="${f1(-S.hitY * u.scale)}" r="${f1(S.hitR * u.scale * 1.75 + 4)}" fill="#8fe0ff" fill-opacity=".13" stroke="#bff3ff" stroke-width="1.8" stroke-opacity="${(0.55 + 0.3 * Math.sin(frameNo * 0.12)).toFixed(2)}"/>` : '';
+    const shield = u.shield > 0 && u.capScale > 0.5 ? `<circle cx="0" cy="${f1(-S.hitY * u.scale)}" r="${f1(S.hitR * u.scale * 1.75 + 4)}" fill="#8fe0ff" fill-opacity=".13" stroke="#bff3ff" stroke-width="1.8" stroke-opacity="${(0.55 + 0.3 * Math.sin(aF() * 0.12)).toFixed(2)}"/>` : '';
     return `<g transform="translate(${f1(u.x)} ${f1(u.y + hop - lift)})">
       ${lift ? `<g transform="translate(0 ${f1(lift)})">${shadow}</g>` : shadow}${shield}
       <g transform="${tilt}scale(${f1(u.face * sc)} ${f1(sc)})"${flash ? ' opacity=".45"' : ''}><g${shF(u.sp, u.sh)}>${Art.draw(u.sp, ctx)}</g></g>
@@ -2052,7 +2086,7 @@
 
   function statusIcon(u) {
     if (!u.status || u.capScale < 0.5) return '';
-    const S = spOf(u), y = -S.h * u.scale * 0.55, b = Math.sin(frameNo * 0.15) * 1.5;
+    const S = spOf(u), y = -S.h * u.scale * 0.55, b = Math.sin(aF() * 0.15) * 1.5;
     const col = { burn: '#ff7a1a', poison: '#b45ac8', freeze: '#bfeaf6', sleep: '#c8d8ff', para: '#ffe96a' }[u.status] || '#fff';
     const ch = { burn: '🔥', poison: '☠', freeze: '❄', sleep: 'Z', para: '⚡' }[u.status] || '';
     return `<g transform="translate(${f1(-S.hitR * u.scale - 8)} ${f1(y + b)})"><circle r="6.5" fill="#000" opacity=".55" stroke="${col}" stroke-width="1.4"/><text y="3.4" text-anchor="middle" font-size="9" fill="${col}" font-weight="bold">${ch}</text></g>`;
@@ -2061,7 +2095,7 @@
   function renderTerrain() {
     if (terrDirty) {
       const d = terrainPath();
-      $('tclipPath').setAttribute('d', d); $('tback').setAttribute('d', d); $('tedge').setAttribute('d', d);
+      $('tclipPath').setAttribute('d', d); $('tback').setAttribute('d', d); $('tedge').setAttribute('d', d); $('tfill').setAttribute('d', d);
       terrDirty = false;
     }
     $('scorch').innerHTML = scorch.map(c => `<circle cx="${f1(c.x)}" cy="${f1(c.y)}" r="${f1(c.r + 2)}"/>`).join('');
@@ -2132,7 +2166,7 @@
     if (w === 'rain') {
       s += `<rect width="800" height="500" fill="#0a1a33" opacity=".3"/>`;
       const sl = -wind * 0.1 - 0.12;
-      for (let i = 0; i < 64; i++) {
+      for (let i = 0; i < (lite ? 0 : 64); i++) {
         const sp = 15 + (i % 5) * 2.5, y = ((frameNo * sp + i * 53) % 540) - 20, x = ((i * 131.7) % 880) - 40 + y * -sl;
         s += `<line x1="${f1(x)}" y1="${f1(y)}" x2="${f1(x + sl * 16)}" y2="${f1(y + 16)}" stroke="#cfe9ff" stroke-width="${i % 3 ? 1.1 : 1.6}" opacity="${(0.28 + (i % 4) * 0.08).toFixed(2)}" stroke-linecap="round"/>`;
       }
@@ -2140,7 +2174,7 @@
       s += `<rect width="800" height="500" fill="#ffb347" opacity=".09"/>
         <g transform="translate(690 52)">
           <circle r="190" fill="#fff2b0" opacity=".05"/><circle r="120" fill="#fff2b0" opacity=".07"/><circle r="64" fill="#fff6c8" opacity=".14"/>
-          ${Array.from({ length: 10 }, (_, i) => `<path transform="rotate(${f1(i * 36 + frameNo * 0.15)})" d="M-5,-70 L0,-260 L5,-70 Z" fill="#fff6c8" opacity=".07"/>`).join('')}
+          ${Array.from({ length: 10 }, (_, i) => `<path transform="rotate(${f1(i * 36 + (lite ? 0 : frameNo * 0.15))})" d="M-5,-70 L0,-260 L5,-70 Z" fill="#fff6c8" opacity=".07"/>`).join('')}
         </g>
         <circle cx="560" cy="150" r="14" fill="#fff6c8" opacity=".07"/><circle cx="470" cy="215" r="22" fill="#ffd9a0" opacity=".06"/><circle cx="390" cy="270" r="10" fill="#fff6c8" opacity=".08"/>`;
     } else if (w === 'storm') {
@@ -2152,7 +2186,7 @@
       }
     } else if (w === 'snow') {
       s += `<rect width="800" height="500" fill="#bcd8f0" opacity=".14"/>`;
-      for (let i = 0; i < 70; i++) {
+      for (let i = 0; i < (lite ? 0 : 70); i++) {
         const sp = 1.1 + (i % 5) * 0.45, y = ((frameNo * sp + i * 71) % 540) - 20;
         const x = ((i * 117.3) % 840) - 20 + Math.sin(frameNo * 0.03 + i) * 14 - wind * y * 0.04;
         s += `<circle cx="${f1(x)}" cy="${f1(y)}" r="${(1.2 + (i % 3) * 0.7).toFixed(1)}" fill="#fff" opacity="${(0.55 + (i % 4) * 0.1).toFixed(2)}"/>`;
@@ -2199,6 +2233,12 @@
   const MM = { x: 492, y: 58, w: 300, h: 34 };
   const inMini = p => p.x >= MM.x - 4 && p.x <= MM.x + MM.w + 4 && p.y >= MM.y - 4 && p.y <= MM.y + MM.h + 14;
   const miniPan = p => { panX = clamp((p.x - MM.x) / MM.w * W, VW / 2, W - VW / 2); };
+  let mmShown = false;
+  function mmViewSvg() {
+    if (!mmShown) return '';
+    const k = MM.w / W, vw = VW / cam.z, vx = clamp(cam.x - vw / 2, 0, W - vw);
+    return `<rect x="${f1(MM.x + vx * k)}" y="${MM.y + 1}" width="${f1(vw * k)}" height="${MM.h - 2}" rx="3" fill="#fff" fill-opacity=".1" stroke="#fff" stroke-width="1.4"/>`;
+  }
   function miniSvg() {
     const k = MM.w / W, my = y => MM.y + clamp((y - 110) / 380, 0, 1) * MM.h;
     let s = `<rect x="${MM.x}" y="${MM.y}" width="${MM.w}" height="${MM.h}" rx="8" fill="#0d1b2a" opacity=".72"/>`;
@@ -2211,8 +2251,7 @@
       const isAct = u === activeUnit() && (state === 'aim' || state === 'ai');
       s += `<circle cx="${f1(MM.x + u.x * k)}" cy="${f1(my(u.y) - 3)}" r="${u.team === 2 ? 3.4 : isAct ? 3.6 : 2.6}" fill="${sideColor(u)}" stroke="${isAct ? '#fff' : '#000'}" stroke-width="${isAct ? 1.2 : 0.6}"/>`;
     }
-    const vw = VW / cam.z, vx = clamp(cam.x - vw / 2, 0, W - vw);
-    s += `<rect x="${f1(MM.x + vx * k)}" y="${MM.y + 1}" width="${f1(vw * k)}" height="${MM.h - 2}" rx="3" fill="#fff" fill-opacity=".1" stroke="#fff" stroke-width="1.4"/>`;
+    mmShown = true;      // o retângulo da câmera vai numa camada própria (não reescreve o painel todo enquanto a câmera anda)
     s += `<text x="${MM.x + MM.w}" y="${MM.y + MM.h + 11}" text-anchor="end" font-size="8.5" fill="#bfe3ff">mapa largo · arraste ou Q/E · C centraliza</text>`;
     return s;
   }
@@ -2475,7 +2514,7 @@
 
   function weakMarker(u) {
     // bolinha pulsando sobre inimigos que já podem ser capturados
-    const S = spOf(u), bounce = Math.sin(frameNo * 0.2) * 2.5;
+    const S = spOf(u), bounce = Math.sin(aF() * 0.2) * 2.5;
     let s = `<g transform="translate(0 ${f1(-(S.h * u.scale + 36) + bounce)})">${Art.ball(6, 0)}</g>`;
     if (ballMode) s += `<text x="0" y="${f1(-(S.h * u.scale + 46))}" text-anchor="middle" font-size="12" font-weight="bold" fill="#ffd34d" stroke="#000" stroke-width=".7">${Math.round(captureChance(u) * 100)}%</text>`;
     return s;
@@ -2492,7 +2531,7 @@
       let s = unitSvg(u, u.team === 2 ? { extra: `<text x="0" y="-26" text-anchor="middle" font-size="8.5" font-weight="bold" fill="${GUEST_COL}" stroke="#000" stroke-width=".5" letter-spacing="1">VISITANTE</text>` } : {});
       if (isFoe && u.hp / u.maxhp <= WEAK && state !== 'capture') s = s.replace(/<\/g>$/, `${weakMarker(u)}</g>`);
       if (u === act && (state === 'aim' || state === 'ai') && !teams[turnTeam].ai) {
-        s = s.replace(/<\/g>$/, `<path transform="translate(0 ${f1(-(spOf(u).h * u.scale + 34) + Math.sin(frameNo * 0.15) * 3)})" d="M-6,0 L6,0 L0,8 Z"
+        s = s.replace(/<\/g>$/, `<path transform="translate(0 ${f1(-(spOf(u).h * u.scale + 34) + Math.sin(aF() * 0.15) * 3)})" d="M-6,0 L6,0 L0,8 Z"
           fill="${teams[u.team].color}" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></g>`);
       }
       wh += s + extra;
@@ -2542,8 +2581,8 @@
   function renderAll() {
     // enquanto um golpe cava, o contorno do terreno é refeito no máximo a cada 4 quadros
     if (dirty && (!terrDirty || state !== 'flying' || frameNo - terrAt > 3)) { renderTerrain(); dirty = false; terrAt = frameNo; }
-    renderWater();
-    renderClouds();
+    if (!lite || frameNo % 8 === 0) renderWater();
+    if (!lite) renderClouds();
     setAttrOnce('Lsky', 'transform', camT(0.08));
     setAttrOnce('Lfar', 'transform', camT(0.25));
     setAttrOnce('Lnear', 'transform', camT(0.5));
@@ -2572,7 +2611,7 @@
 
     $('proj').innerHTML = projs.map(projSvg).join('') + captureSvg();
 
-    $('pshadow').innerHTML = projs.map(p => {
+    $('pshadow').innerHTML = lite ? '' : projs.map(p => {
       if (p.x < 0 || p.x >= W) return '';
       const g = gy(p.x), k = clamp(1 - Math.max(0, g - p.y) / 260, 0.15, 1);
       return `<ellipse cx="${f1(p.x)}" cy="${f1(g)}" rx="${f1(8 * k + 2)}" ry="${f1(2.4 * k + 0.6)}" fill="#000" opacity="${(0.35 * k).toFixed(2)}"/>`;
@@ -2623,7 +2662,9 @@
          <rect x="12" y="56" width="${f1(power * 2.04)}" height="10" rx="5" fill="url(#pow)"/>`
       : '';
 
+    mmShown = false;
     $('hud').innerHTML = weatherSvg() + (flash.a > 0.01 ? `<rect width="800" height="500" fill="${flash.col}" opacity="${flash.a.toFixed(2)}"/>` : '') + hudSvg();
+    $('mmview').innerHTML = mmViewSvg();
     $('msgbox').innerHTML = msgSvg();
     renderOverlay();
   }
@@ -2806,9 +2847,13 @@
     });
     // botões (sem animação de posição para o toque funcionar): ficam dentro do painel
     const bx = Math.round(X + 24);
-    s += uiBtn(bx, 290, 202, 40, Sfx.isOn() ? 'Som: ligado' : 'Som: desligado', () => { toggleSound(); }, { fs: 16 });
-    s += uiBtn(bx, 338, 202, 40, 'Restaurar padrão', () => { SLIDERS.forEach((S, i) => setSlider(i, S.def)); }, { fs: 16 });
-    s += uiBtn(bx, 386, 202, 40, 'Fechar', () => toggleSettings(false), { fs: 16 });
+    // qualidade: Automática (liga o modo leve se o aparelho for lento) / Alta / Leve
+    const qn = QUALITY_NAME[settings.quality] + (settings.quality === 'auto' ? (lite ? ' (leve)' : ' (alta)') : '');
+    if (settingsRow === 2) s += `<rect x="${f1(X + 12)}" y="238" width="226" height="52" rx="12" fill="none" stroke="#ffb347" stroke-width="2" opacity=".9"/>`;
+    s += uiBtn(bx, 244, 202, 40, `Qualidade: ${qn}`, () => cycleQuality(1), { fs: 14 });
+    s += uiBtn(bx, 300, 202, 40, Sfx.isOn() ? 'Som: ligado' : 'Som: desligado', () => { toggleSound(); }, { fs: 16 });
+    s += uiBtn(bx, 348, 202, 40, 'Restaurar padrão', () => { SLIDERS.forEach((S, i) => setSlider(i, S.def)); }, { fs: 16 });
+    s += uiBtn(bx, 396, 202, 40, 'Fechar', () => toggleSettings(false), { fs: 16 });
     s += `<text x="${f1(X + 125)}" y="454" text-anchor="middle" font-size="10" fill="#fff" opacity=".6">O abre/fecha · ← → ajusta · ↑ ↓ escolhe</text>
           <text x="${f1(X + 125)}" y="470" text-anchor="middle" font-size="10" fill="#fff" opacity=".45">(o jogo fica em pausa)</text>`;
     return s;
@@ -2967,8 +3012,9 @@
     if (e.key === 'o' || e.key === 'O') { e.preventDefault(); toggleSettings(); return; }
     if (settingsOpen) {
       if (e.key === 'Escape') toggleSettings(false);
-      else if (e.key === 'ArrowUp') { settingsRow = 0; Sfx.click(); e.preventDefault(); }
-      else if (e.key === 'ArrowDown') { settingsRow = 1; Sfx.click(); e.preventDefault(); }
+      else if (e.key === 'ArrowUp') { settingsRow = Math.max(0, settingsRow - 1); Sfx.click(); e.preventDefault(); }
+      else if (e.key === 'ArrowDown') { settingsRow = Math.min(2, settingsRow + 1); Sfx.click(); e.preventDefault(); }
+      else if (settingsRow === 2 && (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'Enter' || e.code === 'Space')) { cycleQuality(e.key === 'ArrowLeft' ? -1 : 1); e.preventDefault(); }
       else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
         const S = SLIDERS[settingsRow], d = (e.key === 'ArrowRight' ? 1 : -1) * (S.max - S.min) * 0.05;
         setSlider(settingsRow, settings[S.key] + d); e.preventDefault();
@@ -3016,6 +3062,36 @@
   });
   addEventListener('blur', () => { keys = {}; charging = false; power = 0; Sfx.chargeStop(); });
 
+  // ---------- Controle (DualSense/PS5, Xbox, genéricos): vira as mesmas teclas do teclado ----------
+  // X segura e solta para atirar (e confirma nos menus) · direcional/analógico esquerdo anda e mira · ▢ Pokébola · △ troca de golpe
+  // L1/R1 (ou analógico direito) olham o mapa · L2 recentraliza · R2 passa a vez · Create reinicia · Options ajustes · O volta
+  const PAD_KEYS = { 0: { key: ' ', code: 'Space' }, 2: { key: 'b' }, 3: { key: 'g' }, 4: { key: 'q', hold: true }, 5: { key: 'e', hold: true },
+                     6: { key: 'c' }, 7: { key: 'p' }, 8: { key: 'r' }, 9: { key: 'o' },
+                     12: { key: 'ArrowUp', hold: true }, 13: { key: 'ArrowDown', hold: true }, 14: { key: 'ArrowLeft', hold: true }, 15: { key: 'ArrowRight', hold: true } };
+  let padPrev = {}, padName = '';
+  const padKey = (type, k) => dispatchEvent(new KeyboardEvent(type, { key: k.key, code: k.code || '' }));
+  function pollPad() {
+    const list = navigator.getGamepads ? navigator.getGamepads() : [];
+    let gp = null; for (const g of list || []) if (g && g.connected) { gp = g; break; }
+    if (!gp) { if (padName) { padName = ''; padPrev = {}; } return; }
+    if (!padName) { padName = gp.id || 'controle'; showMsg('Controle conectado! X atira · ▢ bola · △ golpe', 150); kbd = true; }
+    const now = {}, ax = gp.axes || [];
+    (gp.buttons || []).forEach((b, i) => { now['b' + i] = !!(b && (b.pressed || b.value > 0.5)); });
+    // analógico esquerdo = direcional; analógico direito = olhar o mapa
+    if ((ax[0] || 0) < -0.5) now.b14 = true; if ((ax[0] || 0) > 0.5) now.b15 = true;
+    if ((ax[1] || 0) < -0.5) now.b12 = true; if ((ax[1] || 0) > 0.5) now.b13 = true;
+    if ((ax[2] || 0) < -0.5) now.b4 = true; if ((ax[2] || 0) > 0.5) now.b5 = true;
+    for (const i in PAD_KEYS) {
+      const k = PAD_KEYS[i], on = !!now['b' + i], was = !!padPrev['b' + i];
+      if (on && !was) Sfx.unlock(), padKey('keydown', k);
+      else if (!on && was && (k.hold || k.code)) padKey('keyup', k);
+    }
+    // O (círculo) = voltar: fecha ajustes/perguntas e volta nos menus, sem sair da batalha por engano
+    if (now.b1 && !padPrev.b1 && (settingsOpen || (panel && panel.pause) || scene === 'menu')) padKey('keydown', { key: 'Escape' });
+    padPrev = now;
+  }
+  addEventListener('gamepadconnected', () => { Sfx.unlock(); });
+
   // ---------- Loop ----------
   function stepBattle() {
     if (state === 'aim') {
@@ -3057,6 +3133,7 @@
   // lógica do jogo: sempre em passos fixos de 1/60 s (iPhones ProMotion chamam o quadro a 120 Hz)
   function tick() {
     frameNo++;
+    pollPad();
     drawerT = Math.max(0, Math.min(1, drawerT + (settingsOpen ? 0.09 : -0.09)));
     if (settingsOpen) { updateCamera(); return; }   // pausado
     for (const u of units) {
@@ -3102,7 +3179,10 @@
     }
     if (!steps) return;
     for (let i = 0; i < steps; i++) tick();
-    if (steps > 1 || busy() || (++renderPar & 1)) renderAll();
+    const b = busy();
+    if (b) perfSample(ts); else perfLast = 0;
+    // modo leve: desenha no máximo a 30 quadros por segundo (a lógica continua a 60)
+    if (lite ? (++renderPar & 1) : (steps > 1 || b || (++renderPar & 1))) renderAll();
   }
 
   // para testes automatizados
@@ -3116,6 +3196,7 @@
     forceGuest: sp => { gCool = 0; STAGES[stageIdx].guests = [{ sp, rarity: 1 }]; },
     skipEvolve, stageClear,
     initMenu, initIntro, playStage, cycleMove, maybeChangeWeather, rollWeather, initStage, newCampaign, beginStage, fire, toggleBall, pickTarget,
+    setQuality: q => { settings.quality = q; settings.autoLite = false; applySettings(); }, get lite() { return lite; }, pollPad,
     setAngle: a => { angle = a; const u = activeUnit(); if (u && scene === 'battle') u.face = Math.cos(a * Math.PI / 180) >= 0 ? 1 : -1; }, aimWindow: u => aimWindow(u || activeUnit()), setPower: p => { power = p; }, passTurn, turnOrder,
     get windY() { return windY; }, solid, surf, carve, terrainPath, get mask() { return mask; },
     // procura (ângulo, força) para acertar um alvo com a arma 'wk' a partir do personagem da vez
@@ -3135,7 +3216,7 @@
     }
   };
 
-  cacheHtml(['introBack', 'decor', 'intro', 'aim', 'worms', 'proj', 'pshadow', 'parts', 'fx', 'floaters', 'powerbar', 'hud', 'msgbox', 'overlay']);
+  cacheHtml(['introBack', 'decor', 'intro', 'aim', 'worms', 'proj', 'pshadow', 'parts', 'fx', 'floaters', 'powerbar', 'hud', 'mmview', 'msgbox', 'overlay']);
   applySettings();
   initMenu();
   requestAnimationFrame(frame);

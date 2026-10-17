@@ -21,6 +21,12 @@
   .btn text{fill:#fff;font-size:26px;font-weight:bold;text-anchor:middle;pointer-events:none}
   #help{font-size:13px;margin-top:10px;opacity:.8;line-height:1.5}
   kbd{background:#333;border:1px solid #555;border-radius:4px;padding:1px 5px;font-size:12px}
+  /* modo leve (aparelhos fracos): tira as camadas decorativas mais caras de desenhar */
+  #tfill{display:none}
+  body.lite #tfill{display:inline} body.lite #tclipG, body.lite #tedge{display:none}
+  body.lite svg{box-shadow:none;border-radius:0}
+  body.lite #clouds, body.lite #Lfar, body.lite #Lmid, body.lite #Lfore, body.lite #tbackG, body.lite #strata1, body.lite #strata2,
+  body.lite #dirtTexRect, body.lite #scorch, body.lite #tufts, body.lite #edgeGrassHi, body.lite #waveBack, body.lite #sunGlowC, body.lite #pshadow{display:none}
 </style>
 </head>
 <body>
@@ -255,12 +261,13 @@
   <path id="waveBack" fill="url(#seaBack)"/>
 
   <!-- terreno: ilhas flutuantes destrutíveis; a "fatia de trás" deslocada dá espessura (2.5D) e aparece pelos buracos -->
-  <g transform="translate(7 -9)">
+  <g id="tbackG" transform="translate(7 -9)">
     <path id="tback" fill="#3d2818" fill-rule="evenodd"/>
     <path id="tbackBurnt" fill="none" stroke="#1a100a" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
     <path id="tbackGrass" fill="none" stroke="#3a6b25" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>
   </g>
-  <g clip-path="url(#tclip)">
+  <path id="tfill" fill="url(#dirt)" fill-rule="evenodd"/>
+  <g id="tclipG" clip-path="url(#tclip)">
     <rect id="dirtRect" width="800" height="500" fill="url(#dirt)"/>
     <path id="strata1" fill="#4a2c16" opacity=".5"/>
     <path id="strata2" fill="#2a180c" opacity=".7"/>
@@ -294,6 +301,7 @@
 
   <!-- interface -->
   <g id="hud"></g>
+  <g id="mmview" style="pointer-events:none"></g>
   <g id="powerbar"></g>
   <g id="msgbox"></g>
   <g id="touch">
@@ -315,7 +323,7 @@
 <div id="help">
   <kbd>←</kbd> <kbd>→</kbd> andar &nbsp;·&nbsp; <kbd>↑</kbd> <kbd>↓</kbd> mirar &nbsp;·&nbsp;
   segure <kbd>ESPAÇO</kbd> para força e solte para atirar &nbsp;·&nbsp; <kbd>B</kbd> Pokébola (inimigo fraco) &nbsp;·&nbsp; <kbd>G</kbd> troca de golpe &nbsp;·&nbsp;
-  <kbd>Q</kbd> <kbd>E</kbd> olham o mapa (arraste na tela) &nbsp;·&nbsp; <kbd>P</kbd> passa a vez (joga quem tem menos atraso) &nbsp;·&nbsp; <kbd>R</kbd> reinicia &nbsp;·&nbsp; <kbd>M</kbd> som &nbsp;·&nbsp; <kbd>ESC</kbd> menu
+  <kbd>Q</kbd> <kbd>E</kbd> olham o mapa (arraste na tela) &nbsp;·&nbsp; <kbd>P</kbd> passa a vez (joga quem tem menos atraso) &nbsp;·&nbsp; <b>Controle (PS5/Xbox):</b> direcional anda e mira, segure X para atirar, ▢ bola, △ golpe, R2 passa, L1/R1 olham o mapa, Options ajustes &nbsp;·&nbsp; <kbd>R</kbd> reinicia &nbsp;·&nbsp; <kbd>M</kbd> som &nbsp;·&nbsp; <kbd>ESC</kbd> menu
 </div>
 <div id="rotate">📱 Gire o celular para o modo paisagem (deitado) para jogar melhor.</div>
 </div>

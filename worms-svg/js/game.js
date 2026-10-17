@@ -8,14 +8,14 @@
   const GRAV = 0.2;           // gravidade base (px/frame²)
   const WALK_MAX = 120;       // distância máxima de caminhada por turno (mapas largos dão um pouco mais)
   const walkMax = () => WALK_MAX + Math.max(0, W - 800) * 0.07;
-  const GAME_VERSION = '17/10 g';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
+  const GAME_VERSION = '17/10 h';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
   const TURN_TIME = 30 * 60;  // 30 s para mirar e atirar (estourou: passa a vez)
   const WEAK = 0.35;          // abaixo dessa fração de PV o inimigo pode ser capturado
   const PLAYER_COL = '#3a9bff', WILD_COL = '#e0433a', GUEST_COL = '#ffd34d';
   const SAVE_KEY = 'ms_campaign_v1', SET_KEY = 'ms_settings_v1';
   // ajustes (menu lateral): brilho da tela e volume do som
-  const settings = { bright: 1, vol: 0.6, quality: 'auto', autoLite: false, showFps: false, zoom: 'auto' };   // zoom: 'auto' (desliga no modo leve) | 'on' | 'off'   // quality: 'auto' | 'alta' | 'leve'
-  try { const t = JSON.parse(localStorage.getItem(SET_KEY)); if (t) { settings.bright = Math.min(1.5, Math.max(0.6, +t.bright || 1)); settings.vol = Math.min(1, Math.max(0, t.vol === undefined ? 0.6 : +t.vol)); if (['auto', 'alta', 'leve'].includes(t.quality)) settings.quality = t.quality; settings.autoLite = !!t.autoLite; settings.showFps = !!t.showFps; if (['auto', 'on', 'off'].includes(t.zoom)) settings.zoom = t.zoom; } } catch (_) {}
+  const settings = { bright: 1, vol: 0.6, quality: 'auto', autoLite: false, showFps: false, zoom: 'auto', render: 'webgl', glv: 1 };   // render: 'webgl' | 'svg'   // zoom: 'auto' (desliga no modo leve) | 'on' | 'off'   // quality: 'auto' | 'alta' | 'leve'
+  try { const t = JSON.parse(localStorage.getItem(SET_KEY)); if (t) { settings.bright = Math.min(1.5, Math.max(0.6, +t.bright || 1)); settings.vol = Math.min(1, Math.max(0, t.vol === undefined ? 0.6 : +t.vol)); if (['auto', 'alta', 'leve'].includes(t.quality)) settings.quality = t.quality; settings.autoLite = !!t.autoLite; settings.showFps = !!t.showFps; if (['auto', 'on', 'off'].includes(t.zoom)) settings.zoom = t.zoom; if (t.render === 'svg') settings.render = 'svg'; if (!t.glv) settings.autoLite = false; } } catch (_) {}   // com o WebGL, o modo leve automático da versão antiga recomeça desligado
   let settingsOpen = false, drawerT = 0, settingsRow = 0, dragSlider = -1, sliderRects = [];
   const SLIDERS = [
     { key: 'bright', label: 'Brilho', min: 0.6, max: 1.5, def: 1,   fmt: v => Math.round(v * 100) + '%' },
@@ -33,6 +33,7 @@
       $(id).setAttribute('text-rendering', lite ? 'optimizeSpeed' : 'auto');
     }
     dirty = true;
+    if (GLR) glSize();
   }
   function cycleQuality(d = 1) {
     const order = ['auto', 'alta', 'leve'];
@@ -207,7 +208,7 @@
   const cam = { x: 400, y: 250, z: 1, shake: 0, sx: 0, sy: 0 };
 
   // zoom desligado no modo leve e no Fire TV: mudar a escala obriga a redesenhar todas as camadas (caro em aparelho fraco)
-  const noZoom = () => settings.zoom === 'off' || (settings.zoom !== 'on' && (lite || isFireTV()));
+  const noZoom = () => settings.zoom === 'off' || (settings.zoom !== 'on' && (lite || (!glActive && isFireTV())));   // no WebGL o zoom é barato
   function updateCamera() {
     let tx = 400, ty = 250, tz = 1, k = 0.06;
     if (scene === 'menu' || scene === 'team') { tz = 1; }
@@ -261,6 +262,7 @@
       sv.style.width = (lw * stageS) + 'px'; sv.style.height = (lh * stageS) + 'px';
     }
     for (const k in camCss) delete camCss[k];
+    if (GLR) { glSize(); glBgDirty = true; }
   }
   const camCss = {};
   function placeLayers() {
@@ -318,6 +320,7 @@
       $('sunC').setAttribute('fill', t.sun.col);
     } else $('sun').style.display = 'none';
     $('clouds').setAttribute('opacity', t.clouds);
+    glBgDirty = true;
   }
 
   function skyline() {
@@ -513,6 +516,7 @@
     $('fore').setAttribute('d', fd);
     $('introBack').innerHTML = '';
     decor = []; dirty = true;
+    glFullT = true; glTerrOk = false; glBgDirty = true; glPunches = [];
   }
 
   function genDecor(avoid) {
@@ -528,7 +532,7 @@
       decor.push({ x, base: heights[x], type: pick(list), s: rnd(0.8, 1.15),
                    col: pick(['#ff6b8a', '#ffd84d', '#ffffff', '#b98cff', '#7ae8ff', '#ff9be8']) });
     }
-    dirty = true;
+    dirty = true; glFullT = true;
   }
 
   function genClouds() {
@@ -727,6 +731,7 @@
   function applyWeatherSky() {
     const t = THEMES[themeKey];
     $('sun').style.display = (t.sun && !(weather === 'rain' || weather === 'storm' || weather === 'snow')) ? '' : 'none';
+    glSkyDirty = true;
   }
   // de tempos em tempos o clima muda sozinho no meio da fase
   function maybeChangeWeather() {
@@ -1124,6 +1129,7 @@
       for (let x = x0; x <= x1; x++) if (mask[row + x] && (x - cx) * (x - cx) + dy * dy <= r * r) { mask[row + x] = 0; any = true; }
     }
     if (!any) return;
+    if (glActive) { glPunch(cx, cy, r); glMark(cx - r - 22, cy - r - 30, cx + r + 22, cy + r + 22); }
     for (let x = Math.max(0, Math.floor(cx - r - 8)); x <= Math.min(W - 1, Math.ceil(cx + r + 8)); x++) {
       if (Math.hypot(x - cx, heights[x] - cy) < r + 8) grass[x] = 0;
     }
@@ -1132,7 +1138,7 @@
     terrDirty = true;
     decor = decor.filter(d => {
       const hit = surf(d.x, d.base - 3) > d.base + 2 || Math.hypot(d.x - cx, d.base - 10 - cy) < r;
-      if (hit) burstDecor(d);
+      if (hit) { burstDecor(d); glMark(d.x - 50, d.base - 150, d.x + 50, d.base + 14); }
       return !hit;
     });
     dirty = true;
@@ -1222,13 +1228,15 @@
   }
   // Bomba de Lama e afins: ergue chão por cima da superfície (só onde há ilha embaixo)
   function raiseTerrain(cx, r, hgt) {
+    let ya = 1e9, yb = -1e9;
     for (let x = Math.max(0, Math.floor(cx - r)); x <= Math.min(W - 1, Math.ceil(cx + r)); x++) {
       const k = 1 - Math.abs(x - cx) / r; if (k <= 0) continue;
       const t0 = heights[x]; if (t0 >= WATER - 2) continue;
       const t1 = Math.max(60, Math.round(t0 - hgt * Math.sqrt(k)));
       for (let y = t1; y < t0; y++) mask[y * W + x] = 1;
-      heights[x] = t1; grass[x] = 0;
+      heights[x] = t1; grass[x] = 0; ya = Math.min(ya, t1); yb = Math.max(yb, t0);
     }
+    if (yb > ya) glMark(cx - r - 14, ya - 30, cx + r + 14, yb + 14);
     terrDirty = true; dirty = true;
   }
   function quakeHit(x, p, wp) {
@@ -2697,6 +2705,558 @@
     $('aim').innerHTML = aim;
   }
 
+  // ---------- Desenho em WebGL ----------
+  // o mundo (céu, fundos, terreno, água, Pokémon, tiros, efeitos, clima) é desenhado num <canvas> pela placa de vídeo;
+  // painel, menus e botões continuam no SVG por cima. Fase da cidade e aparelhos sem WebGL usam o desenho SVG.
+  let GLR = null, glActive = false, glP = 1, glFailed = false;
+  const glSnap = {};                                  // camada -> { ok, ver, busy, vb }
+  let glBgDirty = true, glSkyDirty = true, glBgVer = 0;
+  let glTerr = null, glTerrOk = false, glTerrBusy = false, glFullT = true, glBox = null, glSnapAt = -99, glSeq = 0, glPunches = [];
+  const SVGNS = 'http://www.w3.org/2000/svg';
+  const glCan = () => !!(GLR && !glFailed && settings.render !== 'svg');
+
+  let defsEls = null;
+  function defsFor(src) {
+    if (!defsEls) { defsEls = {}; document.querySelectorAll('defs > [id]').forEach(e => { defsEls[e.id] = e; }); }
+    const seen = new Set(), out = [];
+    const scan = s => {
+      const re = /url\(#([^)"']+)\)|href="#([^"]+)"/g; let m;
+      while ((m = re.exec(s))) {
+        const id = m[1] || m[2]; if (seen.has(id)) continue; seen.add(id);
+        let e = defsEls[id]; if (!e || !e.isConnected) { e = document.getElementById(id); if (e) defsEls[id] = e; }
+        if (e) { const h = e.outerHTML; out.push(h); scan(h); }
+      }
+    };
+    scan(src);
+    return out.length ? '<defs>' + out.join('') + '</defs>' : '';
+  }
+
+  function glInit() {
+    if (GLR || glFailed || settings.render === 'svg' || typeof document === 'undefined' || !MS.makeGL) return;
+    const cv = document.getElementById('glc'); if (!cv || !cv.getContext) return;
+    try { GLR = MS.makeGL(cv, { defsFor }); } catch (_) { GLR = null; }
+    if (!GLR) { glFailed = true; return; }
+    cv.addEventListener('webglcontextlost', e => { e.preventDefault(); glFailed = true; GLR = null; glActive = false; document.body.classList.remove('gl'); layoutLayers(); dirty = true; });
+    glSize();
+  }
+  // resolução do canvas: a mesma do palco na tela (até 2 pixels por ponto); no modo leve, um pouco menor
+  function glSize() {
+    const cv = typeof document !== 'undefined' && document.getElementById('glc'); if (!cv || !GLR) return;
+    const st = $('stage'), r = st.getBoundingClientRect ? st.getBoundingClientRect() : { width: 800 };
+    const dpr = Math.min(2, window.devicePixelRatio || 1) * (lite ? 0.7 : 1);
+    const w = Math.max(320, Math.round((r.width || 800) * dpr)), h = Math.round(w * 5 / 8);
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; glBgDirty = true; glFullT = true; GLR.resetAtlas(); }   // desenhos refeitos na resolução nova
+    glP = w / VW; GLR.resize(w, h);
+  }
+  function glUse() {
+    const on = glCan() && scene !== 'intro';
+    if (on !== glActive) {
+      glActive = on;
+      document.body.classList.toggle('gl', on);
+      if (on) { glBgDirty = true; glFullT = true; glSize(); }
+      else { layoutLayers(); dirty = true; }
+    }
+    return on;
+  }
+  function toggleRender() {
+    settings.render = settings.render === 'svg' ? 'webgl' : 'svg';
+    if (settings.render === 'webgl') { glFailed = false; glInit(); if (!GLR) { settings.render = 'svg'; showMsg('Este aparelho não tem WebGL', 120); } }
+    applySettings(); Sfx.click();
+  }
+  // marca uma área do terreno para ser redesenhada (em unidades do mundo)
+  function glMark(x0, y0, x1, y1) {
+    if (!glBox) glBox = [x0, y0, x1, y1];
+    else { glBox[0] = Math.min(glBox[0], x0); glBox[1] = Math.min(glBox[1], y0); glBox[2] = Math.max(glBox[2], x1); glBox[3] = Math.max(glBox[3], y1); }
+  }
+  // buraco imediato na imagem do terreno (o desenho completo daquela área chega logo depois)
+  function glApplyPunch(c, p) {
+    const t = glTerr;
+    c.save(); c.setTransform(t.sx, 0, 0, t.sy, 40 * t.sx, 20 * t.sy);
+    c.globalCompositeOperation = 'destination-out'; c.beginPath(); c.arc(p.cx, p.cy, p.r, 0, 7); c.fill();
+    c.restore();
+  }
+  function glPunch(cx, cy, r) {
+    if (!glTerr || !glActive) return;
+    const p = { cx, cy, r, seq: ++glSeq }; glPunches.push(p); if (glPunches.length > 80) glPunches.shift();
+    glApplyPunch(glTerr.ctx, p);
+    const t = glTerr;
+    GLR.subTex('terr', t.cv, (cx - r - 2 + 40) * t.sx, (cy - r - 2 + 20) * t.sy, (2 * r + 4) * t.sx + 2, (2 * r + 4) * t.sy + 2);
+  }
+  // "foto" de uma camada SVG do jogo (com as definições de gradientes e padrões que ela usa)
+  function glPhoto(el, vb, res, drop, cb) {
+    let s;
+    try {
+      const c = el.cloneNode(true);
+      for (const id of drop) { const e = c.querySelector('#' + id); if (e) e.remove(); }
+      const w = Math.max(1, Math.round(vb[2] * res)), h = Math.max(1, Math.round(vb[3] * res));
+      c.removeAttribute('style'); c.removeAttribute('class'); c.removeAttribute('id');
+      c.setAttribute('viewBox', vb.map(v => +v.toFixed(4)).join(' ')); c.setAttribute('width', w); c.setAttribute('height', h);
+      c.setAttribute('preserveAspectRatio', 'none'); c.setAttribute('overflow', 'hidden');
+      s = new XMLSerializer().serializeToString(c);
+      s = s.replace(/<svg[^>]*>/, m => m + defsFor(s));
+      // arquivo na memória (blob) é mais leve que um endereço data: gigante; se o navegador recusar, tenta o data:
+      const load = (blob) => {
+        const im = new Image(); let url = null;
+        if (blob) { try { url = URL.createObjectURL(new Blob([s], { type: 'image/svg+xml' })); } catch (_) { return load(false); } }
+        im.onload = () => { try { cb(im, w, h); } catch (_) { if (blob) { if (url) URL.revokeObjectURL(url); return load(false); } cb(null); } if (url) URL.revokeObjectURL(url); };
+        im.onerror = () => { if (url) URL.revokeObjectURL(url); if (blob) load(false); else cb(null); };
+        im.src = url || 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(s);
+      };
+      load(typeof Blob !== 'undefined' && typeof URL !== 'undefined' && !!URL.createObjectURL);
+    } catch (_) { cb(null); }
+  }
+  const GL_BG = [   // nome, svg, profundidade, índice em LAYERS (área), resolução relativa
+    ['sky', 'sSky', 0, -1, 0.5], ['far', 'sFar', 0.25, 0, 0.7], ['near', 'sNear', 0.5, 1, 0.7], ['mid', 'sMid', 0.65, 2, 0.75], ['fore', 'sFore', 1.3, 5, 0.75]
+  ];
+  function glBgSnap(only) {
+    const ver = ++glBgVer;
+    for (const [name, svgId, , li, rs] of GL_BG) {
+      if (only && name !== only) continue;
+      const vb = li < 0 ? [0, 0, 800, 500] : LAYERS[li][2](W);
+      const res = Math.min(glP * rs, GLR.maxTex / vb[2], GLR.maxTex / vb[3]);
+      const S = glSnap[name] || (glSnap[name] = {});
+      S.vb = vb; S.ver = ver; if (!only) S.ok = false;
+      glPhoto($(svgId), vb, res, name === 'sky' ? ['clouds'] : [], (im, w, h) => {
+        if (!GLR || S.ver !== ver || !im) return;
+        const c = document.createElement('canvas'); c.width = w; c.height = h;
+        c.getContext('2d').drawImage(im, 0, 0, w, h);
+        GLR.setTex('bg_' + name, c); S.ok = true; c.width = 0;
+      });
+    }
+    // gradientes do mar (tiras de 1 pixel)
+    for (const [k, a, b] of [['seaB', 'seaBS0', 'seaBS1'], ['seaF', 'seaFS0', 'seaFS1']]) {
+      const c = document.createElement('canvas'); c.width = 2; c.height = 64;
+      const x = c.getContext('2d'), g = x.createLinearGradient(0, 0, 0, 64);
+      const st = id => { const e = $(id); const col = e.getAttribute('stop-color'), op = e.getAttribute('stop-opacity'); const v = GLR.parseCol(col); return `rgba(${v[0] * 255 | 0},${v[1] * 255 | 0},${v[2] * 255 | 0},${op === null ? 1 : +op})`; };
+      g.addColorStop(0, st(a)); g.addColorStop(1, st(b)); x.fillStyle = g; x.fillRect(0, 0, 2, 64);
+      GLR.setTex(k, c);
+    }
+  }
+  // terreno: foto completa (início da fase) ou só da área que mudou (explosões)
+  function glTerrSnap(full) {
+    const svgEl = $('sWB'), drop = ['waveBack', 'introBack', 'pickups', 'tfill'];
+    if (full) {
+      const vbw = W + 80, vbh = 540;
+      const TS = Math.min(glP * (noZoom() ? 1 : 1.15), 2.2, GLR.maxTex / vbw, GLR.maxTex / vbh);
+      const seq = glSeq, ww = W;
+      glTerrBusy = true; glFullT = false; glBox = null; glSnapAt = frameNo;
+      glPhoto(svgEl, [-40, -20, vbw, vbh], TS, drop, (im, w, h) => {
+        glTerrBusy = false;
+        if (!GLR || !im || ww !== W) return;
+        let t = glTerr;
+        if (!t || t.cv.width !== w || t.cv.height !== h) { const cv = document.createElement('canvas'); cv.width = w; cv.height = h; t = glTerr = { cv, ctx: cv.getContext('2d') }; }
+        t.sx = w / vbw; t.sy = h / vbh;
+        t.ctx.clearRect(0, 0, w, h); t.ctx.drawImage(im, 0, 0, w, h);
+        for (const p of glPunches) if (p.seq > seq) glApplyPunch(t.ctx, p);
+        GLR.setTex('terr', t.cv); glTerrOk = true;
+      });
+      return;
+    }
+    const t = glTerr, b = glBox; glBox = null; if (!t) return;
+    const i0 = clamp(Math.floor((b[0] + 40) * t.sx), 0, t.cv.width), j0 = clamp(Math.floor((b[1] + 20) * t.sy), 0, t.cv.height);
+    const i1 = clamp(Math.ceil((b[2] + 40) * t.sx), 0, t.cv.width), j1 = clamp(Math.ceil((b[3] + 20) * t.sy), 0, t.cv.height);
+    if (i1 - i0 < 1 || j1 - j0 < 1) return;
+    const vb = [-40 + i0 / t.sx, -20 + j0 / t.sy, (i1 - i0) / t.sx, (j1 - j0) / t.sy], seq = glSeq, ref = t;
+    glTerrBusy = true; glSnapAt = frameNo;
+    glPhoto(svgEl, vb, t.sx, drop, (im) => {
+      glTerrBusy = false;
+      if (!GLR || !im || glTerr !== ref) return;
+      const c = t.ctx;
+      c.clearRect(i0, j0, i1 - i0, j1 - j0); c.drawImage(im, i0, j0, i1 - i0, j1 - j0);
+      for (const p of glPunches) if (p.seq > seq) glApplyPunch(c, p);
+      GLR.subTex('terr', t.cv, i0, j0, i1 - i0, j1 - j0);
+    });
+  }
+  function glSchedule() {
+    if (glBgDirty) { glBgDirty = false; glSkyDirty = false; glBgSnap(); }
+    else if (glSkyDirty) { glSkyDirty = false; glBgSnap('sky'); }
+    if (dirty || glTerrBusy) return;                              // espera o SVG do terreno estar em dia
+    if (glFullT) glTerrSnap(true);
+    else if (glBox && frameNo - glSnapAt >= 6) glTerrSnap(false);
+  }
+
+  // matriz de uma camada: mesma conta do placeLayers (profundidade f)
+  function glLayer(f) {
+    const z = 1 + (cam.z - 1) * f;
+    const cx = 400 + (cam.x + cam.sx - 400) * f, cy = 250 + (cam.y + cam.sy - 250) * f;
+    GLR.setBase(z, 400 - cx * z, 250 - cy * z);
+  }
+  function glDrawSnap(name) {
+    const S = glSnap[name]; if (!S || !S.ok) return;
+    const T = GLR.tex('bg_' + name); if (!T) return;
+    GLR.img('bg_' + name, 0, 0, T.w, T.h, S.vb[0], S.vb[1], S.vb[2], S.vb[3]);
+  }
+
+  // contorno do desenho de cada espécie (medido uma vez no SVG escondido)
+  const artBoxes = {};
+  function artBox(sp) {
+    if (artBoxes[sp]) return artBoxes[sp];
+    const S = SPECIES[sp]; let box = null;
+    try {
+      let m = document.getElementById('glMeasure');
+      if (!m) {
+        m = document.createElementNS(SVGNS, 'svg'); m.id = 'glMeasure'; m.setAttribute('width', '10'); m.setAttribute('height', '10');
+        m.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;pointer-events:none'; document.body.appendChild(m);
+      }
+      let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+      for (const f of [0, 24, 48, 72]) for (const flap of [false, true]) {
+        m.innerHTML = `<g>${Art.draw(sp, { f, blink: false, breath: f === 48 ? 10 : 0, bob: 0, step: f === 24 ? 1.6 : f === 72 ? -1.6 : 0, x: 0, charge: false, flap })}</g>`;
+        const b = m.firstChild.getBBox();
+        if (b && b.width > 0) { x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y); x1 = Math.max(x1, b.x + b.width); y1 = Math.max(y1, b.y + b.height); }
+      }
+      m.innerHTML = '';
+      if (x1 > x0) box = [x0 - 6, y0 - 6, x1 - x0 + 12, y1 - y0 + 12];
+    } catch (_) { box = null; }
+    if (!box) box = [-70, -(S.h + 40), 140, S.h + 56];
+    return (artBoxes[sp] = box);
+  }
+  // pose do Pokémon como imagem: parado (12 quadros, vai e volta), andando (6), atacando (4) e piscando
+  function glBodyKey(u, res, q, mode) { return `u|${u.sp}|${u.sh ? 1 : 0}|${mode}${q}|${u.flying ? 1 : 0}|${res}`; }
+  function glBodySpr(u, res, q, mode) {
+    const box = artBox(u.sp);
+    return GLR.svg(glBodyKey(u, res, q, mode), () => {
+      const walk = mode === 'w', ctx = { f: q * 8, blink: mode === 'k', breath: mode === 'b' ? 10 : 0, bob: 0,
+        step: walk ? Math.sin(q * Math.PI / 3) * 1.6 : 0, x: 0, charge: false, flap: !!u.flying };
+      return `<g${shF(u.sp, u.sh)}>${Art.draw(u.sp, ctx)}</g>`;
+    }, box, res);
+  }
+  function glBody(u) {
+    const R = GLR, box = artBox(u.sp);
+    let res = Math.min(R.res * u.scale, 420 / Math.max(box[2], box[3]));
+    res = Math.max(0.5, Math.round(res * 4) / 4);
+    let q, mode;
+    if (u.moving) { const ph = ((u.walkT * 0.5) % 6.2832 + 6.2832) % 6.2832; q = Math.round(ph / 1.0472) % 6; mode = 'w'; }
+    else if (u.breath > 0) { q = (frameNo >> 3) % 4; mode = 'b'; }
+    else if (!lite && blink(u)) { q = 0; mode = 'k'; }
+    else { const t = ((frameNo + u.uid * 29) >> (lite ? 4 : 3)) % 22; q = t < 12 ? t : 22 - t; mode = 'i'; }
+    const wk = R.gen + ':' + res;
+    if (u._glW !== wk) { u._glW = wk; for (let i = 0; i < 12; i++) glBodySpr(u, res, i, 'i'); }   // já pede os quadros parados
+    let s = glBodySpr(u, res, q, mode);
+    if (s) u._glS = s;
+    else if (u._glS && u._glS.gen === R.gen) s = u._glS;                                           // enquanto a pose nova não chega
+    return s;
+  }
+  function glTypeDots(types, cx, y) {
+    const w = types.length * 8;
+    types.forEach((t, i) => { const x = cx - w / 2 + 4 + i * 8; GLR.circle(x, y, 3.45, '#000'); GLR.circle(x, y, 2.75, TYPE_COLOR[t]); });
+  }
+  function glUnit(u, opt = {}) {
+    const R = GLR, S = spOf(u), sc = u.scale * u.capScale;
+    const af = !u.moving && !u.breath && !u.hurt && !u.hop && !(u.capScale < 1) ? frameNo & (lite ? ~15 : ~7) : frameNo;
+    const bobT = !lite && opt.noShadow === undefined && scene === 'battle' ? Math.sin(frameNo * 0.08 + u.uid * 1.7) * 0.7 : 0;
+    const flash = u.hurt > 0 && (u.hurt % 6 < 3);
+    const col = opt.color || sideColor(u);
+    const hop = u.hop ? -Math.abs(Math.sin(u.hop * 0.18)) * 16 : 0, lift = u.lift || 0;
+    R.push(); R.tr(u.x, u.y + hop - lift + bobT);
+    const sy = surf(u.x, u.y - 2);
+    if (!opt.noShadow && sy <= WATER) R.ellipse(0, sy - u.y + 0.5 + lift, 11 * u.scale, 2.6 * u.scale, '#000', 0.25);
+    if (u.shield > 0 && u.capScale > 0.5) {
+      const r = S.hitR * u.scale * 1.75 + 4, cy = -S.hitY * u.scale;
+      R.circle(0, cy, r, '#8fe0ff', 0.13); R.ring(0, cy, r, 1.8, '#bff3ff', 0.55 + 0.3 * Math.sin(af * 0.12));
+    }
+    const body = glBody(u);
+    if (body) { R.push(); if (u.tilt && !u.flying) R.rot(u.tilt); R.sc(u.face * sc, sc); R.spr(body, flash ? 0.45 : 1); R.pop(); }
+    if (u.sh && u.capScale > 0.5) {
+      for (const [x, y, s, ph] of [[-S.hitR * u.scale * 0.8, -S.hitY * u.scale - 6, 1.2, u.blinkOff], [S.hitR * u.scale * 0.9, -S.hitY * u.scale + 8, 0.9, u.blinkOff + 2], [0, -S.h * u.scale * 0.8, 1, u.blinkOff + 4]]) {
+        const k = Math.max(0, Math.sin(af * 0.09 + ph)); if (k >= 0.05) R.star(x, y, s * k, k);
+      }
+    }
+    if (u.status && u.capScale >= 0.5) {
+      const y = -S.h * u.scale * 0.55 + Math.sin(aF() * 0.15) * 1.5, x = -S.hitR * u.scale - 8;
+      const c2 = { burn: '#ff7a1a', poison: '#b45ac8', freeze: '#bfeaf6', sleep: '#c8d8ff', para: '#ffe96a' }[u.status] || '#fff';
+      const ch = { burn: '🔥', poison: '☠', freeze: '❄', sleep: 'Z', para: '⚡' }[u.status] || '';
+      R.circle(x, y, 6.5, '#000', 0.55); R.ring(x, y, 6.5, 1.4, c2); R.text(ch, x, y + 3.4, { size: 9, fill: c2 });
+    }
+    if (u.webbed || u.stuck) {
+      const s = R.svg('web', `<g stroke="#fff" stroke-width="1" fill="rgba(255,255,255,.18)"><circle r="15"/><circle r="8"/><path d="M-15,0H15M0,-15V15M-10.6,-10.6L10.6,10.6M10.6,-10.6L-10.6,10.6" stroke-width=".8"/></g>`, [-17, -17, 34, 34], R.res * u.scale);
+      if (s) { R.push(); R.tr(0, -S.hitY * u.scale); R.sc(u.scale); R.spr(s, 0.9); R.pop(); }
+    }
+    if (!opt.noLabel && u.capScale > 0.5) {
+      const ly = -(S.h * u.scale + 12);
+      R.push(); R.tr(0, ly);
+      if (opt.extraText) R.text(opt.extraText.t, 0, opt.extraText.y, opt.extraText.o);
+      const parts = [{ t: (u.sh ? '✨' : '') + u.name, fill: '#fff' }];
+      if (isVar(u)) parts.push({ t: stars(u.mvs), fill: '#ffd34d', dx: 2 });
+      R.text(parts, 0, 0, { size: 10.5, fill: '#fff', stroke: '#000', sw: 0.6 });
+      glTypeDots(S.types, 0, -12);
+      if (!opt.noBar) {
+        const hp = clamp(u.hp / u.maxhp, 0, 1);
+        R.pill(-15, 3, 30, 5.5, '#000', 0.6); R.pill(-14, 4, 28 * hp, 3.5, col);
+      }
+      if (u.webbed || u.stuck) { R.ring(21, -2, 4.5, 1, '#fff'); R.ring(21, -2, 2, 1, '#fff'); R.line(16, -2, 26, -2, 0.7, '#fff', 1, false); R.line(21, -7, 21, 3, 0.7, '#fff', 1, false); }
+      R.pop();
+    }
+    if (opt.weak) {
+      const bounce = Math.sin(aF() * 0.2) * 2.5;
+      const s = R.svg('ballIcon', Art.ball(6, 0), [-7.5, -7.5, 15, 15], R.res);
+      if (s) { R.push(); R.tr(0, -(S.h * u.scale + 36) + bounce); R.spr(s); R.pop(); }
+      if (ballMode) R.text(Math.round(captureChance(u) * 100) + '%', 0, -(S.h * u.scale + 46), { size: 12, fill: '#ffd34d', stroke: '#000', sw: 0.7 });
+    }
+    if (opt.arrow) {
+      const y = -(S.h * u.scale + 34) + Math.sin(aF() * 0.15) * 3;
+      R.tri(-7.2, y - 0.9, 7.2, y - 0.9, 0, y + 10.2, '#fff'); R.tri(-6, y, 6, y, 0, y + 8, opt.arrow);
+    }
+    R.pop();
+  }
+
+  const PJ = {     // cabeças dos tiros: desenhos fixos (girados/escalados na hora) — [svg, área]
+    poison: [`<path d="M-8,-3 L9,0 L-8,3 L-4,0 Z" fill="#b45ac8" stroke="#592468" stroke-width="1" stroke-linejoin="round"/><path d="M-5,-1 L5,0" fill="none" stroke="#f0cef6" stroke-width=".8"/>`, [-10, -5, 21, 10]],
+    ice: [`<path d="M-9,0 L-2,-4.4 L10,0 L-2,4.4 Z" fill="#bfeaf6" stroke="#4a8ab0" stroke-width="1.2" stroke-linejoin="round"/><path d="M-5,0 L6,0" stroke="#fff" stroke-width="1.2" stroke-linecap="round" opacity=".9"/>`, [-11, -6, 23, 12]],
+    punch: [`<circle r="6.6" fill="#f2c9a0" stroke="#7a3a1c" stroke-width="1.3"/><path d="M-1,-5 L-1,5 M2.4,-4.4 L2.4,4.4" stroke="#7a3a1c" stroke-width=".9" opacity=".7"/><path d="M-12,-3 L-7,-2 M-13,0 L-7,0 M-12,3 L-7,2" stroke="#fff" stroke-width="1.3" stroke-linecap="round" opacity=".8"/>`, [-14, -8, 22, 16]],
+    leaf: [`<path d="M-8,0 Q0,-6 8,0 Q0,6 -8,0 Z" fill="url(#gGreen)" stroke="#1d4a2a" stroke-width=".8"/><line x1="-6" y1="0" x2="6" y2="0" stroke="#1d4a2a" stroke-width=".7"/>`, [-9, -5, 18, 10]],
+    gust: [`<g opacity=".92"><path d="M-12,-5 Q4,-12 10,0 Q4,-5 -12,-2 Z" fill="#fff" stroke="#9ab8e8" stroke-width=".9"/><path d="M-12,5 Q4,12 10,0 Q4,5 -12,2 Z" fill="#e3eeff" stroke="#9ab8e8" stroke-width=".9"/></g>`, [-13, -10, 24, 20]],
+    rock: [`<path d="M-8,-3 L-3,-8 L5,-7 L9,-1 L6,6 L-3,8 L-9,3 Z" fill="url(#gRock)" stroke="#3c3c46" stroke-width="1.3" stroke-linejoin="round"/><path d="M-4,-2 L1,-4 M0,3 L4,1" stroke="#4a4a56" stroke-width=".9" stroke-linecap="round"/>`, [-10, -10, 20, 20]],
+    normal: [`<path d="M0,-7 L2,-2 L7,-2 L3,1.5 L4.5,7 L0,3.5 L-4.5,7 L-3,1.5 L-7,-2 L-2,-2 Z" fill="#fff6c8" stroke="#c98a2a" stroke-width="1" stroke-linejoin="round"/>`, [-8, -8, 16, 16]],
+    web: [`<g stroke="#fff" stroke-width="1" fill="rgba(255,255,255,.35)"><circle r="6"/><circle r="3"/><path d="M-6,0H6M0,-6V6M-4.3,-4.3L4.3,4.3M4.3,-4.3L-4.3,4.3" stroke-width=".8"/></g>`, [-7, -7, 14, 14]],
+    ghost: [`<circle r="6" fill="#2a1848" stroke="#b496e0" stroke-width="1.4"/><circle cx="-1.6" cy="-1.8" r="1.6" fill="#e0d0f8" opacity=".8"/>`, [-7.5, -7.5, 15, 15]],
+    water: [`<circle r="5.2" fill="#7fd0ff" stroke="#1f6fb0" stroke-width="1"/><circle cx="-1.6" cy="-1.6" r="1.7" fill="#fff"/>`, [-6.5, -6.5, 13, 13]],
+    psy: [`<circle r="6" fill="none" stroke="#ffc2e8" stroke-width="1.4" stroke-dasharray="4 3"/>`, [-7.5, -7.5, 15, 15]],
+    snd0: [`<path d="M-2,-9 Q8,0 -2,9" fill="none" stroke="#bfe9ff" stroke-width="2.4" stroke-linecap="round"/>`, [-4, -11, 10, 22]],
+    snd1: [`<path d="M3,-7 Q11,0 3,7" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>`, [1, -9, 10, 18]],
+    snd2: [`<path d="M9,-5 Q14,0 9,5" fill="none" stroke="#ff9ad0" stroke-width="2" stroke-linecap="round" opacity=".8"/>`, [7, -7, 9, 14]],
+    fire: [`<circle r="8" fill="url(#fireball)"/>`, [-8, -8, 16, 16]],
+    dragon: [`<circle r="8" fill="url(#dragFire)"/>`, [-8, -8, 16, 16]],
+    zap: [`<circle r="8" fill="url(#zap)"/>`, [-8, -8, 16, 16]]
+  };
+  function glPj(name, x, y, rot, sc = 1, a = 1) {
+    const d = PJ[name], R = GLR, s = R.svg('pj|' + name, d[0], d[1], R.res * Math.max(1, sc) * 1.5);
+    if (!s) return;
+    R.push(); R.tr(x, y); if (rot) R.rot(rot); if (sc !== 1) R.sc(sc); R.spr(s, a); R.pop();
+  }
+  function glTrail(p, r0, r1, col, a0, col2) {
+    const n = p.trail.length;
+    p.trail.forEach((tp, i) => { const k = (i + 1) / n; GLR.circle(tp.x, tp.y, r0 + r1 * k, col2 && k <= 0.5 ? col2 : col, k * a0); });
+  }
+  function glProj(p) {
+    if (p.under) return;
+    const R = GLR, st = p.wp.style, deg = Math.atan2(p.vy, p.vx);
+    if (p.wk === 'ball') {
+      glTrail(p, 1, 2, '#fff', 0.4);
+      const col = BALLS[p.bt || 'ball'].col, s = R.svg('ball|' + col, Art.ball(6, 0, 0, col), [-7.5, -7.5, 15, 15], R.res * 1.5);
+      if (s) { R.push(); R.tr(p.x, p.y); R.rot(frameNo * 14 * Math.PI / 180); R.spr(s); R.pop(); }
+      return;
+    }
+    switch (st) {
+      case 'fire': case 'dragon': {
+        const c1 = st === 'fire' ? ['#ffb020', '#ff5a1f'] : ['#b79cff', '#6a3cff'];
+        glTrail(p, 2, 5, c1[0], 0.7, c1[1]);
+        glPj(st, p.x, p.y, 0, ((st === 'fire' ? 7 : 8.5) + Math.sin(frameNo * 0.6) * 1.2) / 8); return;
+      }
+      case 'poison': glTrail(p, 1, 2, '#c783e4', 0.55); glPj('poison', p.x, p.y, deg); return;
+      case 'ice': glTrail(p, 1, 2.4, '#dff4ff', 0.55); glPj('ice', p.x, p.y, deg); return;
+      case 'ghost': {
+        glTrail(p, 2, 4, '#6a4a9a', 0.4);
+        const k = 0.5 + 0.5 * Math.sin(frameNo * 0.4);
+        R.circle(p.x, p.y, 8 + k * 1.4, '#8a6ac0', 0.35); glPj('ghost', p.x, p.y, 0); return;
+      }
+      case 'punch': glTrail(p, 1.5, 3, '#fff0c8', 0.5); glPj('punch', p.x, p.y, deg); return;
+      case 'leaf': glPj('leaf', p.x, p.y, deg + Math.sin(frameNo * 0.4 + p.spin) * 25 * Math.PI / 180); return;
+      case 'water': glTrail(p, 1.5, 2, '#bfe9ff', 0.6); glPj('water', p.x, p.y, 0); return;
+      case 'normal': glTrail(p, 1.5, 3, '#fff', 0.5); glPj('normal', p.x, p.y, (frameNo * 12 % 360) * Math.PI / 180); return;
+      case 'gust': glPj('gust', p.x, p.y, deg); return;
+      case 'rock': {
+        glTrail(p, 1.5, 3, '#c8b898', 0.4);
+        const sz = p.wp.size || 1;
+        glPj('rock', p.x, p.y, ((frameNo * (sz > 1.2 ? 5 : 9) + p.spin * 50) % 360) * Math.PI / 180, sz); return;
+      }
+      case 'psy': {
+        glTrail(p, 1, 4, '#ff8ad0', 0.35);
+        const a = frameNo * 0.3;
+        R.circle(p.x, p.y, 9, '#ff8ad0', 0.25); glPj('psy', p.x, p.y, ((a * 57) % 360) * Math.PI / 180);
+        R.circle(p.x, p.y, 3.4, '#fff'); R.circle(p.x + Math.cos(a) * 7, p.y + Math.sin(a) * 7, 1.6, '#b78aff'); return;
+      }
+      case 'sound': {
+        const k = (frameNo % 14) / 14;
+        R.push(); R.tr(p.x, p.y); R.rot(deg);
+        glPj('snd0', k * -10, 0, 0, 1, 1 - k); glPj('snd1', 0, 0, 0); glPj('snd2', 0, 0, 0);
+        R.pop(); return;
+      }
+      case 'powder': {
+        R.circle(p.x, p.y, 10, '#d8c8ff', 0.22);
+        for (let i = 0; i < 7; i++) { const a = frameNo * 0.12 + i * 0.9, r = 3 + (i % 3) * 3; R.circle(p.x + Math.cos(a) * r, p.y + Math.sin(a * 1.3) * r, 1.2 + (i % 2), i % 2 ? '#e8d8ff' : '#b99cff', 0.85); }
+        return;
+      }
+      case 'web': glTrail(p, 0.8, 1.6, '#fff', 0.5); glPj('web', p.x, p.y, (frameNo * 5 % 360) * Math.PI / 180); return;
+      default: {
+        const pts = p.trail.concat([{ x: p.x, y: p.y }]).map((tp, i) => [tp.x, tp.y + (i % 2 ? 3 : -3)]);
+        R.poly(pts, 4.5, '#ffd000', 0.45); R.poly(pts, 2, '#fffbd0');
+        glPj('zap', p.x, p.y, 0, 4.5 / 8);
+      }
+    }
+  }
+
+  // clima em tela cheia (por cima do mundo, por baixo do painel)
+  function glWx(w, a) {
+    const R = GLR; if (!w || a <= 0.01) return;
+    R.push(); R.alpha(a);
+    if (w === 'rain') {
+      R.rect(0, 0, 800, 500, '#0a1a33', 0.3);
+      if (!lite) {
+        const sl = -wind * 0.1 - 0.12;
+        for (let j = 0; j < 3; j++) {
+          const off = (frameNo * WX_SP.rain[j]) % 540, ox = off * -sl, wd = j === 2 ? 1.6 : 1.1, op = 0.3 + j * 0.08;
+          for (let i = 0; i < 22; i++) {
+            const y0 = ((i * 53 + j * 177) % 540) - 20, x0 = ((i * 131.7 + j * 211) % 880) - 40;
+            for (const y of [y0, y0 - 540]) { const yy = y + off; if (yy < -20 || yy > 520) continue; const x = x0 - y * sl + ox; R.line(x, yy, x + sl * 16, yy + 16, wd, '#cfe9ff', op); }
+          }
+        }
+      }
+    } else if (w === 'sun') {
+      R.rect(0, 0, 800, 500, '#ffb347', 0.09);
+      R.circle(690, 52, 190, '#fff2b0', 0.05); R.circle(690, 52, 120, '#fff2b0', 0.07); R.circle(690, 52, 64, '#fff6c8', 0.14);
+      const r0 = lite ? 0 : frameNo * 0.15 * Math.PI / 180;
+      for (let i = 0; i < 10; i++) {
+        const a = r0 + i * 36 * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
+        const P = (x, y) => [690 + x * c - y * s, 52 + x * s + y * c];
+        const p1 = P(-5, -70), p2 = P(0, -260), p3 = P(5, -70);
+        R.tri(p1[0], p1[1], p2[0], p2[1], p3[0], p3[1], '#fff6c8', 0.07);
+      }
+      R.circle(560, 150, 14, '#fff6c8', 0.07); R.circle(470, 215, 22, '#ffd9a0', 0.06); R.circle(390, 270, 10, '#fff6c8', 0.08);
+    } else if (w === 'storm') {
+      R.rect(0, 0, 800, 500, '#0c1030', 0.4);
+      if (bolt) { const o = Math.max(0, 1 - bolt.t / 12); R.poly(bolt.pts, 9, '#ffe96a', o * 0.35); R.poly(bolt.pts, 3, '#fff', o); }
+    } else if (w === 'snow') {
+      R.rect(0, 0, 800, 500, '#bcd8f0', 0.14);
+      if (!lite) for (let j = 0; j < 3; j++) {
+        const off = (frameNo * WX_SP.snow[j]) % 540, dx = Math.sin(frameNo * 0.03 + j * 2) * 14 - wind * off * 0.04, r = 1.2 + j * 0.7, op = 0.55 + j * 0.12;
+        for (let i = 0; i < 24; i++) {
+          const y0 = ((i * 71 + j * 133) % 540) - 20, x0 = ((i * 117.3 + j * 97) % 840) - 20;
+          for (const y of [y0, y0 - 540]) { const yy = y + off; if (yy < -5 || yy > 505) continue; R.circle(x0 - wind * y * 0.04 + dx, yy, r, '#fff', op); }
+        }
+      }
+    }
+    R.pop();
+  }
+
+  const CLOUD_SVG = `<g opacity=".92"><ellipse cx="0" cy="8" rx="46" ry="10" fill="#d9e6f2"/><circle cx="-22" cy="0" r="16" fill="#fff"/><circle cx="0" cy="-9" r="22" fill="#fff"/><circle cx="24" cy="0" r="15" fill="#fff"/><rect x="-38" y="0" width="78" height="12" rx="6" fill="#fff"/></g>`;
+  function glWater(front) {
+    const R = GLR, key = front ? 'seaF' : 'seaB', top = front ? 476.5 : 469, span = H - top;
+    let px = -40, py = 0;
+    for (let x = -40; x <= W + 40; x += 10) {
+      const y = front ? 481 + 3 * Math.sin(x * 0.045 - frameNo * 0.05) + 1.5 * Math.sin(x * 0.11 + frameNo * 0.08) : 472 + 3 * Math.sin(x * 0.03 + frameNo * 0.04);
+      if (x > -40) R.quad4(key, px, py, x, y, x, H + 30, px, H + 30, (py - top) / span, (y - top) / span, 1 + 30 / span);
+      px = x; py = y;
+    }
+  }
+
+  function renderGL(act, inBattle) {
+    const R = GLR;
+    R.res = glP * (noZoom() ? 1 : 1.25);
+    glSchedule();
+    const sky = THEMES[themeKey].sky, sc0 = R.parseCol(sky[1] || '#8cc4ea');
+    R.begin(sc0[0], sc0[1], sc0[2]);
+    // céu e nuvens (presos à tela)
+    R.setBase(1, 0, 0);
+    glDrawSnap('sky');
+    const cs = R.svg('cloud', CLOUD_SVG, [-48, -33, 96, 53], glP);
+    if (cs) { const op = +THEMES[themeKey].clouds || 0; for (const c of clouds) { R.push(); R.tr(c.x, c.y); R.sc(c.s); R.spr(cs, op); R.pop(); } }
+    // montanhas e faixa do fundo (parallax)
+    glLayer(0.25); glDrawSnap('far');
+    glLayer(0.5); glDrawSnap('near');
+    glLayer(0.65); glDrawSnap('mid');
+    // mundo
+    glLayer(1);
+    glWater(false);
+    if (glTerrOk) { const T = R.tex('terr'); if (T) R.img('terr', 0, 0, T.w, T.h, -40, -20, W + 80, 540); }
+    if (scene === 'battle') for (const p of pickups) {
+      const B = BALLS[p.type], y = gy(p.x), bob = lite ? 0 : Math.sin(frameNo * 0.08 + p.ph) * 3, big = p.type !== 'ball';
+      R.push(); R.tr(p.x, y + bob);
+      R.ellipse(0, 1, 6, 1.8, '#000', 0.25);
+      R.circle(0, -12, 12.5, B.col, lite ? 0.25 : 0.25 + 0.09 * Math.sin(frameNo * 0.075));
+      const s = R.svg('pk|' + p.type, () => `<g transform="translate(0 -12)">${Art.ball(big ? 7.5 : 6.5, big ? 20 : 0, 0, B.col)}</g>
+        <path transform="translate(0 -30)" d="M-3.5,0 L3.5,0 L0,5 Z" fill="${big ? B.col : '#fff'}" stroke="#000" stroke-width=".8" stroke-linejoin="round"/>`, [-10, -32, 20, 30], R.res * 1.2);
+      if (s) R.spr(s);
+      if (big) R.text(p.type === 'great' ? 'GREAT' : 'ULTRA', 0, -35, { size: 8.5, fill: B.col, stroke: '#000', sw: 0.6 });
+      R.pop();
+    }
+    // mira
+    if (inBattle && act && (state === 'aim' || (state === 'ai' && ai && ['aim', 'wait', 'charge'].includes(ai.phase)))) {
+      const a = angle * Math.PI / 180, m = mouthAt(act, act.face, ballMode), x2 = m.x + Math.cos(a) * 46, y2 = m.y - Math.sin(a) * 46;
+      const ac = ballMode ? '#ffd34d' : '#ff4d4d';
+      R.dashed(m.x, m.y, x2, y2, 2, 3, 5, '#fff', 0.85, true);
+      R.ring(x2, y2, 6, 2, ac);
+      R.line(x2 - 10, y2, x2 - 4, y2, 2, ac); R.line(x2 + 4, y2, x2 + 10, y2, 2, ac); R.line(x2, y2 - 10, x2, y2 - 4, 2, ac); R.line(x2, y2 + 4, x2, y2 + 10, 2, ac);
+      R.text(Math.round(elevOf(act)) + '°', x2, y2 - 13, { size: 10, fill: '#fff', stroke: '#000', sw: 0.4 });
+    }
+    // Pokémon
+    for (const u of units) {
+      if (!u.alive && inBattle) continue;
+      if (u.hidden) continue;
+      if (!inBattle) { glUnit(u, { color: '#fff', noBar: true }); continue; }
+      const isFoe = kind === 'campaign' && u.team >= 1;
+      glUnit(u, {
+        extraText: u.team === 2 ? { t: 'VISITANTE', y: -26, o: { size: 8.5, fill: GUEST_COL, stroke: '#000', sw: 0.5, ls: 1 } } : null,
+        weak: isFoe && u.hp / u.maxhp <= WEAK && state !== 'capture',
+        arrow: u === act && (state === 'aim' || state === 'ai') && !teams[turnTeam].ai ? teams[u.team].color : null
+      });
+    }
+    // sombra dos tiros, tiros, captura
+    if (!lite) for (const p of projs) {
+      if (p.x < 0 || p.x >= W) continue;
+      const g = gy(p.x), k = clamp(1 - Math.max(0, g - p.y) / 260, 0.15, 1);
+      R.ellipse(p.x, g, 8 * k + 2, 2.4 * k + 0.6, '#000', 0.35 * k);
+    }
+    for (const p of projs) glProj(p);
+    if (cap) {
+      const c = cap;
+      if (c.t <= 22) R.circle(c.x, c.y, 6 + c.t * 1.2, '#fff', 1 - c.t / 22);
+      const op = Math.round((c.open || 0) * 10) / 10, col = c.col || '#e63b3b';
+      const s = R.svg('cap|' + col + '|' + op, Art.ball(8, 0, op, col), [-12, -14, 24, 26], R.res * 1.8);
+      if (s) { R.push(); R.tr(c.x, c.by); R.rot(c.rot * Math.PI / 180); R.spr(s, c.alpha); R.pop(); }
+      if (c.stars) for (let i = 0; i < 3; i++) {
+        const a = frameNo * 0.08 + i * 2.1;
+        R.text('★', c.x + Math.cos(a) * 14, c.by - 16 - Math.abs(Math.sin(a)) * 8, { size: 12, fill: '#ffd34d', weight: 'normal' }, c.alpha);
+      }
+    }
+    // partículas
+    for (const p of parts) {
+      const k = p.life / p.max, op = Math.min(1, k * 1.5);
+      if (p.kind === 'smoke') R.circle(p.x, p.y, p.r + (1 - k) * 10, p.col, k * 0.45);
+      else if (p.kind === 'leaf') { R.push(); R.tr(p.x, p.y); R.rot(((frameNo * 8 + p.max * 7) % 360) * Math.PI / 180); R.ellipse(0, 0, p.r, p.r * 0.5, p.col, op); R.pop(); }
+      else R.circle(p.x, p.y, p.r, p.col, op);
+    }
+    // efeitos: aviso do raio, raios do céu, hiper raio, corrente elétrica, explosões
+    for (const b of bolts) {
+      if (b.t >= 0 || (frameNo >> 3) % 2) continue;
+      const sy = Math.min(surf(b.x, 0), WATER);
+      R.dashed(b.x, sy - 220, b.x, sy, 2, 6, 6, '#fff27a', 0.8); R.ring(b.x, sy, 14, 2, '#fff27a');
+      R.text('⚡', b.x, sy - 226, { size: 16, weight: 'normal' });
+    }
+    for (const f of fx) {
+      const k = f.t / f.max;
+      if (f.sky) { R.poly(f.pts, 9, '#ffd000', 0.45 * (1 - k)); R.poly(f.pts, 3, '#fffbe0', 1 - k); continue; }
+      if (f.beam) {
+        const w = 16 * (1 - k * 0.7);
+        R.line(f.x, f.y, f.x2, f.y2, w + 10, '#ffb43c', 0.35 * (1 - k)); R.line(f.x, f.y, f.x2, f.y2, w, '#fff3c0', 0.9 * (1 - k)); R.line(f.x, f.y, f.x2, f.y2, w * 0.35, '#fff', 1 - k);
+        continue;
+      }
+      if (f.bolt) {
+        const n = 6, pts = [[f.x, f.y]];
+        for (let i = 1; i < n; i++) { const t = i / n; pts.push([f.x + (f.x2 - f.x) * t + ((i * 7 + f.t) % 5 - 2) * 3, f.y + (f.y2 - f.y) * t + ((i * 5 + f.t) % 5 - 2) * 3]); }
+        pts.push([f.x2, f.y2]);
+        R.poly(pts, 5, '#ffd000', 0.5 * (1 - k)); R.poly(pts, 2, '#fffbd0', 1 - k);
+        continue;
+      }
+      const r = f.r * Math.min(1, k * 1.6);
+      if (f.fill && f.fill.startsWith('url(')) {
+        const s = R.svg('fx|' + f.fill, `<circle r="50" fill="${f.fill}"/>`, [-50, -50, 100, 100], Math.min(3, R.res * 0.9));
+        if (s) { R.push(); R.tr(f.x, f.y); R.sc(r / 50); R.spr(s, 1 - k); R.pop(); }
+        else R.circle(f.x, f.y, r, '#ffb347', 1 - k);
+      } else R.circle(f.x, f.y, r, f.fill, 1 - k);
+      R.ring(f.x, f.y, f.r * k * 1.4, 3 * (1 - k), '#fff', 0.8 * (1 - k));
+    }
+    glWater(true);
+    for (const f of floaters) R.text(f.text, f.x, f.y - f.t * 0.5, { size: f.size || 15, fill: f.col, stroke: f.col === '#ffffff' || f.col === '#fff' ? '#000' : '#fff', sw: 0.8 }, clamp(1 - f.t / 60, 0, 1));
+    // primeiro plano
+    glLayer(1.3); glDrawSnap('fore');
+    // clima e clarão (tela)
+    R.setBase(1, 0, 0);
+    if (scene === 'battle' && (weather || wxPrev)) { if (wxK >= 1) glWx(weather, 1); else { glWx(wxPrev, 1 - wxK); glWx(weather, wxK); } }
+    if (flash.a > 0.01) R.rect(0, 0, 800, 500, flash.col, flash.a);
+    R.end();
+    R.pump(lite ? 3 : 5);
+  }
+
   // contador de quadros desenhados por segundo (⚙ Ajustes → Mostrar FPS)
   let fpsN = 0, fpsT0 = 0, fpsVal = 0;
   function fpsTick() {
@@ -2704,22 +3264,36 @@
     const now = Date.now();
     if (!fpsT0) fpsT0 = now;
     if (now - fpsT0 >= 1000) { fpsVal = Math.round(fpsN * 1000 / (now - fpsT0)); fpsN = 0; fpsT0 = now; }
-    const t = settings.showFps ? `${fpsVal} FPS${lite ? ' · leve' : ''}` : '';
+    const t = settings.showFps ? `${fpsVal} FPS${glActive ? ' · WebGL' : ''}${lite ? ' · leve' : ''}` : '';
     const el = $('fpsT'); if (el && el.textContent !== t) el.textContent = t;
   }
   let hudKey = '', hudAt = -99, barAt = -99;
+  let rTime = 0, rN = 0;
   function renderAll() {
+    const t0 = typeof performance !== 'undefined' ? performance.now() : 0;
+    renderAllInner();
+    if (t0) { rTime += performance.now() - t0; rN++; }
+  }
+  function renderAllInner() {
     fpsTick();
     // enquanto um golpe cava, o contorno do terreno é refeito no máximo a cada 4 quadros
     if (dirty && (!terrDirty || state !== 'flying' || frameNo - terrAt > 3)) { renderTerrain(); dirty = false; terrAt = frameNo; }
     // água e nuvens se mexem devagar: atualizar a cada poucos quadros evita repintar faixas largas da tela
-    if (frameNo % (lite ? 8 : 4) === 0) renderWater();
-    if (!lite && frameNo % 6 === 0) renderClouds();
-    placeLayers();
+    const useGL = glUse();
+    if (!useGL) {
+      if (frameNo % (lite ? 8 : 4) === 0) renderWater();
+      if (!lite && frameNo % 6 === 0) renderClouds();
+      placeLayers();
+    }
 
     const inBattle = scene === 'battle';
     const act = inBattle && state !== 'over' && teams[turnTeam] ? activeUnit() : null;
 
+    if (useGL) {
+      renderGL(act, inBattle);
+      $('wx').innerHTML = '';
+      setAttrOnce('flashR', 'opacity', '0');
+    } else {
     if (scene === 'intro') renderIntro();
     else {
       $('intro').innerHTML = '';
@@ -2783,6 +3357,7 @@
     $('floaters').innerHTML = floaters.map(f => `<text x="${f1(f.x)}" y="${f1(f.y - f.t * 0.5)}" text-anchor="middle"
         font-size="${f.size || 15}" font-weight="bold" fill="${f.col}" stroke="${f.col === '#ffffff' || f.col === '#fff' ? '#000' : '#fff'}" stroke-width=".8"
         opacity="${clamp(1 - f.t / 60, 0, 1).toFixed(2)}">${f.text}</text>`).join('');
+    }
 
     if (charging || keys.up || keys.down || keys.left || keys.right || frameNo - barAt >= 4 || scene !== 'battle') { barAt = frameNo;
     $('powerbar').innerHTML = scene === 'battle' ? bottomBarSvg() : charging
@@ -2791,10 +3366,12 @@
       : ''; }
 
     // chuva/neve e o clarão ficam em camadas próprias: o painel só é reescrito quando um texto dele muda
-    $('wx').innerHTML = weatherSvg();
-    if (scene === 'battle') { animWx(weather, 'n'); if (wxK < 1) animWx(wxPrev, 'p'); }
-    setAttrOnce('flashR', 'opacity', flash.a > 0.01 ? flash.a.toFixed(2) : '0');
-    if (flash.a > 0.01) setAttrOnce('flashR', 'fill', flash.col);
+    if (!useGL) {
+      $('wx').innerHTML = weatherSvg();
+      if (scene === 'battle') { animWx(weather, 'n'); if (wxK < 1) animWx(wxPrev, 'p'); }
+      setAttrOnce('flashR', 'opacity', flash.a > 0.01 ? flash.a.toFixed(2) : '0');
+      if (flash.a > 0.01) setAttrOnce('flashR', 'fill', flash.col);
+    }
     // painel: refeito a cada poucos quadros (ou na hora, quando muda o estado/turno) — nada nele precisa de 60 por segundo
     const hk = scene + state + turnTeam + (teams[turnTeam] ? teams[turnTeam].cur : '') + ballMode + !!panel + (guest ? guest.uid : '');
     if (hk !== hudKey || frameNo - hudAt >= (lite ? 6 : 3)) { hudKey = hk; hudAt = frameNo; mmShown = false; $('hud').innerHTML = hudSvg(); }
@@ -2960,6 +3537,19 @@
     return s;
   }
 
+  // botões do ⚙ (também navegáveis pelas setas do controle: linhas 2 em diante)
+  function drawerBtns() {
+    const qn = 'Qualidade: ' + (settings.quality === 'auto' ? (lite ? 'Auto (leve)' : 'Auto (alta)') : QUALITY_NAME[settings.quality]);
+    return [
+      [qn, d => cycleQuality(d === -1 ? -1 : 1)],
+      ['Desenho: ' + (glCan() ? 'WebGL' : glFailed && settings.render !== 'svg' ? 'SVG (sem WebGL)' : 'SVG'), () => toggleRender()],
+      [document.fullscreenElement ? 'Sair da tela cheia' : 'Tela cheia', () => toggleFullscreen()],
+      ['Teste do controle', () => { location.href = 'controle.html'; }],
+      [Sfx.isOn() ? 'Som: ligado' : 'Som: desligado', () => toggleSound()],
+      [settings.showFps ? 'Mostrar FPS: sim' : 'Mostrar FPS: não', () => { settings.showFps = !settings.showFps; applySettings(); Sfx.click(); }],
+      ['Fechar', () => toggleSettings(false)]
+    ];
+  }
   function drawerSvg() {
     const e = 1 - Math.pow(1 - drawerT, 3), X = 800 - 250 * e;
     sliderRects = [];
@@ -2982,14 +3572,8 @@
     // botões (sem animação de posição para o toque funcionar): ficam dentro do painel
     const bx = Math.round(X + 24);
     // qualidade: Automática (liga o modo leve se o aparelho for lento) / Alta / Leve
-    const qn = 'Qualidade: ' + (settings.quality === 'auto' ? (lite ? 'Auto (leve)' : 'Auto (alta)') : QUALITY_NAME[settings.quality]);
-    if (settingsRow === 2) s += `<rect x="${f1(X + 12)}" y="218" width="226" height="48" rx="12" fill="none" stroke="#ffb347" stroke-width="2" opacity=".9"/>`;
-    s += uiBtn(bx, 224, 202, 36, `${qn}`, () => cycleQuality(1), { fs: 14 });
-    s += uiBtn(bx, 268, 202, 36, document.fullscreenElement ? 'Sair da tela cheia' : 'Tela cheia', toggleFullscreen, { fs: 15 });
-    s += uiBtn(bx, 312, 202, 36, 'Teste do controle', () => { location.href = 'controle.html'; }, { fs: 15 });
-    s += uiBtn(bx, 356, 202, 36, Sfx.isOn() ? 'Som: ligado' : 'Som: desligado', () => { toggleSound(); }, { fs: 15 });
-    s += uiBtn(bx, 400, 202, 36, settings.showFps ? 'Mostrar FPS: sim' : 'Mostrar FPS: não', () => { settings.showFps = !settings.showFps; applySettings(); Sfx.click(); }, { fs: 15 });
-    s += uiBtn(bx, 444, 202, 36, 'Fechar', () => toggleSettings(false), { fs: 15 });
+    if (settingsOpen) uiSel = settingsRow >= SLIDERS.length ? uiList.length + settingsRow - SLIDERS.length : -1;   // destaque segue a linha escolhida
+    drawerBtns().forEach((b, i) => { s += uiBtn(bx, 214 + i * 38, 202, 32, b[0], b[1], { fs: 14 }); });
     s += `<text x="${f1(X + 125)}" y="494" text-anchor="middle" font-size="9.5" fill="#fff" opacity=".55">O abre e fecha · jogo em pausa</text>
           <text x="${f1(X + 236)}" y="38" text-anchor="end" font-size="9" fill="#fff" opacity=".5">versão ${GAME_VERSION}</text>`;
     return s;
@@ -3113,7 +3697,7 @@
         return;
       }
       const i = uiHit(p);
-      if (i >= 0) { uiSel = i; activate(i); } else if (p.x < X) toggleSettings(false);
+      if (i >= 0) { uiSel = i; settingsRow = SLIDERS.length + i; activate(i); } else if (p.x < X) toggleSettings(false);
       return;
     }
     if (evo) { Sfx.unlock(); skipEvolve(); return; }
@@ -3137,7 +3721,7 @@
     }
     if (e.pointerType !== 'mouse' || !uiList.length) return;
     const i = uiHit(svgPoint(e));
-    if (i >= 0 && i !== uiSel) uiSel = i;
+    if (i >= 0 && i !== uiSel) { uiSel = i; if (settingsOpen) settingsRow = SLIDERS.length + i; }
   });
   $('game').addEventListener('contextmenu', e => e.preventDefault());
   ['pointerup', 'pointercancel'].forEach(ev => $('game').addEventListener(ev, () => { dragSlider = -1; panDrag = null; miniDrag = false; }));
@@ -3157,8 +3741,12 @@
     if (settingsOpen) {
       if (e.key === 'Escape') toggleSettings(false);
       else if (e.key === 'ArrowUp') { settingsRow = Math.max(0, settingsRow - 1); Sfx.click(); e.preventDefault(); }
-      else if (e.key === 'ArrowDown') { settingsRow = Math.min(2, settingsRow + 1); Sfx.click(); e.preventDefault(); }
-      else if (settingsRow === 2 && (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'Enter' || e.code === 'Space')) { cycleQuality(e.key === 'ArrowLeft' ? -1 : 1); e.preventDefault(); }
+      else if (e.key === 'ArrowDown') { settingsRow = Math.min(SLIDERS.length + drawerBtns().length - 1, settingsRow + 1); Sfx.click(); e.preventDefault(); }
+      else if (settingsRow >= SLIDERS.length && (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'Enter' || e.code === 'Space')) {
+        const b = drawerBtns()[settingsRow - SLIDERS.length];
+        if (b && !e.repeat) b[1](e.key === 'ArrowLeft' ? -1 : 1);
+        e.preventDefault();
+      }
       else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
         const S = SLIDERS[settingsRow], d = (e.key === 'ArrowRight' ? 1 : -1) * (S.max - S.min) * 0.05;
         setSlider(settingsRow, settings[S.key] + d); e.preventDefault();
@@ -3344,7 +3932,9 @@
     get lastBall() { return lastBall; },
     get: () => ({ scene, kind, state, stageIdx, units, teams, campaign, cap, intro, panel, angle, power, wind, ballMode, turnTeam, ai, guest, gCool, gMode, evo, projs }),
     get pickups() { return pickups; }, BALLS,
-    setWeather: w => { weather = w; lightT = 5; $('sun').style.display = (w === 'rain' || w === 'storm') ? 'none' : ''; }, get weather() { return weather; },
+    setWeather: w => { weather = w; lightT = 5; $('sun').style.display = (w === 'rain' || w === 'storm') ? 'none' : ''; glSkyDirty = true; }, get weather() { return weather; },
+    glInfo: () => ({ active: glActive, P: glP, snaps: Object.fromEntries(Object.entries(glSnap).map(([k, v]) => [k, { ok: v.ok, vb: v.vb }])), terrOk: glTerrOk, busy: glTerrBusy, full: glFullT, box: glBox, stats: GLR && GLR.stats, lite, ms: rN ? +(rTime / rN).toFixed(2) : 0, resetMs: (rTime = 0, rN = 0) }),
+    setRender: r => { if ((settings.render === 'svg') !== (r === 'svg')) toggleRender(); },
     setMap: o => { mapOverride = o; }, setShinyP: v => { shinyP = v; }, get W() { return W; }, get panX() { return panX; }, get mapArch() { return mapArch; }, get cam() { return cam; }, get heights() { return heights; }, shF, rollArch, layoutSpawns, applyStatus, applyDots,
     toggleSettings, settings, sync: () => syncButtons(), plan: u => { ai = { phase: 'plan', t: 0 }; planShot(u); },
     forceGuest: sp => { gCool = 0; STAGES[stageIdx].guests = [{ sp, rarity: 1 }]; },
@@ -3372,6 +3962,7 @@
   };
 
   cacheHtml(['introBack', 'decor', 'intro', 'aim', 'proj', 'pshadow', 'parts', 'fx', 'floaters', 'powerbar', 'wx', 'hud', 'mmview', 'msgbox', 'overlay']);
+  glInit();
   applySettings();
   fitWrap();
   initMenu();

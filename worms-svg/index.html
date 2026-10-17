@@ -15,6 +15,9 @@
   .cam{position:absolute;left:0;top:0;width:0;height:0;transform-origin:0 0;will-change:transform;pointer-events:none}
   .cam>svg{position:absolute;display:block;overflow:visible}
   #sSky{pointer-events:none}
+  #glc{position:absolute;left:0;top:0;width:100%;height:100%;display:none;pointer-events:none}
+  body.gl #glc{display:block}
+  body.gl #sSky, body.gl .cam{display:none}
   #touch{display:none}
   body.touch #touch{display:block}
   body.touch #help{display:none}
@@ -107,6 +110,8 @@
   <g id="Lfore"><path id="fore" fill="#14301a" opacity=".92"/></g>
 
 </svg></div>
+<!-- WebGL: o mundo desenhado pela placa de vídeo (no lugar das camadas acima, quando o aparelho suporta) -->
+<canvas id="glc"></canvas>
 <svg id="game" viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <!-- céu e cenário -->
@@ -354,12 +359,13 @@
 <div id="rotate">📱 Gire o celular para o modo paisagem (deitado) para jogar melhor.</div>
 </div>
 
-<script src="js/sfx.js?v=20261017g"></script>
-<script src="js/data.js?v=20261017g"></script>
-<script src="js/art.js?v=20261017g"></script>
-<script src="js/art2.js?v=20261017g"></script>
-<script src="js/animated-kanto.js?v=20261017g"></script>
-<script src="js/game.js?v=20261017g"></script>
+<script src="js/sfx.js?v=20261017h"></script>
+<script src="js/data.js?v=20261017h"></script>
+<script src="js/art.js?v=20261017h"></script>
+<script src="js/art2.js?v=20261017h"></script>
+<script src="js/animated-kanto.js?v=20261017h"></script>
+<script src="js/gl.js?v=20261017h"></script>
+<script src="js/game.js?v=20261017h"></script>
 </body>
 </html>
 

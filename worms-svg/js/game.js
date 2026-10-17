@@ -8,7 +8,7 @@
   const GRAV = 0.2;           // gravidade base (px/frame²)
   const WALK_MAX = 120;       // distância máxima de caminhada por turno (mapas largos dão um pouco mais)
   const walkMax = () => WALK_MAX + Math.max(0, W - 800) * 0.07;
-  const GAME_VERSION = '17/10 l';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
+  const GAME_VERSION = '17/10 m';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
   const TURN_TIME = 30 * 60;  // 30 s para mirar e atirar (estourou: passa a vez)
   const WEAK = 0.35;          // abaixo dessa fração de PV o inimigo pode ser capturado
   const PLAYER_COL = '#3a9bff', WILD_COL = '#e0433a', GUEST_COL = '#ffd34d';
@@ -3702,14 +3702,18 @@
     uiSel = 0; syncButtons();
   }
 
-  let fireLatch = false, fireDownAt = 0;
+  function cancelFire() {
+    charging = false; power = 0; Sfx.chargeStop();
+  }
   function pressFire() {
+    if (glActive && glLoading) return;
     if (state === 'aim' && !charging && (scene === 'intro' ? intro.balls > 0 : !teams[turnTeam].ai)) {
       charging = true; power = 0; Sfx.unlock(); Sfx.chargeStart();
     }
   }
   function releaseFire() {
     if (!charging) return;
+    if (glActive && glLoading) { cancelFire(); return; }
     if (scene === 'intro') fireIntro();
     else if (state === 'aim') fire();
   }
@@ -3722,11 +3726,7 @@
       try { btn.setPointerCapture(e.pointerId); } catch (_) {}
       btn.classList.add('on');
       if (holdKey) keys[holdKey] = true;
-      else if (act === 'fire') {
-        // TIRO: segurar e soltar, ou tocar uma vez para começar a carregar e outra para soltar (bom para ponteiro de TV)
-        if (charging && fireLatch) { fireLatch = false; releaseFire(); }
-        else { pressFire(); fireDownAt = Date.now(); fireLatch = false; }
-      }
+      else if (act === 'fire') pressFire();
       else if (act === 'pass') passTurn();
       else if (act === 'restart') restart();
       else if (act === 'ball') toggleBall();
@@ -3739,14 +3739,14 @@
       e.preventDefault();
       btn.classList.remove('on');
       if (holdKey) keys[holdKey] = false;
-      else if (act === 'fire') {
-        if (charging && !fireLatch && Date.now() - fireDownAt < 260) { fireLatch = true; showMsg('Carregando... toque TIRO de novo para soltar', 90); }
-        else if (!fireLatch) releaseFire();
-      }
+      else if (act === 'fire') releaseFire();
     };
     btn.addEventListener('pointerdown', press);
     btn.addEventListener('pointerup', release);
-    btn.addEventListener('pointercancel', release);
+    btn.addEventListener('pointercancel', e => {
+      if (act !== 'fire') { release(e); return; }
+      e.preventDefault(); btn.classList.remove('on'); cancelFire();
+    });
   });
 
   // clique/toque nos menus: testa as áreas desenhadas no overlay
@@ -3980,10 +3980,10 @@
   }
 
   const STEP = 1000 / 60;
-  let lastTs = 0, acc = 0, renderPar = 0;
+  let lastTs = 0, acc = 0, renderPar = 0, lastLiteRenderTs = null;
   function frame(ts) {
     requestAnimationFrame(frame);
-    if (typeof document !== 'undefined' && document.hidden) { lastTs = 0; acc = 0; return; }   // aba escondida: não gasta nada
+    if (typeof document !== 'undefined' && document.hidden) { lastTs = 0; acc = 0; lastLiteRenderTs = null; return; }   // aba escondida: não gasta nada
     let steps = 1;
     if (typeof ts === 'number') {
       if (!lastTs) lastTs = ts;
@@ -3997,8 +3997,18 @@
     for (let i = 0; i < steps; i++) tick();
     const b = busy();
     if (b) perfSample(ts); else perfLast = 0;
-    // modo leve: desenha no máximo a 30 quadros por segundo (a lógica continua a 60)
-    if (lite ? (++renderPar & 1) : (steps > 1 || b || (++renderPar & 1))) renderAll();
+    // modo leve: limita pelo relógio, sem dividir uma taxa já baixa de quadros.
+    let draw;
+    if (lite) {
+      const interval = STEP * 2, timed = typeof ts === 'number';
+      const elapsed = lastLiteRenderTs === null ? interval : ts - lastLiteRenderTs;
+      draw = !timed || elapsed >= interval - 0.5;
+      if (draw && timed) {
+        if (lastLiteRenderTs === null) lastLiteRenderTs = ts;
+        else lastLiteRenderTs += Math.max(1, Math.floor((elapsed + 0.5) / interval)) * interval;
+      }
+    } else { lastLiteRenderTs = null; draw = steps > 1 || b || (++renderPar & 1); }
+    if (draw) renderAll();
   }
 
   // para testes automatizados

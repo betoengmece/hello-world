@@ -83,7 +83,7 @@
     }
 
     // ---------- atlas: páginas de 2048² onde os desenhos pequenos são guardados ----------
-    const PS = Math.min(2048, maxTex), MAXP = 4, PAD = 2;
+    const PS = Math.min(2048, maxTex), MAXP = 5, PAD = 2;
     let pages = [], gen = 0;
     function newPage() { const T = mkTex(null, PS, PS); const pg = { T, x: 0, y: 0, rowH: 0 }; pages.push(pg); return pg; }
     function resetAtlas() {

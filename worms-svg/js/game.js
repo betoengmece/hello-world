@@ -8,7 +8,7 @@
   const GRAV = 0.2;           // gravidade base (px/frame²)
   const WALK_MAX = 120;       // distância máxima de caminhada por turno (mapas largos dão um pouco mais)
   const walkMax = () => WALK_MAX + Math.max(0, W - 800) * 0.07;
-  const GAME_VERSION = '17/10 i';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
+  const GAME_VERSION = '17/10 j';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
   const TURN_TIME = 30 * 60;  // 30 s para mirar e atirar (estourou: passa a vez)
   const WEAK = 0.35;          // abaixo dessa fração de PV o inimigo pode ser capturado
   const PLAYER_COL = '#3a9bff', WILD_COL = '#e0433a', GUEST_COL = '#ffd34d';
@@ -2719,6 +2719,7 @@
   let glTerr = null, glTerrOk = false, glTerrBusy = false, glFullT = true, glBox = null, glSnapAt = -99, glSeq = 0, glPunches = [];
   const SVGNS = 'http://www.w3.org/2000/svg';
   const glCan = () => !!(GLR && !glFailed && settings.render !== 'svg');
+  let glResK = 1, glGen = 0, glGenAt = 0, glResetOk = false;
   let glLoading = false, glLoadAt = 0, glLoadFade = 0, glLoadProg = 0;   // tela "Preparando…" enquanto fotos e poses ficam prontas
   const glStartLoad = () => { glLoading = true; glLoadAt = 0; glLoadProg = 0; };
 
@@ -2752,7 +2753,7 @@
     const st = $('stage'), r = st.getBoundingClientRect ? st.getBoundingClientRect() : { width: 800 };
     const dpr = Math.min(2, window.devicePixelRatio || 1) * (lite ? 0.7 : 1);
     const w = Math.max(320, Math.round((r.width || 800) * dpr)), h = Math.round(w * 5 / 8);
-    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; glBgDirty = true; glFullT = true; GLR.resetAtlas(); }   // desenhos refeitos na resolução nova
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; glBgDirty = true; glFullT = true; GLR.resetAtlas(); glResetOk = true; }   // desenhos refeitos na resolução nova
     glP = w / VW; GLR.resize(w, h);
   }
   function glUse() {
@@ -2852,7 +2853,7 @@
     const svgEl = $('sWB'), drop = ['waveBack', 'introBack', 'pickups', 'tfill'];
     if (full) {
       const vbw = W + 80, vbh = 540;
-      const TS = Math.min(glP * (noZoom() ? 1 : 2), 2.8, GLR.maxTex / vbh, Math.sqrt(9e6 / (vbw * vbh)));   // nítido no zoom 2x, até ~9 milhões de pixels
+      const TS = Math.min(glP * (noZoom() ? 1 : 1.6), 2.4, GLR.maxTex / vbh, Math.sqrt(6e6 / (vbw * vbh)));   // nítido no zoom, até ~6 milhões de pixels
       const seq = glSeq, ww = W;
       glTerrBusy = true; glFullT = false; glBox = null; glSnapAt = frameNo;
       glPhoto(svgEl, [-40, -20, vbw, vbh], TS, drop, (im, w, h) => {
@@ -2937,7 +2938,7 @@
   }
   function glBodyRes(u) {
     const box = artBox(u.sp);
-    return Math.max(0.5, Math.round(Math.min(GLR.res * u.scale, 520 / Math.max(box[2], box[3])) * 4) / 4);
+    return Math.max(0.5, Math.round(Math.min(GLR.res * u.scale, 340 / Math.max(box[2], box[3])) * 4) / 4);   // no máximo ~340 px por pose
   }
   function glBody(u) {
     const R = GLR, box = artBox(u.sp);
@@ -2946,12 +2947,13 @@
     if (u.moving) { const ph = ((u.walkT * 0.5) % 6.2832 + 6.2832) % 6.2832; q = Math.round(ph / 1.0472) % 6; mode = 'w'; }
     else if (u.breath > 0) { q = (frameNo >> 3) % 4; mode = 'b'; }
     else if (!lite && blink(u)) { q = 0; mode = 'k'; }
-    else { const t = ((frameNo + u.uid * 29) >> (lite ? 4 : 3)) % 22; q = t < 12 ? t : 22 - t; mode = 'i'; }
+    else { const t = ((frameNo + u.uid * 29) >> (lite ? 4 : 3)) % 14; q = t < 8 ? t : 14 - t; mode = 'i'; }   // 8 quadros, vai e volta
     const wk = R.gen + ':' + res;
-    if (u._glW !== wk) { u._glW = wk; for (let i = 0; i < 12; i++) glBodySpr(u, res, i, 'i'); }   // já pede os quadros parados
+    if (u._glW !== wk) { u._glW = wk; for (let i = 0; i < 8; i++) glBodySpr(u, res, i, 'i'); }   // já pede os quadros parados
     let s = glBodySpr(u, res, q, mode);
+    if (!s && !(u._glS && u._glS.gen === R.gen)) s = glBodySpr(u, res, 0, 'i');                    // primeira pose (vem na tela de preparo)
     if (s) u._glS = s;
-    else if (u._glS && u._glS.gen === R.gen) s = u._glS;                                           // enquanto a pose nova não chega
+    else if (u._glS && u._glS.gen === R.gen) s = u._glS;                                           // enquanto a pose nova não chega, fica a anterior
     return s;
   }
   function glTypeDots(types, cx, y) {
@@ -3157,7 +3159,7 @@
     }
   }
 
-  // tudo pronto? fotos do cenário, terreno, os 12 quadros parados de cada Pokémon e as cabeças dos tiros
+  // tudo pronto? fotos do cenário, terreno e a primeira pose de cada Pokémon
   function glCheckLoad(inBattle) {
     const R = GLR, now = performance.now();
     if (!glLoadAt) glLoadAt = now;
@@ -3166,12 +3168,10 @@
     need += 4; if (glTerrOk && !glFullT && !glTerrBusy) got += 4;
     for (const u of units) {
       if (u.hidden || (inBattle && !u.alive)) continue;
-      const res = glBodyRes(u);
-      for (let q = 0; q < 12; q++) { need++; if (R.has(glBodyKey(u, res, q, 'i'))) got++; else glBodySpr(u, res, q, 'i'); }
+      need++; if (glBodySpr(u, glBodyRes(u), 0, 'i')) got++;          // só a primeira pose; as outras chegam com o jogo rodando
     }
-    for (const k in PJ) { need++; if (R.has('pj|' + k)) got++; else R.svg('pj|' + k, PJ[k][0], PJ[k][1], R.res * 1.5); }
     glLoadProg = need ? got / need : 1;
-    if (got >= need || now - glLoadAt > 15000) { glLoading = false; glLoadFade = 1; }
+    if (got >= need || now - glLoadAt > 8000) { glLoading = false; glLoadFade = 1; for (const k in PJ) R.svg('pj|' + k, PJ[k][0], PJ[k][1], R.res * 1.5); }
   }
   function loadingSvg() {
     const a = glLoading ? 1 : glLoadFade, k = glLoading ? glLoadProg : 1;
@@ -3184,7 +3184,12 @@
   }
   function renderGL(act, inBattle) {
     const R = GLR;
-    R.res = glP * (noZoom() ? 1 : GL_ZOOM);
+    if (R.gen !== glGen) {             // o atlas encheu e recomeçou? baixa a resolução das poses para não ficar refazendo (piscar)
+      const now = performance.now();
+      if (glGen && !glResetOk && now - glGenAt < 30000) glResK = Math.max(0.45, glResK * 0.75);
+      glGen = R.gen; glGenAt = now; glResetOk = false;
+    }
+    R.res = glP * (noZoom() ? 1 : 1.6) * glResK;
     glSchedule();
     if (glLoading) glCheckLoad(inBattle);
     else if (glLoadFade > 0) glLoadFade = Math.max(0, glLoadFade - 0.07);
@@ -3983,7 +3988,7 @@
     get: () => ({ scene, kind, state, stageIdx, units, teams, campaign, cap, intro, panel, angle, power, wind, ballMode, turnTeam, ai, guest, gCool, gMode, evo, projs }),
     get pickups() { return pickups; }, BALLS,
     setWeather: w => { weather = w; lightT = 5; $('sun').style.display = (w === 'rain' || w === 'storm') ? 'none' : ''; glSkyDirty = true; }, get weather() { return weather; },
-    glInfo: () => ({ active: glActive, loading: glLoading, prog: glLoadProg, P: glP, snaps: Object.fromEntries(Object.entries(glSnap).map(([k, v]) => [k, { ok: v.ok, vb: v.vb }])), terrOk: glTerrOk, busy: glTerrBusy, full: glFullT, box: glBox, stats: GLR && GLR.stats, lite, ms: rN ? +(rTime / rN).toFixed(2) : 0, resetMs: (rTime = 0, rN = 0) }),
+    glInfo: () => ({ active: glActive, loading: glLoading, prog: glLoadProg, gen: GLR && GLR.gen, resK: glResK, P: glP, snaps: Object.fromEntries(Object.entries(glSnap).map(([k, v]) => [k, { ok: v.ok, vb: v.vb }])), terrOk: glTerrOk, busy: glTerrBusy, full: glFullT, box: glBox, stats: GLR && GLR.stats, lite, ms: rN ? +(rTime / rN).toFixed(2) : 0, resetMs: (rTime = 0, rN = 0) }),
     setRender: r => { if ((settings.render === 'svg') !== (r === 'svg')) toggleRender(); },
     setMap: o => { mapOverride = o; }, setShinyP: v => { shinyP = v; }, get W() { return W; }, get panX() { return panX; }, get mapArch() { return mapArch; }, get cam() { return cam; }, get heights() { return heights; }, shF, rollArch, layoutSpawns, applyStatus, applyDots,
     toggleSettings, settings, sync: () => syncButtons(), plan: u => { ai = { phase: 'plan', t: 0 }; planShot(u); },

@@ -8,7 +8,7 @@
   const GRAV = 0.2;           // gravidade base (px/frame²)
   const WALK_MAX = 120;       // distância máxima de caminhada por turno (mapas largos dão um pouco mais)
   const walkMax = () => WALK_MAX + Math.max(0, W - 800) * 0.07;
-  const GAME_VERSION = '17/10 k';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
+  const GAME_VERSION = '17/10 l';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
   const TURN_TIME = 30 * 60;  // 30 s para mirar e atirar (estourou: passa a vez)
   const WEAK = 0.35;          // abaixo dessa fração de PV o inimigo pode ser capturado
   const PLAYER_COL = '#3a9bff', WILD_COL = '#e0433a', GUEST_COL = '#ffd34d';
@@ -210,6 +210,8 @@
   // zoom desligado no modo leve e no Fire TV: mudar a escala obriga a redesenhar todas as camadas (caro em aparelho fraco)
   const noZoom = () => settings.zoom === 'off' || (settings.zoom !== 'on' && (lite || (!glActive && isFireTV())));   // no WebGL o zoom é barato
   const GL_ZOOM = 2;          // no WebGL: a vez do Pokémon e o tiro ficam em zoom 2x (a arte vetorial continua nítida)
+  // depois do tiro: segura 1 s no ponto da batida (vendo o estrago), abre a tela toda e fica aberta até o jogador apertar algo
+  let camHold = 0, camWide = false;
   function updateCamera() {
     let tx = 400, ty = 250, tz = 1, k = 0.06;
     const big = glActive && scene === 'battle';
@@ -229,6 +231,14 @@
       if (state === 'aim' && panX !== null) { tx = panX; k = 0.16; }            // olhando o mapa: sem zoom
       else if (u && big) { tx = u.x; ty = u.y - 30; tz = GL_ZOOM; k = 0.07; }
       else if (u && W > VW) { tx = u.x; k = 0.07; }
+    }
+    // pós-tiro: batida → tela toda → (ao apertar algo) volta ao atacante
+    if (scene === 'battle' && (state === 'settle' || state === 'aim' || state === 'ai')) {
+      if (camWide && (charging || keys.left || keys.right || keys.up || keys.down || keys.panL || keys.panR)) camWide = false;
+      if (camHold > 0) {
+        if (--camHold === 0) camWide = true;
+        tx = focus.x; ty = focus.y; tz = big ? GL_ZOOM : 1.35; k = 0.1;
+      } else if (camWide) { tx = cam.x; ty = 250; tz = 1; k = 0.06; }
     }
     // sem zoom (modo leve ou ajuste): a câmera só desloca as camadas e o navegador não precisa redesenhá-las em outra escala
     if (noZoom()) tz = 1;
@@ -1359,7 +1369,7 @@
   function fire() {
     if (state !== 'aim' && state !== 'ai') return;
     if (glActive && glLoading) return;
-    panX = null;
+    panX = null; camHold = 0; camWide = false;
     const u = activeUnit(); if (!u) return;
     const S = spOf(u), a = angle * Math.PI / 180, sp = 3 + power * 0.075;   // ângulo em relação à horizontal
     u.lastPow = power;
@@ -1542,7 +1552,7 @@
       if (isBall) { ballResolve(p, target, outcome); continue; }
       explode(p.x, Math.min(p.y, H), p);
     }
-    if (!projs.length && !bolts.length && !beams.length && state === 'flying') state = 'settle';
+    if (!projs.length && !bolts.length && !beams.length && state === 'flying') { state = 'settle'; camHold = 60; camWide = false; }
   }
 
   function homingTarget(p) {
@@ -1601,7 +1611,7 @@
         if (u.sh) { Sfx.shiny(); floaters.push({ x: u.x, y: u.y - 70, t: 0, text: '✨ SHINY capturado!', col: '#ffe27a', size: 18 }); }
         if (u === guest) { guest = null; gCool = 1 + Math.floor(Math.random() * 3); units = units.filter(v => v !== u); }
       }
-      state = 'settle';
+      state = 'settle'; camHold = 60; camWide = false;
     });
     if (cap) cap.col = BALLS[p.bt || 'ball'].col;
   }

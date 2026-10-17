@@ -8,6 +8,7 @@
   const GRAV = 0.2;           // gravidade base (px/frame²)
   const WALK_MAX = 120;       // distância máxima de caminhada por turno (mapas largos dão um pouco mais)
   const walkMax = () => WALK_MAX + Math.max(0, W - 800) * 0.07;
+  const GAME_VERSION = '17/10 c';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
   const TURN_TIME = 30 * 60;  // 30 s para mirar e atirar (estourou: passa a vez)
   const WEAK = 0.35;          // abaixo dessa fração de PV o inimigo pode ser capturado
   const PLAYER_COL = '#3a9bff', WILD_COL = '#e0433a', GUEST_COL = '#ffd34d';
@@ -2865,15 +2866,16 @@
     // botões (sem animação de posição para o toque funcionar): ficam dentro do painel
     const bx = Math.round(X + 24);
     // qualidade: Automática (liga o modo leve se o aparelho for lento) / Alta / Leve
-    const qn = QUALITY_NAME[settings.quality] + (settings.quality === 'auto' ? (lite ? ' (leve)' : ' (alta)') : '');
+    const qn = 'Qualidade: ' + (settings.quality === 'auto' ? (lite ? 'Auto (leve)' : 'Auto (alta)') : QUALITY_NAME[settings.quality]);
     if (settingsRow === 2) s += `<rect x="${f1(X + 12)}" y="218" width="226" height="48" rx="12" fill="none" stroke="#ffb347" stroke-width="2" opacity=".9"/>`;
-    s += uiBtn(bx, 224, 202, 36, `Qualidade: ${qn}`, () => cycleQuality(1), { fs: 14 });
+    s += uiBtn(bx, 224, 202, 36, `${qn}`, () => cycleQuality(1), { fs: 14 });
     s += uiBtn(bx, 268, 202, 36, document.fullscreenElement ? 'Sair da tela cheia' : 'Tela cheia', toggleFullscreen, { fs: 15 });
     s += uiBtn(bx, 312, 202, 36, 'Teste do controle', () => { location.href = 'controle.html'; }, { fs: 15 });
     s += uiBtn(bx, 356, 202, 36, Sfx.isOn() ? 'Som: ligado' : 'Som: desligado', () => { toggleSound(); }, { fs: 15 });
     s += uiBtn(bx, 400, 202, 36, 'Restaurar padrão', () => { SLIDERS.forEach((S, i) => setSlider(i, S.def)); }, { fs: 15 });
     s += uiBtn(bx, 444, 202, 36, 'Fechar', () => toggleSettings(false), { fs: 15 });
-    s += `<text x="${f1(X + 125)}" y="494" text-anchor="middle" font-size="9.5" fill="#fff" opacity=".55">O abre/fecha · ← → ajusta · ↑ ↓ escolhe · jogo em pausa</text>`;
+    s += `<text x="${f1(X + 125)}" y="494" text-anchor="middle" font-size="9.5" fill="#fff" opacity=".55">O abre e fecha · jogo em pausa</text>
+          <text x="${f1(X + 236)}" y="38" text-anchor="end" font-size="9" fill="#fff" opacity=".5">versão ${GAME_VERSION}</text>`;
     return s;
   }
 

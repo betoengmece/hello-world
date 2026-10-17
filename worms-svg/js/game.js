@@ -8,14 +8,14 @@
   const GRAV = 0.2;           // gravidade base (px/frame²)
   const WALK_MAX = 120;       // distância máxima de caminhada por turno (mapas largos dão um pouco mais)
   const walkMax = () => WALK_MAX + Math.max(0, W - 800) * 0.07;
-  const GAME_VERSION = '17/10 f';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
+  const GAME_VERSION = '17/10 g';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
   const TURN_TIME = 30 * 60;  // 30 s para mirar e atirar (estourou: passa a vez)
   const WEAK = 0.35;          // abaixo dessa fração de PV o inimigo pode ser capturado
   const PLAYER_COL = '#3a9bff', WILD_COL = '#e0433a', GUEST_COL = '#ffd34d';
   const SAVE_KEY = 'ms_campaign_v1', SET_KEY = 'ms_settings_v1';
   // ajustes (menu lateral): brilho da tela e volume do som
-  const settings = { bright: 1, vol: 0.6, quality: 'auto', autoLite: false, showFps: false };   // quality: 'auto' | 'alta' | 'leve'
-  try { const t = JSON.parse(localStorage.getItem(SET_KEY)); if (t) { settings.bright = Math.min(1.5, Math.max(0.6, +t.bright || 1)); settings.vol = Math.min(1, Math.max(0, t.vol === undefined ? 0.6 : +t.vol)); if (['auto', 'alta', 'leve'].includes(t.quality)) settings.quality = t.quality; settings.autoLite = !!t.autoLite; settings.showFps = !!t.showFps; } } catch (_) {}
+  const settings = { bright: 1, vol: 0.6, quality: 'auto', autoLite: false, showFps: false, zoom: 'auto' };   // zoom: 'auto' (desliga no modo leve) | 'on' | 'off'   // quality: 'auto' | 'alta' | 'leve'
+  try { const t = JSON.parse(localStorage.getItem(SET_KEY)); if (t) { settings.bright = Math.min(1.5, Math.max(0.6, +t.bright || 1)); settings.vol = Math.min(1, Math.max(0, t.vol === undefined ? 0.6 : +t.vol)); if (['auto', 'alta', 'leve'].includes(t.quality)) settings.quality = t.quality; settings.autoLite = !!t.autoLite; settings.showFps = !!t.showFps; if (['auto', 'on', 'off'].includes(t.zoom)) settings.zoom = t.zoom; } } catch (_) {}
   let settingsOpen = false, drawerT = 0, settingsRow = 0, dragSlider = -1, sliderRects = [];
   const SLIDERS = [
     { key: 'bright', label: 'Brilho', min: 0.6, max: 1.5, def: 1,   fmt: v => Math.round(v * 100) + '%' },
@@ -103,7 +103,9 @@
     snow:  { name: 'Neve',        note: 'Gelo +50%',            boost: { ice: 1.5 } }
   };
 
-  const $ = id => document.getElementById(id);
+  // busca de elementos com cache (o jogo procura os mesmos elementos centenas de vezes por quadro)
+  const _els = {};
+  const $ = id => { const e = _els[id]; return e && e.isConnected ? e : (_els[id] = document.getElementById(id)); };
   // não reescreve o DOM quando o conteúdo é idêntico ao do quadro anterior (menos repintura = menos calor/bateria)
   const _setHtml = typeof Element !== 'undefined' ? Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML') : null;
   function cacheHtml(ids) {
@@ -204,6 +206,8 @@
   // ---------- Câmera 2.5D ----------
   const cam = { x: 400, y: 250, z: 1, shake: 0, sx: 0, sy: 0 };
 
+  // zoom desligado no modo leve e no Fire TV: mudar a escala obriga a redesenhar todas as camadas (caro em aparelho fraco)
+  const noZoom = () => settings.zoom === 'off' || (settings.zoom !== 'on' && (lite || isFireTV()));
   function updateCamera() {
     let tx = 400, ty = 250, tz = 1, k = 0.06;
     if (scene === 'menu' || scene === 'team') { tz = 1; }
@@ -222,6 +226,8 @@
       if (state === 'aim' && panX !== null) { tx = panX; k = 0.16; }
       else if (u && W > VW) { tx = u.x; k = 0.07; }
     }
+    // sem zoom (modo leve ou ajuste): a câmera só desloca as camadas e o navegador não precisa redesenhá-las em outra escala
+    if (noZoom()) tz = 1;
     camMoving = Math.abs(tz - cam.z) * 60 + Math.abs(tx - cam.x) + Math.abs(ty - cam.y) > 1.5;
     cam.z += (tz - cam.z) * k * 0.8;
     cam.x += (tx - cam.x) * k;
@@ -2183,6 +2189,7 @@
   }
 
   function renderTerrain() {
+    miniTerr = null;
     if (terrDirty) {
       const d = terrainPath();
       $('tclipPath').setAttribute('d', d); $('tback').setAttribute('d', d); $('tedge').setAttribute('d', d); $('tfill').setAttribute('d', d);
@@ -2346,7 +2353,7 @@
   const MM = { x: 492, y: 58, w: 300, h: 34 };
   const inMini = p => p.x >= MM.x - 4 && p.x <= MM.x + MM.w + 4 && p.y >= MM.y - 4 && p.y <= MM.y + MM.h + 14;
   const miniPan = p => { panX = clamp((p.x - MM.x) / MM.w * W, VW / 2, W - VW / 2); };
-  let mmShown = false;
+  let mmShown = false, miniTerr = null;
   function mmViewSvg() {
     if (!mmShown) return '';
     const k = MM.w / W, vw = VW / cam.z, vx = clamp(cam.x - vw / 2, 0, W - vw);
@@ -2355,9 +2362,12 @@
   function miniSvg() {
     const k = MM.w / W, my = y => MM.y + clamp((y - 110) / 380, 0, 1) * MM.h;
     let s = `<rect x="${MM.x}" y="${MM.y}" width="${MM.w}" height="${MM.h}" rx="8" fill="#0d1b2a" opacity=".72"/>`;
-    let d = `M${MM.x},${MM.y + MM.h}`; const stp = Math.max(4, Math.round(W / 140));
-    for (let x = 0; x < W; x += stp) d += ` L${f1(MM.x + x * k)},${f1(my(heights[x]))}`;
-    s += `<path d="${d} L${MM.x + MM.w},${MM.y + MM.h} Z" fill="#6b8f4a" opacity=".85"/>`;
+    if (miniTerr === null) {            // o desenho do terreno no minimapa só é refeito quando o terreno muda
+      let d = `M${MM.x},${MM.y + MM.h}`; const stp = Math.max(4, Math.round(W / 140));
+      for (let x = 0; x < W; x += stp) d += ` L${f1(MM.x + x * k)},${f1(my(heights[x]))}`;
+      miniTerr = `<path d="${d} L${MM.x + MM.w},${MM.y + MM.h} Z" fill="#6b8f4a" opacity=".85"/>`;
+    }
+    s += miniTerr;
     for (const q of pickups) s += `<circle cx="${f1(MM.x + q.x * k)}" cy="${f1(my(gy(q.x)) - 2)}" r="1.4" fill="#fff"/>`;
     for (const u of units) {
       if (!u.alive || u.hidden) continue;
@@ -2697,6 +2707,7 @@
     const t = settings.showFps ? `${fpsVal} FPS${lite ? ' · leve' : ''}` : '';
     const el = $('fpsT'); if (el && el.textContent !== t) el.textContent = t;
   }
+  let hudKey = '', hudAt = -99, barAt = -99;
   function renderAll() {
     fpsTick();
     // enquanto um golpe cava, o contorno do terreno é refeito no máximo a cada 4 quadros
@@ -2773,18 +2784,20 @@
         font-size="${f.size || 15}" font-weight="bold" fill="${f.col}" stroke="${f.col === '#ffffff' || f.col === '#fff' ? '#000' : '#fff'}" stroke-width=".8"
         opacity="${clamp(1 - f.t / 60, 0, 1).toFixed(2)}">${f.text}</text>`).join('');
 
+    if (charging || keys.up || keys.down || keys.left || keys.right || frameNo - barAt >= 4 || scene !== 'battle') { barAt = frameNo;
     $('powerbar').innerHTML = scene === 'battle' ? bottomBarSvg() : charging
       ? `<rect x="10" y="54" width="208" height="14" rx="7" fill="#000" opacity=".45"/>
          <rect x="12" y="56" width="${f1(power * 2.04)}" height="10" rx="5" fill="url(#pow)"/>`
-      : '';
+      : ''; }
 
-    mmShown = false;
     // chuva/neve e o clarão ficam em camadas próprias: o painel só é reescrito quando um texto dele muda
     $('wx').innerHTML = weatherSvg();
     if (scene === 'battle') { animWx(weather, 'n'); if (wxK < 1) animWx(wxPrev, 'p'); }
     setAttrOnce('flashR', 'opacity', flash.a > 0.01 ? flash.a.toFixed(2) : '0');
     if (flash.a > 0.01) setAttrOnce('flashR', 'fill', flash.col);
-    $('hud').innerHTML = hudSvg();
+    // painel: refeito a cada poucos quadros (ou na hora, quando muda o estado/turno) — nada nele precisa de 60 por segundo
+    const hk = scene + state + turnTeam + (teams[turnTeam] ? teams[turnTeam].cur : '') + ballMode + !!panel + (guest ? guest.uid : '');
+    if (hk !== hudKey || frameNo - hudAt >= (lite ? 6 : 3)) { hudKey = hk; hudAt = frameNo; mmShown = false; $('hud').innerHTML = hudSvg(); }
     $('mmview').innerHTML = mmViewSvg();
     $('msgbox').innerHTML = msgSvg();
     renderOverlay();
@@ -3337,6 +3350,7 @@
     forceGuest: sp => { gCool = 0; STAGES[stageIdx].guests = [{ sp, rarity: 1 }]; },
     skipEvolve, stageClear,
     initMenu, initIntro, playStage, cycleMove, maybeChangeWeather, rollWeather, initStage, newCampaign, beginStage, fire, toggleBall, pickTarget,
+    setZoom: z => { settings.zoom = z; },
     setQuality: q => { settings.quality = q; settings.autoLite = false; applySettings(); }, get lite() { return lite; }, pollPad,
     setAngle: a => { angle = a; const u = activeUnit(); if (u && scene === 'battle') u.face = Math.cos(a * Math.PI / 180) >= 0 ? 1 : -1; }, aimWindow: u => aimWindow(u || activeUnit()), setPower: p => { power = p; }, passTurn, turnOrder,
     get windY() { return windY; }, solid, surf, carve, terrainPath, get mask() { return mask; },

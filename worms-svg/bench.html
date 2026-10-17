@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Teste de desempenho</title>
+<style>
+  :root { --bg: #0d1117; --panel: rgba(13,27,42,.82); --line: #2b3a57; --fg: #eef2ff; --muted: #9fb0d0; --ok: #7be07b; --hot: #ffb347; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font-family: system-ui, -apple-system, "Segoe UI", sans-serif; overflow: hidden; }
+  body { display: flex; align-items: center; justify-content: center; }
+  #wrap { position: relative; }
+  canvas { display: block; width: 100%; height: 100%; border-radius: 10px; background: #000; }
+  #hud { position: absolute; left: 10px; top: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; min-width: 210px; }
+  #fps { font-size: 34px; font-weight: 800; color: var(--ok); line-height: 1; }
+  #info { font-size: 12px; color: var(--muted); margin-top: 4px; line-height: 1.45; }
+  #btns { position: absolute; right: 10px; top: 10px; display: flex; flex-direction: column; gap: 6px; }
+  button { font: 600 14px system-ui, sans-serif; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; min-width: 190px; text-align: left; cursor: pointer; }
+  button:focus-visible, button:hover { border-color: var(--hot); outline: none; }
+  #load { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 20px; background: rgba(0,0,0,.6); border-radius: 10px; }
+  a { color: #8fd0ff; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="cv"></canvas>
+  <div id="hud"><div id="fps">—</div><div id="info">preparando…</div></div>
+  <div id="btns">
+    <button id="bRend">Desenho: WebGL</button>
+    <button id="bRes">Resolução: 100%</button>
+    <button id="bZoom">Zoom da câmera: sim</button>
+    <button id="bN">Pokémon: 6</button>
+    <button id="bBack">← Voltar ao jogo</button>
+  </div>
+  <div id="load">Preparando as imagens dos Pokémon…</div>
+</div>
+<script src="js/data.js?v=bench1"></script>
+<script src="js/art.js?v=bench1"></script>
+<script src="js/art2.js?v=bench1"></script>
+<script src="js/animated-kanto.js?v=bench1"></script>
+<script>
+// Protótipo de desempenho: a mesma cena de batalha desenhada num <canvas> (WebGL ou Canvas 2D),
+// com a arte SVG dos Pokémon convertida em imagens na abertura. Serve para medir o FPS no aparelho antes de portar o jogo.
+(() => {
+  'use strict';
+  const MS = window.MS, Art = MS.Art;
+  const $ = id => document.getElementById(id);
+  const rnd = (a, b) => a + Math.random() * (b - a), clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const W = 1400, H = 500, VW = 800, VH = 500, G = 0.2, WATER = 480;
+  const SPECIES = ['charmander', 'pikachu', 'squirtle', 'gyarados', 'pidgeotto', 'snorlax', 'bulbasaur', 'gengar'];
+  const opt = { rend: 'webgl', res: 1, zoom: true, n: 6 };
+  try { Object.assign(opt, JSON.parse(localStorage.getItem('ms_bench') || '{}')); } catch (_) {}
+  const save = () => { try { localStorage.setItem('ms_bench', JSON.stringify(opt)); } catch (_) {} };
+
+  // ---------- tamanho do palco ----------
+  const cv = $('cv');
+  let S = 1, CW = 800, CH = 500;            // S = pixels do canvas por unidade do jogo (com zoom 1)
+  function fit() {
+    const w = Math.floor(Math.min(innerWidth * 0.98, (innerHeight - 8) * 1.6)), h = Math.round(w * 5 / 8);
+    $('wrap').style.width = w + 'px'; $('wrap').style.height = h + 'px';
+    const dpr = Math.min(2, window.devicePixelRatio || 1) * opt.res;
+    CW = Math.round(w * dpr); CH = Math.round(h * dpr); cv.width = CW; cv.height = CH; S = CW / VW;
+    if (R) R.resize();
+  }
+
+  // ---------- atlas de imagens: poses dos Pokémon (da arte SVG do jogo), partículas, bola de fogo, nuvens ----------
+  const RS = 2;                              // pixels do atlas por unidade
+  const FRAMES = 6, CELLW = 140;
+  const atlas = document.createElement('canvas'); atlas.width = 2048; atlas.height = 2048;
+  const actx = atlas.getContext('2d');
+  const spr = {};                            // nome -> {x, y, w, h, ox, oy} (ox/oy = ponto de apoio em unidades)
+  let ax = 0, ay = 0, rowH = 0;
+  function slot(w, h) { if (ax + w > atlas.width) { ax = 0; ay += rowH + 2; rowH = 0; } const r = { x: ax, y: ay, w, h }; ax += w + 2; rowH = Math.max(rowH, h); return r; }
+  const svgImg = src => new Promise((ok, bad) => { const im = new Image(); im.onload = () => ok(im); im.onerror = bad; im.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(src); });
+  async function buildAtlas(defs) {
+    for (const sp of SPECIES) {
+      const Sd = MS.SPECIES[sp], sc = Sd.scale || 1, top = -(Sd.h * sc + 26), hgt = -top + 10;
+      for (let f = 0; f < FRAMES; f++) {
+        const body = Art.draw(sp, { f: f * 7, blink: f === 3, breath: 0, bob: 0, step: 0, x: 0, charge: false, flap: !!Sd.fly });
+        const w = CELLW * RS, h = Math.ceil(hgt * RS);
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="${-CELLW / 2} ${top} ${CELLW} ${hgt}">${defs}<g transform="scale(${sc})">${body}</g></svg>`;
+        const im = await svgImg(svg), r = slot(w, h);
+        actx.drawImage(im, r.x, r.y);
+        spr[sp + f] = { ...r, ox: CELLW / 2, oy: -top };
+      }
+    }
+    // partículas coloridas (círculo suave) e bola de fogo
+    const ball = (name, rad, stops) => { const d = rad * 2, r = slot(d, d), g = actx.createRadialGradient(r.x + rad, r.y + rad, 0, r.x + rad, r.y + rad, rad); stops.forEach(([o, c]) => g.addColorStop(o, c)); actx.fillStyle = g; actx.fillRect(r.x, r.y, d, d); spr[name] = { ...r, ox: rad / RS, oy: rad / RS }; };
+    ball('pOrange', 16, [[0, 'rgba(255,220,120,1)'], [0.5, 'rgba(255,150,40,.9)'], [1, 'rgba(255,90,0,0)']]);
+    ball('pYellow', 16, [[0, 'rgba(255,255,220,1)'], [0.6, 'rgba(255,240,120,.8)'], [1, 'rgba(255,230,80,0)']]);
+    ball('pDirt', 12, [[0, 'rgba(120,85,50,1)'], [0.7, 'rgba(100,70,40,.9)'], [1, 'rgba(90,60,30,0)']]);
+    ball('pSmoke', 24, [[0, 'rgba(90,90,90,.55)'], [1, 'rgba(90,90,90,0)']]);
+    ball('fire', 28, [[0, '#fffbe0'], [0.35, '#ffd34d'], [0.7, '#ff7a1a'], [1, 'rgba(255,60,0,0)']]);
+    ball('boom', 64, [[0, 'rgba(255,250,220,1)'], [0.4, 'rgba(255,180,60,.9)'], [0.8, 'rgba(255,90,20,.4)'], [1, 'rgba(255,60,0,0)']]);
+    // pixel branco (retângulos sólidos: clarão, água)
+    { const r = slot(4, 4); actx.fillStyle = '#fff'; actx.fillRect(r.x, r.y, 4, 4); spr.white = { x: r.x + 1, y: r.y + 1, w: 2, h: 2, ox: 0, oy: 0 }; }
+    // nuvens
+    for (let k = 0; k < 3; k++) {
+      const r = slot(200, 80), c = actx; c.save(); c.translate(r.x + 100, r.y + 48); c.fillStyle = '#fff';
+      [[-50, 6, 26], [-15, -12, 34], [25, -4, 28], [55, 8, 20], [0, 10, 30]].forEach(([x, y, rr]) => { c.beginPath(); c.arc(x * (0.9 + k * 0.05), y, rr * (0.85 + k * 0.08), 0, 7); c.fill(); });
+      c.restore(); spr['cloud' + k] = { ...r, ox: 50, oy: 24 };
+    }
+  }
+
+  // ---------- terreno destrutível (canvas + máscara) ----------
+  const TS = 1.5;                              // pixels da imagem do terreno por unidade
+  const terr = document.createElement('canvas'); terr.width = Math.ceil(W * TS); terr.height = Math.ceil(H * TS);
+  const tctx = terr.getContext('2d');
+  const mask = new Uint8Array(W * H);
+  const solid = (x, y) => { x |= 0; y |= 0; return x >= 0 && x < W && y >= 0 && y < H && mask[y * W + x] === 1; };
+  function surf(x, y0 = 0) { x |= 0; if (x < 0 || x >= W) return H + 200; for (let y = Math.max(0, y0 | 0); y < H; y++) if (mask[y * W + x]) return y; return H + 200; }
+  function genTerrain() {
+    tctx.setTransform(TS, 0, 0, TS, 0, 0); tctx.clearRect(0, 0, W, H);
+    const spans = []; let x = rnd(0, 20);
+    while (x < W - 120) { const w = rnd(320, 470), x1 = Math.min(W - 10, x + w); spans.push([x, x1]); x = x1 + rnd(50, 90); }
+    for (const [a, b] of spans) {
+      const base = rnd(270, 330), p1 = rnd(0, 6), p2 = rnd(0, 6), amp = rnd(15, 45), depth = rnd(110, 160);
+      const top = [], bot = [];
+      for (let xx = a; xx <= b + 0.1; xx += 3) {
+        const t = (xx - a) / (b - a), edge = Math.sin(Math.PI * t);
+        const y = base - amp * Math.sin(xx * 0.008 + p1) - 14 * Math.sin(xx * 0.023 + p2) + (1 - Math.pow(edge, 0.3)) * 42;
+        top.push([xx, y]); bot.push([xx, Math.min(WATER - 14, y + 22 + depth * Math.pow(edge, 0.85) + rnd(-6, 6))]);
+      }
+      const g = tctx.createLinearGradient(0, base - 80, 0, base + depth + 40);
+      g.addColorStop(0, '#9a6a3c'); g.addColorStop(0.45, '#6e4526'); g.addColorStop(1, '#3a2414');
+      tctx.beginPath(); tctx.moveTo(top[0][0], top[0][1]);
+      for (const p of top) tctx.lineTo(p[0], p[1]);
+      for (let i = bot.length - 1; i >= 0; i--) tctx.lineTo(bot[i][0], bot[i][1]);
+      tctx.closePath(); tctx.fillStyle = g; tctx.fill();
+      tctx.save(); tctx.clip();
+      for (let k = 0; k < (b - a) / 5; k++) { tctx.fillStyle = Math.random() < 0.5 ? 'rgba(255,220,170,.08)' : 'rgba(0,0,0,.18)'; tctx.beginPath(); tctx.ellipse(rnd(a, b), rnd(base - 60, base + depth), rnd(2, 6), rnd(1.4, 3.5), rnd(0, 3), 0, 7); tctx.fill(); }
+      tctx.strokeStyle = 'rgba(0,0,0,.2)'; tctx.lineWidth = 3;
+      for (let s2 = 1; s2 <= 3; s2++) { tctx.beginPath(); top.forEach((p, i) => { const yy = p[1] + 26 * s2 + Math.sin(p[0] * 0.03 + s2) * 4; i ? tctx.lineTo(p[0], yy) : tctx.moveTo(p[0], yy); }); tctx.stroke(); }
+      tctx.restore();
+      tctx.lineJoin = 'round'; tctx.lineCap = 'round';
+      tctx.beginPath(); top.forEach((p, i) => i ? tctx.lineTo(p[0], p[1] + 2) : tctx.moveTo(p[0], p[1] + 2)); tctx.strokeStyle = '#3f8a2a'; tctx.lineWidth = 7; tctx.stroke();
+      tctx.beginPath(); top.forEach((p, i) => i ? tctx.lineTo(p[0], p[1] - 1) : tctx.moveTo(p[0], p[1] - 1)); tctx.strokeStyle = '#8fd14f'; tctx.lineWidth = 2; tctx.stroke();
+      for (let xx = a + 6; xx < b - 6; xx += rnd(5, 9)) { const p = top[Math.min(top.length - 1, Math.round((xx - a) / 3))]; tctx.beginPath(); tctx.moveTo(xx, p[1]); tctx.lineTo(xx + rnd(-3, 3), p[1] - rnd(4, 9)); tctx.strokeStyle = '#5aa834'; tctx.lineWidth = 1.3; tctx.stroke(); }
+      // máscara de física, coluna por coluna
+      for (let i = 0; i < top.length; i++) { const xx = Math.round(top[i][0]); for (let dx = 0; dx < 3; dx++) { const cx = xx + dx; if (cx < 0 || cx >= W) continue; for (let y = Math.ceil(top[i][1]); y < bot[i][1] && y < H; y++) mask[y * W + cx] = 1; } }
+    }
+  }
+  function carve(cx, cy, r) {
+    for (let y = Math.max(0, cy - r | 0); y <= Math.min(H - 1, cy + r); y++) for (let x = Math.max(0, cx - r | 0); x <= Math.min(W - 1, cx + r); x++) if ((x - cx) ** 2 + (y - cy) ** 2 <= r * r) mask[y * W + x] = 0;
+    tctx.save(); tctx.setTransform(TS, 0, 0, TS, 0, 0);
+    tctx.globalCompositeOperation = 'destination-out'; tctx.beginPath(); tctx.arc(cx, cy, r, 0, 7); tctx.fill();
+    tctx.globalCompositeOperation = 'source-atop'; tctx.beginPath(); tctx.arc(cx, cy, r + 3, 0, 7); tctx.strokeStyle = 'rgba(25,12,8,.7)'; tctx.lineWidth = 6; tctx.stroke();
+    tctx.restore();
+    const px = Math.max(0, Math.floor((cx - r - 6) * TS)), py = Math.max(0, Math.floor((cy - r - 6) * TS));
+    R.updateTex('terr', px, py, Math.min(terr.width - px, Math.ceil((2 * r + 12) * TS)), Math.min(terr.height - py, Math.ceil((2 * r + 12) * TS)));
+  }
+
+  // ---------- fundos (montanhas em camadas) ----------
+  function mtLayer(w, h, y0, amp, col1, col2, seed) {
+    const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d');
+    const g = x.createLinearGradient(0, y0 - amp, 0, h); g.addColorStop(0, col1); g.addColorStop(1, col2);
+    x.beginPath(); x.moveTo(0, h);
+    for (let i = 0; i <= w; i += 8) x.lineTo(i, y0 - amp * (0.5 + 0.3 * Math.sin(i * 0.006 + seed) + 0.2 * Math.sin(i * 0.017 + seed * 2)));
+    x.lineTo(w, h); x.closePath(); x.fillStyle = g; x.fill(); return c;
+  }
+  const sky = document.createElement('canvas'); sky.width = 4; sky.height = 256;
+  { const x = sky.getContext('2d'), g = x.createLinearGradient(0, 0, 0, 256); g.addColorStop(0, '#3a78c2'); g.addColorStop(0.55, '#8cc4ea'); g.addColorStop(1, '#f3e2b8'); x.fillStyle = g; x.fillRect(0, 0, 4, 256); }
+  const far = mtLayer(1200, 500, 230, 90, '#9db8d6', '#c9d9e6', 1), near = mtLayer(1400, 500, 280, 70, '#6f9f84', '#a8c7a0', 3);
+  const sea = document.createElement('canvas'); sea.width = 4; sea.height = 64;
+  { const x = sea.getContext('2d'), g = x.createLinearGradient(0, 0, 0, 64); g.addColorStop(0, '#4aa3e0'); g.addColorStop(1, '#123a63'); x.fillStyle = g; x.fillRect(0, 0, 4, 64); }
+
+  // ---------- renderizadores: WebGL (lotes de imagens na placa de vídeo) e Canvas 2D ----------
+  let R = null;
+  function makeWebGL() {
+    const gl = cv.getContext('webgl', { alpha: false, antialias: false, premultipliedAlpha: true, preserveDrawingBuffer: false }) || cv.getContext('experimental-webgl');
+    if (!gl) return null;
+    const vs = `attribute vec2 p; attribute vec2 uv; attribute vec4 c; uniform vec2 sz; varying vec2 vUv; varying vec4 vC;
+      void main(){ vUv = uv; vC = c; gl_Position = vec4(p.x / sz.x * 2.0 - 1.0, 1.0 - p.y / sz.y * 2.0, 0, 1); }`;
+    const fs = `precision mediump float; uniform sampler2D t; varying vec2 vUv; varying vec4 vC; void main(){ gl_FragColor = texture2D(t, vUv) * vC; }`;
+    const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; };
+    const pr = gl.createProgram(); gl.attachShader(pr, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(pr); gl.useProgram(pr);
+    const MAXQ = 4000, STRIDE = 8, data = new Float32Array(MAXQ * 6 * STRIDE);
+    const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.bufferData(gl.ARRAY_BUFFER, data.byteLength, gl.DYNAMIC_DRAW);
+    const loc = n => gl.getAttribLocation(pr, n);
+    gl.enableVertexAttribArray(loc('p')); gl.vertexAttribPointer(loc('p'), 2, gl.FLOAT, false, STRIDE * 4, 0);
+    gl.enableVertexAttribArray(loc('uv')); gl.vertexAttribPointer(loc('uv'), 2, gl.FLOAT, false, STRIDE * 4, 8);
+    gl.enableVertexAttribArray(loc('c')); gl.vertexAttribPointer(loc('c'), 4, gl.FLOAT, false, STRIDE * 4, 16);
+    const uSz = gl.getUniformLocation(pr, 'sz');
+    gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+    const tex = {}, srcs = {};
+    function addTex(key, canvas, smooth = true) {
+      const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+      const f = smooth ? gl.LINEAR : gl.NEAREST;
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, f); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, f);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      tex[key] = { t, w: canvas.width, h: canvas.height }; srcs[key] = canvas;
+    }
+    const tmp = document.createElement('canvas');
+    function updateTex(key, x, y, w, h) {
+      if (w <= 0 || h <= 0) return;
+      tmp.width = w; tmp.height = h; const c = tmp.getContext('2d'); c.clearRect(0, 0, w, h); c.drawImage(srcs[key], x, y, w, h, 0, 0, w, h);
+      gl.bindTexture(gl.TEXTURE_2D, tex[key].t); gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, gl.RGBA, gl.UNSIGNED_BYTE, tmp);
+    }
+    let n = 0, cur = null;
+    function flush() { if (!n) return; gl.bindTexture(gl.TEXTURE_2D, cur.t); gl.bufferSubData(gl.ARRAY_BUFFER, 0, data.subarray(0, n * 6 * STRIDE)); gl.drawArrays(gl.TRIANGLES, 0, n * 6); n = 0; stats.draws++; }
+    function quad(key, sx, sy, sw, sh2, dx, dy, dw, dh, a = 1, rgb = null) {
+      const T = tex[key]; if (cur !== T) { flush(); cur = T; } if (n >= MAXQ) flush();
+      const u0 = sx / T.w, v0 = sy / T.h, u1 = (sx + sw) / T.w, v1 = (sy + sh2) / T.h;
+      const r = rgb ? rgb[0] * a : a, g = rgb ? rgb[1] * a : a, b = rgb ? rgb[2] * a : a;
+      let o = n * 6 * STRIDE;
+      const put = (x, y, u, v) => { data[o++] = x; data[o++] = y; data[o++] = u; data[o++] = v; data[o++] = r; data[o++] = g; data[o++] = b; data[o++] = a; };
+      put(dx, dy, u0, v0); put(dx + dw, dy, u1, v0); put(dx, dy + dh, u0, v1);
+      put(dx + dw, dy, u1, v0); put(dx + dw, dy + dh, u1, v1); put(dx, dy + dh, u0, v1);
+      n++; stats.quads++;
+    }
+    return {
+      name: 'WebGL', addTex, updateTex, quad,
+      resize() { gl.viewport(0, 0, CW, CH); gl.uniform2f(uSz, CW, CH); },
+      begin() { gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT); cur = null; n = 0; },
+      end() { flush(); }
+    };
+  }
+  function makeCanvas2D() {
+    const c = cv.getContext('2d', { alpha: false });
+    const srcs = {};
+    return {
+      name: 'Canvas 2D',
+      addTex(key, canvas) { srcs[key] = canvas; },
+      updateTex() {},
+      quad(key, sx, sy, sw, sh2, dx, dy, dw, dh, a = 1, rgb = null) {
+        c.globalAlpha = a;
+        if (rgb) { c.fillStyle = `rgb(${rgb[0] * 255 | 0},${rgb[1] * 255 | 0},${rgb[2] * 255 | 0})`; c.fillRect(dx, dy, dw, dh); }
+        else if (dw < 0) { c.save(); c.scale(-1, 1); c.drawImage(srcs[key], sx, sy, sw, sh2, -dx, dy, -dw, dh); c.restore(); }
+        else c.drawImage(srcs[key], sx, sy, sw, sh2, dx, dy, dw, dh);
+        stats.quads++;
+      },
+      resize() { c.imageSmoothingEnabled = true; },
+      begin() { c.globalAlpha = 1; c.fillStyle = '#000'; c.fillRect(0, 0, CW, CH); },
+      end() { c.globalAlpha = 1; }
+    };
+  }
+
+  // ---------- cena ----------
+  let units = [], projs = [], parts = [], clouds = [], booms = [], flash = 0, shake = 0;
+  const cam = { x: 400, y: 250, z: 1 };
+  let tFire = 60, frame = 0;
+  const stats = { quads: 0, draws: 0 };
+  function placeUnits() {
+    units = [];
+    for (let i = 0; i < opt.n; i++) {
+      let x = 80 + (W - 160) * (i + 0.5) / opt.n + rnd(-30, 30), tries = 0;
+      while (tries++ < 80 && !(surf(x) < WATER - 40 && surf(x - 12) < WATER - 40 && surf(x + 12) < WATER - 40)) x = rnd(60, W - 60);
+      units.push({ sp: SPECIES[i % SPECIES.length], x, y: surf(x), vy: 0, face: x < W / 2 ? 1 : -1, ph: rnd(0, 6) });
+    }
+  }
+  function fire() {
+    const a = units[(Math.random() * units.length) | 0], b = units.filter(u => u !== a)[(Math.random() * (units.length - 1)) | 0];
+    if (!a || !b) return;
+    const dx = b.x - a.x, ang = rnd(0.7, 1.1), v = Math.sqrt(Math.abs(dx) * G / Math.sin(2 * ang)) * rnd(0.95, 1.05);
+    projs.push({ x: a.x, y: a.y - 24, vx: Math.sign(dx) * Math.cos(ang) * v, vy: -Math.sin(ang) * v, age: 0 });
+    a.face = Math.sign(dx) || 1;
+  }
+  function boom(x, y) {
+    carve(x, y, 30); booms.push({ x, y, t: 0 }); flash = 0.45; shake = 7;
+    for (let i = 0; i < 46; i++) { const a = rnd(0, 6.3), s = rnd(1, 5); parts.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 1.5, g: 0.15, life: rnd(25, 45), max: 45, k: Math.random() < 0.5 ? 'pDirt' : 'pOrange', r: rnd(3, 7) }); }
+    for (let i = 0; i < 10; i++) parts.push({ x: x + rnd(-14, 14), y: y + rnd(-10, 6), vx: rnd(-0.4, 0.4), vy: rnd(-0.8, -0.2), g: 0, life: rnd(50, 80), max: 80, k: 'pSmoke', r: rnd(10, 18) });
+  }
+  function step() {
+    frame++;
+    if (--tFire <= 0 && !projs.length) { fire(); tFire = 90; }
+    for (const p of projs) {
+      for (let s = 0; s < 3; s++) {
+        p.vy += G / 3; p.x += p.vx / 3; p.y += p.vy / 3; p.age++;
+        if (p.y > H + 50 || p.x < -50 || p.x > W + 50) { p.dead = true; break; }
+        if (solid(p.x, p.y)) { p.dead = true; boom(p.x, p.y); break; }
+      }
+      parts.push({ x: p.x + rnd(-3, 3), y: p.y + rnd(-3, 3), vx: rnd(-0.3, 0.3), vy: rnd(-0.8, -0.2), g: -0.01, life: 26, max: 26, k: Math.random() < 0.5 ? 'pOrange' : 'pYellow', r: rnd(3, 6) });
+    }
+    projs = projs.filter(p => !p.dead);
+    for (const q of parts) { q.vy += q.g; q.x += q.vx; q.y += q.vy; q.life--; }
+    parts = parts.filter(q => q.life > 0);
+    for (const b of booms) b.t++;
+    booms = booms.filter(b => b.t < 24);
+    for (const u of units) { if (!solid(u.x, u.y) && !solid(u.x, u.y + 1)) { u.vy = Math.min(8, u.vy + 0.3); u.y += u.vy; if (u.y > WATER) { u.y = WATER; } } else { u.vy = 0; while (u.y > 0 && solid(u.x, u.y - 1)) u.y--; } }
+    for (const c of clouds) { c.x += c.sp; if (c.x > W + 150) c.x = -150; }
+    flash *= 0.86; shake = shake > 0.3 ? shake * 0.88 : 0;
+    // câmera: segue o tiro (com zoom) ou passeia entre os Pokémon
+    let tx, ty, tz;
+    if (projs.length) { tx = projs[0].x; ty = projs[0].y; tz = 1.35; }
+    else { const u = units[Math.floor(frame / 150) % units.length]; tx = u.x; ty = u.y - 40; tz = 1.1; }
+    if (!opt.zoom) tz = 1;
+    cam.z += (tz - cam.z) * 0.05; cam.x += (tx - cam.x) * 0.08; cam.y += (ty - cam.y) * 0.08;
+    const hw = VW / cam.z / 2, hh = VH / cam.z / 2;
+    cam.x = clamp(cam.x, hw, W - hw); cam.y = clamp(cam.y, hh, H - hh);
+  }
+
+  function draw() {
+    stats.quads = 0; stats.draws = 0;
+    R.begin();
+    const z = cam.z, k = S * z, sx = shake ? rnd(-shake, shake) : 0, sy = shake ? rnd(-shake, shake) : 0;
+    const X = wx => (wx - cam.x - sx) * k + CW / 2, Y = wy => (wy - cam.y - sy) * k + CH / 2;
+    R.quad('sky', 0, 0, 4, 256, 0, 0, CW, CH);
+    // fundos com parallax
+    for (const [key, img, f] of [['far', far, 0.25], ['near', near, 0.5]]) {
+      const zz = 1 + (z - 1) * f, kk = S * zz, cx = 400 + (cam.x - 400) * f, cy = 250 + (cam.y - 250) * f;
+      R.quad(key, 0, 0, img.width, img.height, (0 - cx) * kk + CW / 2 - 100 * kk, (0 - cy) * kk + CH / 2, img.width * kk, img.height * kk);
+    }
+    for (const c of clouds) { const s2 = spr['cloud' + c.k], kk = S * (1 + (z - 1) * 0.1), cx = 400 + (cam.x - 400) * 0.1; R.quad('atlas', s2.x, s2.y, s2.w, s2.h, (c.x - cx) * kk + CW / 2, c.y * kk, s2.w / RS * kk * c.s, s2.h / RS * kk * c.s, 0.92); }
+    // mar de trás, terreno
+    R.quad('sea', 0, 0, 4, 64, 0, Y(472), CW, Math.max(0, CH - Y(472)), 0.9);
+    R.quad('terr', 0, 0, terr.width, terr.height, X(0), Y(0), W * k, H * k);
+    // Pokémon (pose animada, balanço)
+    for (const u of units) {
+      const s2 = spr[u.sp + ((Math.floor(frame / 6 + u.ph * 3)) % FRAMES)], bob = Math.sin(frame * 0.08 + u.ph) * 0.7;
+      const dw = s2.w / RS * k, dh = s2.h / RS * k, ox = s2.ox * k, oy = s2.oy * k;
+      const px = X(u.x), py = Y(u.y + bob);
+      if (u.face > 0) R.quad('atlas', s2.x, s2.y, s2.w, s2.h, px - ox, py - oy, dw, dh);
+      else R.quad('atlas', s2.x, s2.y, s2.w, s2.h, px + ox, py - oy, -dw, dh);
+    }
+    // partículas, tiros, explosões
+    for (const q of parts) { const s2 = spr[q.k], a = Math.min(1, q.life / q.max * 1.5), r = q.r * k; R.quad('atlas', s2.x, s2.y, s2.w, s2.h, X(q.x) - r, Y(q.y) - r, r * 2, r * 2, a); }
+    for (const p of projs) { const s2 = spr.fire, r = 11 * k; R.quad('atlas', s2.x, s2.y, s2.w, s2.h, X(p.x) - r, Y(p.y) - r, r * 2, r * 2); }
+    for (const b of booms) { const s2 = spr.boom, t = b.t / 24, r = 46 * Math.min(1, t * 1.8) * k; R.quad('atlas', s2.x, s2.y, s2.w, s2.h, X(b.x) - r, Y(b.y) - r, r * 2, r * 2, 1 - t); }
+    // mar da frente e clarão
+    R.quad('sea', 0, 0, 4, 64, 0, Y(481), CW, Math.max(0, CH - Y(481)), 0.75);
+    if (flash > 0.01) { const w2 = spr.white; R.quad('atlas', w2.x, w2.y, w2.w, w2.h, 0, 0, CW, CH, flash, [1, 0.96, 0.85]); }
+    R.end();
+  }
+
+  // ---------- laço e medição ----------
+  let fpsN = 0, fpsT = performance.now(), fpsMin = 999, lastT = performance.now(), acc = 0, worst = 0;
+  function loop(ts) {
+    requestAnimationFrame(loop);
+    const dt = Math.min(100, ts - lastT); lastT = ts; acc += dt; worst = Math.max(worst, dt);
+    let n = 0; while (acc >= 16.6 && n < 3) { step(); acc -= 16.67; n++; }
+    if (acc > 50) acc = 0;
+    draw();
+    fpsN++;
+    if (ts - fpsT >= 1000) {
+      const fps = Math.round(fpsN * 1000 / (ts - fpsT)); fpsMin = Math.min(fpsMin, fps);
+      $('fps').textContent = fps + ' FPS';
+      $('info').innerHTML = `${R.name} · ${CW}×${CH} px · zoom ${opt.zoom ? 'sim' : 'não'}<br>pior quadro: ${Math.round(worst)} ms · mínimo: ${fpsMin} FPS<br>${stats.quads} imagens/quadro · ${opt.n} Pokémon · ${parts.length} partículas`;
+      fpsN = 0; fpsT = ts; worst = 0;
+    }
+  }
+
+  // ---------- botões ----------
+  function labels() {
+    $('bRend').textContent = 'Desenho: ' + (opt.rend === 'webgl' ? 'WebGL' : 'Canvas 2D');
+    $('bRes').textContent = 'Resolução: ' + Math.round(opt.res * 100) + '%';
+    $('bZoom').textContent = 'Zoom da câmera: ' + (opt.zoom ? 'sim' : 'não');
+    $('bN').textContent = 'Pokémon: ' + opt.n;
+  }
+  const reload = () => { save(); location.reload(); };     // trocar o tipo de desenho exige um canvas novo
+  $('bRend').onclick = () => { opt.rend = opt.rend === 'webgl' ? '2d' : 'webgl'; reload(); };
+  $('bRes').onclick = () => { opt.res = opt.res === 1 ? 0.75 : opt.res === 0.75 ? 0.5 : 1; save(); fit(); labels(); fpsMin = 999; };
+  $('bZoom').onclick = () => { opt.zoom = !opt.zoom; save(); labels(); fpsMin = 999; };
+  $('bN').onclick = () => { opt.n = opt.n === 6 ? 12 : 6; save(); placeUnits(); labels(); fpsMin = 999; };
+  $('bBack').onclick = () => { location.href = 'index.html'; };
+  addEventListener('resize', fit);
+  // controle: O alterna o tipo de desenho, △/▢ resolução, Options volta (numeração do Fire TV/Silk e padrão)
+  let padPrev = {};
+  setInterval(() => {
+    const g = navigator.getGamepads ? [...navigator.getGamepads()].find(x => x) : null; if (!g) return;
+    const on = i => g.buttons[i] && g.buttons[i].pressed, edge = i => on(i) && !padPrev[i];
+    if (edge(1) || edge(3)) $('bRes').onclick();
+    if (edge(4)) $('bZoom').onclick();
+    if (edge(5)) $('bN').onclick();
+    if (edge(9)) $('bBack').onclick();
+    if (edge(8)) $('bRend').onclick();
+    padPrev = {}; g.buttons.forEach((b, i) => { padPrev[i] = b.pressed; });
+  }, 50);
+
+  // ---------- início ----------
+  (async () => {
+    labels();
+    let defs = '';
+    try { const html = await (await fetch('index.html')).text(); const m = html.match(/<defs>[\s\S]*?<\/defs>/); if (m) defs = m[0]; } catch (_) {}
+    await buildAtlas(defs);
+    genTerrain(); placeUnits();
+    clouds = Array.from({ length: 7 }, (_, i) => ({ x: rnd(0, W), y: rnd(30, 140), sp: rnd(0.05, 0.15), s: rnd(0.6, 1.1), k: i % 3 }));
+    R = (opt.rend === 'webgl' && makeWebGL()) || makeCanvas2D();
+    if (opt.rend === 'webgl' && R.name !== 'WebGL') opt.rend = '2d';
+    fit();
+    R.addTex('atlas', atlas); R.addTex('terr', terr); R.addTex('far', far); R.addTex('near', near); R.addTex('sky', sky); R.addTex('sea', sea);
+    labels(); $('load').remove();
+    requestAnimationFrame(loop);
+  })();
+})();
+</script>
+</body>
+</html>

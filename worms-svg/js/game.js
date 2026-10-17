@@ -8,7 +8,7 @@
   const GRAV = 0.2;           // gravidade base (px/frame²)
   const WALK_MAX = 120;       // distância máxima de caminhada por turno (mapas largos dão um pouco mais)
   const walkMax = () => WALK_MAX + Math.max(0, W - 800) * 0.07;
-  const GAME_VERSION = '17/10 c';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
+  const GAME_VERSION = '17/10 d';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
   const TURN_TIME = 30 * 60;  // 30 s para mirar e atirar (estourou: passa a vez)
   const WEAK = 0.35;          // abaixo dessa fração de PV o inimigo pode ser capturado
   const PLAYER_COL = '#3a9bff', WILD_COL = '#e0433a', GUEST_COL = '#ffd34d';
@@ -3097,26 +3097,34 @@
   const PAD_KEYS = { 0: { key: ' ', code: 'Space' }, 2: { key: 'b' }, 3: { key: 'g' }, 4: { key: 'q', hold: true }, 5: { key: 'e', hold: true },
                      6: { key: 'c' }, 7: { key: 'p' }, 8: { key: 'r' }, 9: { key: 'o' },
                      12: { key: 'ArrowUp', hold: true }, 13: { key: 'ArrowDown', hold: true }, 14: { key: 'ArrowLeft', hold: true }, 15: { key: 'ArrowRight', hold: true } };
+  // Fire TV (navegador Silk): o X e os direcionais/analógicos ficam presos no ponteiro e os botões chegam com outra numeração
+  // (O = 0, △ = 1, ▢ = 3, L1 = 4, R1 = 5, Create = 8, Options = 9). Então: O atira, L1/R1 andam, △/▢ miram, Create troca de golpe.
+  const PAD_KEYS_TV = { 0: { key: ' ', code: 'Space' }, 1: { key: 'ArrowUp', hold: true }, 3: { key: 'ArrowDown', hold: true },
+                        4: { key: 'ArrowLeft', hold: true }, 5: { key: 'ArrowRight', hold: true },
+                        6: { key: 'b' }, 7: { key: 'p' }, 8: { key: 'g' }, 9: { key: 'o' },
+                        12: { key: 'ArrowUp', hold: true }, 13: { key: 'ArrowDown', hold: true }, 14: { key: 'ArrowLeft', hold: true }, 15: { key: 'ArrowRight', hold: true } };
+  const isFireTV = () => typeof navigator !== 'undefined' && /Silk|AFT[A-Z]|Fire ?TV/i.test(navigator.userAgent || '');
   let padPrev = {}, padName = '';
   const padKey = (type, k) => dispatchEvent(new KeyboardEvent(type, { key: k.key, code: k.code || '' }));
   function pollPad() {
     const list = navigator.getGamepads ? navigator.getGamepads() : [];
     let gp = null; for (const g of list || []) if (g && g.connected) { gp = g; break; }
     if (!gp) { if (padName) { padName = ''; padPrev = {}; } return; }
-    if (!padName) { padName = gp.id || 'controle'; showMsg('Controle conectado! X atira · ▢ bola · △ golpe', 150); kbd = true; }
+    const tv = isFireTV(), MAP = tv ? PAD_KEYS_TV : PAD_KEYS;
+    if (!padName) { padName = gp.id || 'controle'; showMsg(tv ? 'Controle: O atira · L1/R1 anda · △/▢ mira · Create troca golpe' : 'Controle conectado! X atira · ▢ bola · △ golpe', 220); kbd = true; }
     const now = {}, ax = gp.axes || [];
     (gp.buttons || []).forEach((b, i) => { now['b' + i] = !!(b && (b.pressed || b.value > 0.5)); });
     // analógico esquerdo = direcional; analógico direito = olhar o mapa
     if ((ax[0] || 0) < -0.5) now.b14 = true; if ((ax[0] || 0) > 0.5) now.b15 = true;
     if ((ax[1] || 0) < -0.5) now.b12 = true; if ((ax[1] || 0) > 0.5) now.b13 = true;
     if ((ax[2] || 0) < -0.5) now.b4 = true; if ((ax[2] || 0) > 0.5) now.b5 = true;
-    for (const i in PAD_KEYS) {
-      const k = PAD_KEYS[i], on = !!now['b' + i], was = !!padPrev['b' + i];
+    for (const i in MAP) {
+      const k = MAP[i], on = !!now['b' + i], was = !!padPrev['b' + i];
       if (on && !was) Sfx.unlock(), padKey('keydown', k);
       else if (!on && was && (k.hold || k.code)) padKey('keyup', k);
     }
     // O (círculo) = voltar: fecha ajustes/perguntas e volta nos menus, sem sair da batalha por engano
-    if (now.b1 && !padPrev.b1 && (settingsOpen || (panel && panel.pause) || scene === 'menu')) padKey('keydown', { key: 'Escape' });
+    if (!tv && now.b1 && !padPrev.b1 && (settingsOpen || (panel && panel.pause) || scene === 'menu')) padKey('keydown', { key: 'Escape' });
     padPrev = now;
   }
   addEventListener('gamepadconnected', () => { Sfx.unlock(); });

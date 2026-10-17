@@ -116,6 +116,8 @@ Relações usadas: Pedra > Fogo, Voador, Inseto · Terra > Fogo, Elétrico, Pedr
 
 **TV / Fire TV:** o jogo se ajusta para caber inteiro na altura da janela. Em ⚙ Ajustes há **Tela cheia** (tecla F) e **Teste do controle** (`controle.html`), uma tela que mostra o que chega do controle e do controle remoto. Com ponteiro (Silk), o **TIRO** pode ser tocado uma vez para começar a carregar e de novo para soltar.
 
+**Controle no Fire TV (Silk):** o Silk prende o X e os direcionais no ponteiro e numera os botões de outro jeito, então lá o jogo usa outro esquema (detectado sozinho): **O** atira (segurar e soltar) e confirma, **L1/R1** andam, **△/▢** miram, **Create** troca de golpe, **Options** ajustes, **L2/R2** Pokébola e passar a vez (se chegarem). Pokébola, passar e reiniciar também ficam nos botões da tela.
+
 **Modo leve (TV, Fire TV, aparelhos fracos):** em ⚙ Ajustes → **Qualidade** (Automática / Alta / Leve). Na automática, se o jogo estiver lento o modo leve liga sozinho e fica lembrado. Ele desenha no máximo a 30 quadros por segundo, tira as camadas decorativas mais pesadas (nuvens, montanhas do fundo, textura e faixa 2.5D do chão, chuva/neve) e anima menos os enfeites. O jogo em si não muda.
 
 **No celular:** botões na tela (◀ ▶ andar, ▲ ▼ mirar, segure TIRO para carregar e solte para atirar, BOLA, GOLPE (quando houver dois golpes), PASSAR, ↻ reinicia (pede confirmação), ⚙ ajustes à esquerda, ☰ menu, 🔊 som). Jogue com o celular deitado. Menus funcionam por toque. Em mapas largos, arraste na tela ou toque no minimapa para olhar o resto do mapa.

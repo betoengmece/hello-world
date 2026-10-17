@@ -60,14 +60,26 @@
     }
     function dropTex(key) { const o = texs[key]; if (o) { flush(); gl.deleteTexture(o.t); delete texs[key]; } }
     const tmp = document.createElement('canvas');
-    function subTex(key, src, x, y, w, h) {           // atualiza só um pedaço (ex.: buraco no terreno)
+    // atualiza só um pedaço (ex.: buraco no terreno); (x, y) no canvas de origem, (ox, oy) = canto da textura no canvas
+    function subTex(key, src, x, y, w, h, ox = 0, oy = 0) {
       const T = texs[key]; if (!T || w <= 0 || h <= 0) return;
-      x = Math.max(0, x | 0); y = Math.max(0, y | 0); w = Math.min(T.w - x, Math.ceil(w)); h = Math.min(T.h - y, Math.ceil(h));
-      if (w <= 0 || h <= 0) return;
+      let x0 = Math.max(ox, Math.floor(x)), y0 = Math.max(oy, Math.floor(y));
+      const x1 = Math.min(ox + T.w, Math.ceil(x + w)), y1 = Math.min(oy + T.h, Math.ceil(y + h));
+      const ww = x1 - x0, hh = y1 - y0;
+      if (ww <= 0 || hh <= 0) return;
       flush();
-      tmp.width = w; tmp.height = h; const c = tmp.getContext('2d'); c.clearRect(0, 0, w, h); c.drawImage(src, x, y, w, h, 0, 0, w, h);
-      gl.bindTexture(gl.TEXTURE_2D, T.t); gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, gl.RGBA, gl.UNSIGNED_BYTE, tmp);
+      tmp.width = ww; tmp.height = hh; const c = tmp.getContext('2d'); c.clearRect(0, 0, ww, hh); c.drawImage(src, x0, y0, ww, hh, 0, 0, ww, hh);
+      gl.bindTexture(gl.TEXTURE_2D, T.t); gl.texSubImage2D(gl.TEXTURE_2D, 0, x0 - ox, y0 - oy, gl.RGBA, gl.UNSIGNED_BYTE, tmp);
       cur = null;
+    }
+    // textura feita de um pedaço de um canvas grande (terreno dividido em faixas que cabem na placa)
+    function setTexPart(key, src, x, y, w, h) {
+      flush();
+      const old = texs[key]; if (old) gl.deleteTexture(old.t);
+      tmp.width = w; tmp.height = h; const c = tmp.getContext('2d'); c.clearRect(0, 0, w, h); c.drawImage(src, x, y, w, h, 0, 0, w, h);
+      texs[key] = mkTex(tmp);
+      tmp.width = 1; tmp.height = 1;
+      return texs[key];
     }
 
     // ---------- atlas: páginas de 2048² onde os desenhos pequenos são guardados ----------
@@ -137,8 +149,8 @@
       return null;
     }
     const has = key => { const e = svgCache.get(key); return !!(e && e.s); };
-    function startLoads() {
-      while (loading.length < 6 && queue.length) {
+    function startLoads(max = 6) {
+      while (loading.length < max && queue.length) {
         const e = queue.shift();
         if (e.gen !== gen) continue;
         const im = new Image();
@@ -150,8 +162,8 @@
     }
     // chamado no fim de cada quadro: envia as imagens prontas ao atlas, sem passar do tempo combinado
     function pump(budgetMs = 4) {
-      const t0 = performance.now();
-      startLoads();
+      const t0 = performance.now(), maxL = budgetMs > 20 ? 16 : 6;
+      startLoads(maxL);
       for (let i = 0; i < loading.length; i++) {
         const e = loading[i];
         if (e.dead || e.gen !== gen || e.st === 3) { loading.splice(i--, 1); if (e.st === 3) svgCache.delete(e.key); continue; }
@@ -161,7 +173,7 @@
         e.img = null; e.src = null; loading.splice(i--, 1);
         if (performance.now() - t0 > budgetMs) break;
       }
-      startLoads();
+      startLoads(maxL);
       stats.svgQ = queue.length + loading.length;
     }
 
@@ -250,7 +262,7 @@
       sc(x, y = x) { ma *= x; mb *= x; mc *= y; md *= y; },
       alpha(a) { ga *= a; },
       get zoom() { return Math.sqrt(Math.abs(ma * md - mb * mc)); },
-      setTex, dropTex, subTex, tex: k => texs[k], svg, has, cvSprite, pump, resetAtlas, parseCol,
+      setTex, setTexPart, dropTex, subTex, tex: k => texs[k], svg, has, cvSprite, pump, resetAtlas, parseCol,
       resize(w, h) { gl.viewport(0, 0, w, h); },
       begin(r = 0, g = 0, b = 0) {
         stats.quads = 0; stats.draws = 0; frameN++;

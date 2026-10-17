@@ -8,7 +8,7 @@
   const GRAV = 0.2;           // gravidade base (px/frame²)
   const WALK_MAX = 120;       // distância máxima de caminhada por turno (mapas largos dão um pouco mais)
   const walkMax = () => WALK_MAX + Math.max(0, W - 800) * 0.07;
-  const GAME_VERSION = '17/10 h';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
+  const GAME_VERSION = '17/10 i';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
   const TURN_TIME = 30 * 60;  // 30 s para mirar e atirar (estourou: passa a vez)
   const WEAK = 0.35;          // abaixo dessa fração de PV o inimigo pode ser capturado
   const PLAYER_COL = '#3a9bff', WILD_COL = '#e0433a', GUEST_COL = '#ffd34d';
@@ -209,22 +209,25 @@
 
   // zoom desligado no modo leve e no Fire TV: mudar a escala obriga a redesenhar todas as camadas (caro em aparelho fraco)
   const noZoom = () => settings.zoom === 'off' || (settings.zoom !== 'on' && (lite || (!glActive && isFireTV())));   // no WebGL o zoom é barato
+  const GL_ZOOM = 2;          // no WebGL: a vez do Pokémon e o tiro ficam em zoom 2x (a arte vetorial continua nítida)
   function updateCamera() {
     let tx = 400, ty = 250, tz = 1, k = 0.06;
+    const big = glActive && scene === 'battle';
     if (scene === 'menu' || scene === 'team') { tz = 1; }
-    else if (state === 'capture' && cap) { tx = cap.x; ty = cap.by - 10; tz = 1.8; k = 0.08; }
+    else if (state === 'capture' && cap) { tx = cap.x; ty = cap.by - 10; tz = big ? 2.2 : 1.8; k = 0.08; }
     else if (state === 'flying' && projs.length) {
       const p = projs[Math.floor(projs.length / 2)];
-      tx = p.x; ty = p.y; tz = scene === 'intro' ? 1.2 : 1.35; k = 0.12;
+      tx = p.x; ty = p.y; tz = scene === 'intro' ? 1.2 : big ? GL_ZOOM : 1.35; k = 0.12;
     } else if (state === 'flying' && (bolts.length || beams.length)) {
-      const b = bolts[0] || beams[0]; tx = b.x !== undefined ? b.x : (b.u.x + b.tx) / 2; ty = b.ty !== undefined ? Math.min(b.u.y, b.ty) - 20 : 250; tz = 1.15; k = 0.1;
-    } else if (state === 'settle') { tx = focus.x; ty = focus.y; tz = 1.25; }
-    else if (state === 'guest' && guest) { tx = guest.x; ty = guest.y - 40; tz = 1.45; }
+      const b = bolts[0] || beams[0]; tx = b.x !== undefined ? b.x : (b.u.x + b.tx) / 2; ty = b.ty !== undefined ? Math.min(b.u.y, b.ty) - 20 : 250; tz = big ? 1.3 : 1.15; k = 0.1;
+    } else if (state === 'settle') { tx = focus.x; ty = focus.y; tz = big ? 1.8 : 1.25; }
+    else if (state === 'guest' && guest) { tx = guest.x; ty = guest.y - 40; tz = big ? 1.8 : 1.45; }
     else if ((state === 'aim' || state === 'ai') && charging && scene === 'battle') {
-      const u = activeUnit(); if (u) { tx = u.x; ty = u.y - 30; tz = 1.15; k = 0.04; }
+      const u = activeUnit(); if (u) { tx = u.x; ty = u.y - 30; tz = big ? GL_ZOOM : 1.15; k = 0.04; }
     } else if ((state === 'aim' || state === 'ai') && scene === 'battle') {
       const u = activeUnit();
-      if (state === 'aim' && panX !== null) { tx = panX; k = 0.16; }
+      if (state === 'aim' && panX !== null) { tx = panX; k = 0.16; }            // olhando o mapa: sem zoom
+      else if (u && big) { tx = u.x; ty = u.y - 30; tz = GL_ZOOM; k = 0.07; }
       else if (u && W > VW) { tx = u.x; k = 0.07; }
     }
     // sem zoom (modo leve ou ajuste): a câmera só desloca as camadas e o navegador não precisa redesenhá-las em outra escala
@@ -517,6 +520,7 @@
     $('introBack').innerHTML = '';
     decor = []; dirty = true;
     glFullT = true; glTerrOk = false; glBgDirty = true; glPunches = [];
+    glStartLoad();
   }
 
   function genDecor(avoid) {
@@ -1354,6 +1358,7 @@
 
   function fire() {
     if (state !== 'aim' && state !== 'ai') return;
+    if (glActive && glLoading) return;
     panX = null;
     const u = activeUnit(); if (!u) return;
     const S = spOf(u), a = angle * Math.PI / 180, sp = 3 + power * 0.075;   // ângulo em relação à horizontal
@@ -2714,6 +2719,8 @@
   let glTerr = null, glTerrOk = false, glTerrBusy = false, glFullT = true, glBox = null, glSnapAt = -99, glSeq = 0, glPunches = [];
   const SVGNS = 'http://www.w3.org/2000/svg';
   const glCan = () => !!(GLR && !glFailed && settings.render !== 'svg');
+  let glLoading = false, glLoadAt = 0, glLoadFade = 0, glLoadProg = 0;   // tela "Preparando…" enquanto fotos e poses ficam prontas
+  const glStartLoad = () => { glLoading = true; glLoadAt = 0; glLoadProg = 0; };
 
   let defsEls = null;
   function defsFor(src) {
@@ -2753,7 +2760,7 @@
     if (on !== glActive) {
       glActive = on;
       document.body.classList.toggle('gl', on);
-      if (on) { glBgDirty = true; glFullT = true; glSize(); }
+      if (on) { glBgDirty = true; glFullT = true; glSize(); glStartLoad(); }
       else { layoutLayers(); dirty = true; }
     }
     return on;
@@ -2780,8 +2787,16 @@
     const p = { cx, cy, r, seq: ++glSeq }; glPunches.push(p); if (glPunches.length > 80) glPunches.shift();
     glApplyPunch(glTerr.ctx, p);
     const t = glTerr;
-    GLR.subTex('terr', t.cv, (cx - r - 2 + 40) * t.sx, (cy - r - 2 + 20) * t.sy, (2 * r + 4) * t.sx + 2, (2 * r + 4) * t.sy + 2);
+    glTerrSub((cx - r - 2 + 40) * t.sx, (cy - r - 2 + 20) * t.sy, (2 * r + 4) * t.sx + 2, (2 * r + 4) * t.sy + 2);
   }
+  // o terreno é dividido em faixas verticais que cabem numa textura da placa de vídeo
+  function glTerrUpload() {
+    const t = glTerr, tw = Math.min(4096, GLR.maxTex), n = Math.ceil(t.cv.width / tw);
+    for (let i = n; i < (t.n || 0); i++) GLR.dropTex('terr' + i);
+    t.n = n; t.tw = tw;
+    for (let i = 0; i < n; i++) GLR.setTexPart('terr' + i, t.cv, i * tw, 0, Math.min(tw, t.cv.width - i * tw), t.cv.height);
+  }
+  function glTerrSub(x, y, w, h) { const t = glTerr; for (let i = 0; i < (t.n || 0); i++) GLR.subTex('terr' + i, t.cv, x, y, w, h, i * t.tw, 0); }
   // "foto" de uma camada SVG do jogo (com as definições de gradientes e padrões que ela usa)
   function glPhoto(el, vb, res, drop, cb) {
     let s;
@@ -2806,7 +2821,7 @@
     } catch (_) { cb(null); }
   }
   const GL_BG = [   // nome, svg, profundidade, índice em LAYERS (área), resolução relativa
-    ['sky', 'sSky', 0, -1, 0.5], ['far', 'sFar', 0.25, 0, 0.7], ['near', 'sNear', 0.5, 1, 0.7], ['mid', 'sMid', 0.65, 2, 0.75], ['fore', 'sFore', 1.3, 5, 0.75]
+    ['sky', 'sSky', 0, -1, 0.5], ['far', 'sFar', 0.25, 0, 0.8], ['near', 'sNear', 0.5, 1, 0.9], ['mid', 'sMid', 0.65, 2, 1], ['fore', 'sFore', 1.3, 5, 1]
   ];
   function glBgSnap(only) {
     const ver = ++glBgVer;
@@ -2837,7 +2852,7 @@
     const svgEl = $('sWB'), drop = ['waveBack', 'introBack', 'pickups', 'tfill'];
     if (full) {
       const vbw = W + 80, vbh = 540;
-      const TS = Math.min(glP * (noZoom() ? 1 : 1.15), 2.2, GLR.maxTex / vbw, GLR.maxTex / vbh);
+      const TS = Math.min(glP * (noZoom() ? 1 : 2), 2.8, GLR.maxTex / vbh, Math.sqrt(9e6 / (vbw * vbh)));   // nítido no zoom 2x, até ~9 milhões de pixels
       const seq = glSeq, ww = W;
       glTerrBusy = true; glFullT = false; glBox = null; glSnapAt = frameNo;
       glPhoto(svgEl, [-40, -20, vbw, vbh], TS, drop, (im, w, h) => {
@@ -2848,7 +2863,7 @@
         t.sx = w / vbw; t.sy = h / vbh;
         t.ctx.clearRect(0, 0, w, h); t.ctx.drawImage(im, 0, 0, w, h);
         for (const p of glPunches) if (p.seq > seq) glApplyPunch(t.ctx, p);
-        GLR.setTex('terr', t.cv); glTerrOk = true;
+        glTerrUpload(); glTerrOk = true;
       });
       return;
     }
@@ -2864,7 +2879,7 @@
       const c = t.ctx;
       c.clearRect(i0, j0, i1 - i0, j1 - j0); c.drawImage(im, i0, j0, i1 - i0, j1 - j0);
       for (const p of glPunches) if (p.seq > seq) glApplyPunch(c, p);
-      GLR.subTex('terr', t.cv, i0, j0, i1 - i0, j1 - j0);
+      glTerrSub(i0, j0, i1 - i0, j1 - j0);
     });
   }
   function glSchedule() {
@@ -2920,10 +2935,13 @@
       return `<g${shF(u.sp, u.sh)}>${Art.draw(u.sp, ctx)}</g>`;
     }, box, res);
   }
+  function glBodyRes(u) {
+    const box = artBox(u.sp);
+    return Math.max(0.5, Math.round(Math.min(GLR.res * u.scale, 520 / Math.max(box[2], box[3])) * 4) / 4);
+  }
   function glBody(u) {
     const R = GLR, box = artBox(u.sp);
-    let res = Math.min(R.res * u.scale, 420 / Math.max(box[2], box[3]));
-    res = Math.max(0.5, Math.round(res * 4) / 4);
+    const res = glBodyRes(u);
     let q, mode;
     if (u.moving) { const ph = ((u.walkT * 0.5) % 6.2832 + 6.2832) % 6.2832; q = Math.round(ph / 1.0472) % 6; mode = 'w'; }
     else if (u.breath > 0) { q = (frameNo >> 3) % 4; mode = 'b'; }
@@ -3139,10 +3157,37 @@
     }
   }
 
+  // tudo pronto? fotos do cenário, terreno, os 12 quadros parados de cada Pokémon e as cabeças dos tiros
+  function glCheckLoad(inBattle) {
+    const R = GLR, now = performance.now();
+    if (!glLoadAt) glLoadAt = now;
+    let need = 0, got = 0;
+    for (const [name] of GL_BG) { need++; if (!glBgDirty && glSnap[name] && glSnap[name].ok) got++; }
+    need += 4; if (glTerrOk && !glFullT && !glTerrBusy) got += 4;
+    for (const u of units) {
+      if (u.hidden || (inBattle && !u.alive)) continue;
+      const res = glBodyRes(u);
+      for (let q = 0; q < 12; q++) { need++; if (R.has(glBodyKey(u, res, q, 'i'))) got++; else glBodySpr(u, res, q, 'i'); }
+    }
+    for (const k in PJ) { need++; if (R.has('pj|' + k)) got++; else R.svg('pj|' + k, PJ[k][0], PJ[k][1], R.res * 1.5); }
+    glLoadProg = need ? got / need : 1;
+    if (got >= need || now - glLoadAt > 15000) { glLoading = false; glLoadFade = 1; }
+  }
+  function loadingSvg() {
+    const a = glLoading ? 1 : glLoadFade, k = glLoading ? glLoadProg : 1;
+    return `<g opacity="${a.toFixed(2)}"><rect width="800" height="500" fill="#0d1b2a"/>
+      <g transform="translate(400 210) rotate(${(frameNo * 6) % 360})">${Art.ball(26, 0)}</g>
+      <text x="400" y="290" text-anchor="middle" font-size="24" font-weight="800" fill="#fff">${scene === 'battle' ? 'Preparando a batalha…' : 'Preparando…'}</text>
+      <rect x="250" y="312" width="300" height="14" rx="7" fill="#000" opacity=".5"/>
+      <rect x="252" y="314" width="${f1(296 * k)}" height="10" rx="5" fill="#ffd34d"/>
+      <text x="400" y="352" text-anchor="middle" font-size="13" fill="#bfe3ff">desenhando cenário e Pokémon na placa de vídeo</text></g>`;
+  }
   function renderGL(act, inBattle) {
     const R = GLR;
-    R.res = glP * (noZoom() ? 1 : 1.25);
+    R.res = glP * (noZoom() ? 1 : GL_ZOOM);
     glSchedule();
+    if (glLoading) glCheckLoad(inBattle);
+    else if (glLoadFade > 0) glLoadFade = Math.max(0, glLoadFade - 0.07);
     const sky = THEMES[themeKey].sky, sc0 = R.parseCol(sky[1] || '#8cc4ea');
     R.begin(sc0[0], sc0[1], sc0[2]);
     // céu e nuvens (presos à tela)
@@ -3157,7 +3202,9 @@
     // mundo
     glLayer(1);
     glWater(false);
-    if (glTerrOk) { const T = R.tex('terr'); if (T) R.img('terr', 0, 0, T.w, T.h, -40, -20, W + 80, 540); }
+    if (glTerrOk && glTerr) for (let i = 0; i < glTerr.n; i++) {
+      const T = R.tex('terr' + i); if (T) R.img('terr' + i, 0, 0, T.w, T.h, -40 + i * glTerr.tw / glTerr.sx, -20, T.w / glTerr.sx, T.h / glTerr.sy);
+    }
     if (scene === 'battle') for (const p of pickups) {
       const B = BALLS[p.type], y = gy(p.x), bob = lite ? 0 : Math.sin(frameNo * 0.08 + p.ph) * 3, big = p.type !== 'ball';
       R.push(); R.tr(p.x, y + bob);
@@ -3254,7 +3301,7 @@
     if (scene === 'battle' && (weather || wxPrev)) { if (wxK >= 1) glWx(weather, 1); else { glWx(wxPrev, 1 - wxK); glWx(weather, wxK); } }
     if (flash.a > 0.01) R.rect(0, 0, 800, 500, flash.col, flash.a);
     R.end();
-    R.pump(lite ? 3 : 5);
+    R.pump(glLoading ? 40 : lite ? 3 : 5);      // na tela de preparo, envia bem mais imagens por quadro
   }
 
   // contador de quadros desenhados por segundo (⚙ Ajustes → Mostrar FPS)
@@ -3584,6 +3631,7 @@
     let s = '';
     if (scene === 'menu') s = menuSvg();
     else if (scene === 'team') s = teamSvg();
+    if (glActive && (glLoading || glLoadFade > 0)) s += loadingSvg();
     if (evo) s = evolveSvg();
     if (panel) { uiList = []; s += panelSvg(); }
     if (drawerT > 0.01 || settingsOpen) { uiList = []; s += drawerSvg(); }
@@ -3836,7 +3884,7 @@
   // ---------- Loop ----------
   function stepBattle() {
     if (state === 'aim') {
-      if (W > VW && (keys.panL || keys.panR)) panX = clamp((panX === null ? cam.x : panX) + (keys.panR ? 8 : 0) - (keys.panL ? 8 : 0), VW / 2, W - VW / 2);
+      if ((W > VW || glActive) && (keys.panL || keys.panR)) panX = clamp((panX === null ? cam.x : panX) + (keys.panR ? 8 : 0) - (keys.panL ? 8 : 0), VW / 2, W - VW / 2);
       const au = activeUnit();
       if (au && (keys.up || keys.down)) angle = fromElev(au, elevOf(au) + (keys.up ? 1.2 : -1.2));
       if (!charging) {
@@ -3877,6 +3925,7 @@
     pollPad();
     drawerT = Math.max(0, Math.min(1, drawerT + (settingsOpen ? 0.09 : -0.09)));
     if (settingsOpen) { updateCamera(); return; }   // pausado
+    if (glActive && glLoading && scene === 'battle') { updateCamera(); return; }   // preparando as imagens: a batalha espera
     for (const u of units) {
       if (u.breath > 0) u.breath--;
       if (u.hurt > 0) u.hurt--;
@@ -3900,6 +3949,7 @@
   // há movimento rápido na tela? então desenha a 60 fps; parado (mirando, menus) desenha a 30 fps
   function busy() {
     if (settingsOpen) return drawerT > 0 && drawerT < 1;
+    if (glLoading || glLoadFade > 0) return true;
     return projs.length > 0 || charging || !!cap || fx.length > 0 || floaters.length > 0 || flash.a > 0.02 || cam.shake > 0 ||
       !!(evo) || ['flying', 'capture', 'settle', 'guest', 'skip', 'evolve'].includes(state) || scene === 'intro' ||
       !!(keys.left || keys.right || keys.up || keys.down || keys.panL || keys.panR) || camMoving || !!panDrag || miniDrag;
@@ -3933,7 +3983,7 @@
     get: () => ({ scene, kind, state, stageIdx, units, teams, campaign, cap, intro, panel, angle, power, wind, ballMode, turnTeam, ai, guest, gCool, gMode, evo, projs }),
     get pickups() { return pickups; }, BALLS,
     setWeather: w => { weather = w; lightT = 5; $('sun').style.display = (w === 'rain' || w === 'storm') ? 'none' : ''; glSkyDirty = true; }, get weather() { return weather; },
-    glInfo: () => ({ active: glActive, P: glP, snaps: Object.fromEntries(Object.entries(glSnap).map(([k, v]) => [k, { ok: v.ok, vb: v.vb }])), terrOk: glTerrOk, busy: glTerrBusy, full: glFullT, box: glBox, stats: GLR && GLR.stats, lite, ms: rN ? +(rTime / rN).toFixed(2) : 0, resetMs: (rTime = 0, rN = 0) }),
+    glInfo: () => ({ active: glActive, loading: glLoading, prog: glLoadProg, P: glP, snaps: Object.fromEntries(Object.entries(glSnap).map(([k, v]) => [k, { ok: v.ok, vb: v.vb }])), terrOk: glTerrOk, busy: glTerrBusy, full: glFullT, box: glBox, stats: GLR && GLR.stats, lite, ms: rN ? +(rTime / rN).toFixed(2) : 0, resetMs: (rTime = 0, rN = 0) }),
     setRender: r => { if ((settings.render === 'svg') !== (r === 'svg')) toggleRender(); },
     setMap: o => { mapOverride = o; }, setShinyP: v => { shinyP = v; }, get W() { return W; }, get panX() { return panX; }, get mapArch() { return mapArch; }, get cam() { return cam; }, get heights() { return heights; }, shF, rollArch, layoutSpawns, applyStatus, applyDots,
     toggleSettings, settings, sync: () => syncButtons(), plan: u => { ai = { phase: 'plan', t: 0 }; planShot(u); },

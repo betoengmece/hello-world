@@ -270,11 +270,11 @@ console.log('OK: faixa de mira por espécie, ângulo absoluto, confirmação do 
   // Redemoinho: puxa quem está perto
   ({u,foe}=setup('pidgey'));{const x=foe.x-70,fx0=foe.x;hooks.explode(x,foe.y-10,{wp:MS.WEAPONS.redemoinho,ownerUnit:u});assert(foe.x<fx0-20,'puxado para o centro');}
   // Fissura: quebra muito terreno
-  ({u,foe}=setup('graveler'));{let b=0;for(const v of debug.mask)b+=v;hooks.explode(foe.x,foe.y,{wp:MS.WEAPONS.fissura,ownerUnit:u});let a=0;for(const v of debug.mask)a+=v;assert(b-a>6000,'fissura abriu buraco enorme');}
+  ({u,foe}=setup('graveler'));{let gx=0;for(let x=60;x<debug.W-60;x+=5){const s=debug.surf(x);if(s<420&&debug.solid(x,s+70)&&debug.solid(x-40,debug.surf(x-40)+50)&&debug.solid(x+40,debug.surf(x+40)+50)){gx=x;break;}}let b=0;for(const v of debug.mask)b+=v;hooks.explode(gx,debug.surf(gx)+4,{wp:MS.WEAPONS.fissura,ownerUnit:u});let a=0;for(const v of debug.mask)a+=v;assert(b-a>6000,'fissura abriu buraco enorme');}
   // Ataque Subterrâneo: entra na terra, corre por baixo e estoura embaixo do alvo
   ({u,foe}=setup('dugtrio'));
   {let tx=0;for(let x=Math.round(u.x)+110;x<Math.round(u.x)+190;x++){if(debug.surf(x)<470&&Math.abs(debug.surf(x)-debug.surf(u.x))<30){tx=x;break;}}
-   if(tx){foe.x=tx;foe.y=debug.surf(tx);pick(u,'subterra');u.face=1;debug.setAngle(-25);debug.setPower(10);const h=foe.hp;debug.fire();
+   if(tx){foe.flying=false;foe.alt=0;foe.x=tx;foe.y=debug.surf(tx);pick(u,'subterra');u.face=1;debug.setAngle(-25);debug.setPower(10);const h=foe.hp;debug.fire();
      let went=false;for(let i=0;i<900&&debug.get().state==='flying';i++){frameCallback();if(debug.get().projs.some(p=>p.under))went=true;}
      assert(went,'golpe entrou na terra');assert(foe.hp<h,'acertou por baixo');}}
   // Teleporte: o Pokémon vai para onde o golpe caiu

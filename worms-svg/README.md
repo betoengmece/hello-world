@@ -120,6 +120,8 @@ Relações usadas: Pedra > Fogo, Voador, Inseto · Terra > Fogo, Elétrico, Pedr
 
 **Modo leve (TV, Fire TV, aparelhos fracos):** em ⚙ Ajustes → **Qualidade** (Automática / Alta / Leve). Na automática, se o jogo estiver lento o modo leve liga sozinho e fica lembrado. Ele desenha no máximo a 30 quadros por segundo, tira as camadas decorativas mais pesadas (nuvens, montanhas do fundo, textura e faixa 2.5D do chão, chuva/neve) e anima menos os enfeites. O jogo em si não muda.
 
+**Desempenho:** a tela é dividida em camadas (fundos, terreno, Pokémon/tiros, primeiro plano, painel). A câmera desloca as camadas inteiras por CSS, feito pela placa de vídeo, então andar e dar zoom não obriga a repintar o cenário. Pokémon e Pokébolas do chão são elementos próprios, atualizados no lugar. Em ⚙ Ajustes, **Mostrar FPS** exibe quantos quadros por segundo o aparelho está desenhando.
+
 **No celular:** botões na tela (◀ ▶ andar, ▲ ▼ mirar, segure TIRO para carregar e solte para atirar, BOLA, GOLPE (quando houver dois golpes), PASSAR, ↻ reinicia (pede confirmação), ⚙ ajustes à esquerda, ☰ menu, 🔊 som). Jogue com o celular deitado. Menus funcionam por toque. Em mapas largos, arraste na tela ou toque no minimapa para olhar o resto do mapa.
 
 ## Visual 2.5D e som

@@ -8,14 +8,14 @@
   const GRAV = 0.2;           // gravidade base (px/frame²)
   const WALK_MAX = 120;       // distância máxima de caminhada por turno (mapas largos dão um pouco mais)
   const walkMax = () => WALK_MAX + Math.max(0, W - 800) * 0.07;
-  const GAME_VERSION = '17/10 e';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
+  const GAME_VERSION = '17/10 f';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
   const TURN_TIME = 30 * 60;  // 30 s para mirar e atirar (estourou: passa a vez)
   const WEAK = 0.35;          // abaixo dessa fração de PV o inimigo pode ser capturado
   const PLAYER_COL = '#3a9bff', WILD_COL = '#e0433a', GUEST_COL = '#ffd34d';
   const SAVE_KEY = 'ms_campaign_v1', SET_KEY = 'ms_settings_v1';
   // ajustes (menu lateral): brilho da tela e volume do som
-  const settings = { bright: 1, vol: 0.6, quality: 'auto', autoLite: false };   // quality: 'auto' | 'alta' | 'leve'
-  try { const t = JSON.parse(localStorage.getItem(SET_KEY)); if (t) { settings.bright = Math.min(1.5, Math.max(0.6, +t.bright || 1)); settings.vol = Math.min(1, Math.max(0, t.vol === undefined ? 0.6 : +t.vol)); if (['auto', 'alta', 'leve'].includes(t.quality)) settings.quality = t.quality; settings.autoLite = !!t.autoLite; } } catch (_) {}
+  const settings = { bright: 1, vol: 0.6, quality: 'auto', autoLite: false, showFps: false };   // quality: 'auto' | 'alta' | 'leve'
+  try { const t = JSON.parse(localStorage.getItem(SET_KEY)); if (t) { settings.bright = Math.min(1.5, Math.max(0.6, +t.bright || 1)); settings.vol = Math.min(1, Math.max(0, t.vol === undefined ? 0.6 : +t.vol)); if (['auto', 'alta', 'leve'].includes(t.quality)) settings.quality = t.quality; settings.autoLite = !!t.autoLite; settings.showFps = !!t.showFps; } } catch (_) {}
   let settingsOpen = false, drawerT = 0, settingsRow = 0, dragSlider = -1, sliderRects = [];
   const SLIDERS = [
     { key: 'bright', label: 'Brilho', min: 0.6, max: 1.5, def: 1,   fmt: v => Math.round(v * 100) + '%' },
@@ -28,8 +28,10 @@
   function applyQuality() {
     lite = settings.quality === 'leve' || (settings.quality === 'auto' && settings.autoLite);
     document.body.classList.toggle('lite', lite);
-    $('game').setAttribute('shape-rendering', lite ? 'optimizeSpeed' : 'auto');
-    $('game').setAttribute('text-rendering', lite ? 'optimizeSpeed' : 'auto');
+    for (const id of ['sSky', 'sFar', 'sNear', 'sMid', 'sWB', 'sWF', 'sFore', 'game']) {
+      $(id).setAttribute('shape-rendering', lite ? 'optimizeSpeed' : 'auto');
+      $(id).setAttribute('text-rendering', lite ? 'optimizeSpeed' : 'auto');
+    }
     dirty = true;
   }
   function cycleQuality(d = 1) {
@@ -53,7 +55,7 @@
     }
   }
   function applySettings() {
-    $('game').style.filter = Math.abs(settings.bright - 1) < 0.005 ? '' : `brightness(${settings.bright.toFixed(2)})`;
+    $('stage').style.filter = Math.abs(settings.bright - 1) < 0.005 ? '' : `brightness(${settings.bright.toFixed(2)})`;
     applyQuality();
     Sfx.setVolume(settings.vol);
     try { localStorage.setItem(SET_KEY, JSON.stringify(settings)); } catch (_) {}
@@ -75,7 +77,10 @@
     const w = $('wrap'); if (!w || typeof innerWidth !== 'number') return;
     const help = document.body.classList.contains('touch') ? 0 : 56;
     const avail = Math.max(200, (innerHeight || 600) - help - 8);
-    w.style.width = Math.floor(Math.min((innerWidth || 800) * 0.98, avail * 1.6)) + 'px';
+    const ww = Math.floor(Math.min((innerWidth || 800) * 0.98, avail * 1.6));
+    w.style.width = ww + 'px';
+    const st = $('stage'); if (st && st.style) st.style.height = Math.round(ww * 5 / 8) + 'px';
+    layoutLayers();
   }
   if (typeof addEventListener === 'function') { addEventListener('resize', () => fitWrap()); addEventListener('fullscreenchange', () => fitWrap()); }
   function toggleSettings(force) {
@@ -230,6 +235,36 @@
   }
 
   // f = profundidade da camada (0 = infinito, 1 = mundo, >1 = primeiro plano)
+  // ---------- Camadas da tela ----------
+  // cada profundidade (fundos, terreno, Pokémon/tiros, primeiro plano) é um <svg> separado; a câmera desloca e aproxima
+  // as camadas inteiras por CSS (feito pela placa de vídeo), então andar com a câmera não obriga a repintar o cenário
+  const LAYERS = [   // id do container, profundidade (parallax), área desenhada [x0, y0, largura, altura] em função da largura do mundo
+    ['cFar', 0.25, w => [-80, 0, w + 200, 500]], ['cNear', 0.5, w => [-80, 0, w + 200, 500]], ['cMid', 0.65, w => [-80, 0, w + 200, 500]],
+    ['cWB', 1, w => [-40, -20, w + 80, 540]], ['cWF', 1, w => [-40, -40, w + 80, 580]], ['cFore', 1.3, w => [-100, 0, w * 1.3 + 300, 580]]
+  ];
+  let stageS = 1;          // pixels de tela por unidade do jogo (800 unidades = largura do palco)
+  function layoutLayers() {
+    const st = $('stage'); if (!st) return;
+    const r = st.getBoundingClientRect ? st.getBoundingClientRect() : { width: 800 };
+    stageS = (r.width || 800) / VW;
+    for (const [id, , ext] of LAYERS) {
+      const sv = $(id).firstElementChild || $('s' + id.slice(1)); if (!sv || !sv.style) continue;
+      const [x0, y0, lw, lh] = ext(W);
+      sv.setAttribute('viewBox', `${x0} ${y0} ${lw} ${lh}`);
+      sv.style.left = (x0 * stageS) + 'px'; sv.style.top = (y0 * stageS) + 'px';
+      sv.style.width = (lw * stageS) + 'px'; sv.style.height = (lh * stageS) + 'px';
+    }
+    for (const k in camCss) delete camCss[k];
+  }
+  const camCss = {};
+  function placeLayers() {
+    for (const [id, f] of LAYERS) {
+      const z = 1 + (cam.z - 1) * f;
+      const cx = 400 + (cam.x + cam.sx - 400) * f, cy = 250 + (cam.y + cam.sy - 250) * f;
+      const v = `translate(${((400 - cx * z) * stageS).toFixed(1)}px,${((250 - cy * z) * stageS).toFixed(1)}px) scale(${z.toFixed(3)})`;
+      if (camCss[id] !== v) { camCss[id] = v; $(id).style.transform = v; }
+    }
+  }
   function camT(f) {
     const z = 1 + (cam.z - 1) * f;
     const cx = 400 + (cam.x + cam.sx - 400) * f, cy = 250 + (cam.y + cam.sy - 250) * f;
@@ -393,7 +428,7 @@
   }
 
   function genWorld(key, ww = VW, arch = 'rolling') {
-    W = ww; mapArch = arch;
+    W = ww; mapArch = arch; layoutLayers();
     applyTheme(key);
     const T = THEMES[key], base = T.terrain.base;
     const amp = T.terrain.amp * (arch === 'flat' ? 0.4 : arch === 'spires' ? 1.1 : 1);
@@ -2652,17 +2687,24 @@
     $('aim').innerHTML = aim;
   }
 
+  // contador de quadros desenhados por segundo (⚙ Ajustes → Mostrar FPS)
+  let fpsN = 0, fpsT0 = 0, fpsVal = 0;
+  function fpsTick() {
+    fpsN++;
+    const now = Date.now();
+    if (!fpsT0) fpsT0 = now;
+    if (now - fpsT0 >= 1000) { fpsVal = Math.round(fpsN * 1000 / (now - fpsT0)); fpsN = 0; fpsT0 = now; }
+    const t = settings.showFps ? `${fpsVal} FPS${lite ? ' · leve' : ''}` : '';
+    const el = $('fpsT'); if (el && el.textContent !== t) el.textContent = t;
+  }
   function renderAll() {
+    fpsTick();
     // enquanto um golpe cava, o contorno do terreno é refeito no máximo a cada 4 quadros
     if (dirty && (!terrDirty || state !== 'flying' || frameNo - terrAt > 3)) { renderTerrain(); dirty = false; terrAt = frameNo; }
-    if (!lite || frameNo % 8 === 0) renderWater();
-    if (!lite) renderClouds();
-    setAttrOnce('Lsky', 'transform', camT(0.08));
-    setAttrOnce('Lfar', 'transform', camT(0.25));
-    setAttrOnce('Lnear', 'transform', camT(0.5));
-    setAttrOnce('Lmid', 'transform', camT(0.65));
-    setAttrOnce('Lworld', 'transform', camT(1));
-    setAttrOnce('Lfore', 'transform', camT(1.3));
+    // água e nuvens se mexem devagar: atualizar a cada poucos quadros evita repintar faixas largas da tela
+    if (frameNo % (lite ? 8 : 4) === 0) renderWater();
+    if (!lite && frameNo % 6 === 0) renderClouds();
+    placeLayers();
 
     const inBattle = scene === 'battle';
     const act = inBattle && state !== 'over' && teams[turnTeam] ? activeUnit() : null;
@@ -2933,7 +2975,7 @@
     s += uiBtn(bx, 268, 202, 36, document.fullscreenElement ? 'Sair da tela cheia' : 'Tela cheia', toggleFullscreen, { fs: 15 });
     s += uiBtn(bx, 312, 202, 36, 'Teste do controle', () => { location.href = 'controle.html'; }, { fs: 15 });
     s += uiBtn(bx, 356, 202, 36, Sfx.isOn() ? 'Som: ligado' : 'Som: desligado', () => { toggleSound(); }, { fs: 15 });
-    s += uiBtn(bx, 400, 202, 36, 'Restaurar padrão', () => { SLIDERS.forEach((S, i) => setSlider(i, S.def)); }, { fs: 15 });
+    s += uiBtn(bx, 400, 202, 36, settings.showFps ? 'Mostrar FPS: sim' : 'Mostrar FPS: não', () => { settings.showFps = !settings.showFps; applySettings(); Sfx.click(); }, { fs: 15 });
     s += uiBtn(bx, 444, 202, 36, 'Fechar', () => toggleSettings(false), { fs: 15 });
     s += `<text x="${f1(X + 125)}" y="494" text-anchor="middle" font-size="9.5" fill="#fff" opacity=".55">O abre e fecha · jogo em pausa</text>
           <text x="${f1(X + 236)}" y="38" text-anchor="end" font-size="9" fill="#fff" opacity=".5">versão ${GAME_VERSION}</text>`;

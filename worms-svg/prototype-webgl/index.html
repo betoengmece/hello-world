@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Pokémon · Teste WebGL</title>
+<style>
+  html,body{margin:0;height:100%;background:#0d1117;color:#eee;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+    overflow:hidden;overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
+  body{display:flex;align-items:center;justify-content:center}
+  #wrap{width:min(96vw,calc(96vh*1.6));text-align:center}
+  #stage{position:relative;width:100%;aspect-ratio:8/5;overflow:hidden;border-radius:10px;box-shadow:0 6px 30px rgba(0,0,0,.6);background:#0d1117;
+    user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:none}
+  #stage>svg{position:absolute;left:0;top:0;width:100%;height:100%;display:block}
+  .cam{position:absolute;left:0;top:0;width:0;height:0;transform-origin:0 0;will-change:transform;pointer-events:none}
+  .cam>svg{position:absolute;display:block;overflow:visible}
+  #sSky{pointer-events:none}
+  #touch{display:none}
+  body.touch #touch{display:block}
+  body.touch #help{display:none}
+  #rotate{display:none;font-size:13px;margin-top:8px;opacity:.85}
+  @media (orientation:portrait){ body.touch #rotate{display:block} }
+  .btn rect,.btn circle{fill:#000;fill-opacity:.32;stroke:#fff;stroke-opacity:.65;stroke-width:2}
+  .btn.on rect,.btn.on circle{fill:#ffb347;fill-opacity:.7}
+  .btn text{fill:#fff;font-size:26px;font-weight:bold;text-anchor:middle;pointer-events:none}
+  #help{font-size:13px;margin-top:10px;opacity:.8;line-height:1.5}
+  kbd{background:#333;border:1px solid #555;border-radius:4px;padding:1px 5px;font-size:12px}
+  .pulse{animation:pk 1.4s ease-in-out infinite alternate}
+  @keyframes pk{from{opacity:.16}to{opacity:.34}}
+  body.lite .pulse{animation:none}
+  /* modo leve (aparelhos fracos): tira as camadas decorativas mais caras de desenhar */
+  #tfill{display:none}
+  body.lite #tfill{display:inline} body.lite #tclipG, body.lite #tedge{display:none}
+  body.lite #stage{box-shadow:none;border-radius:0}
+  body.lite #cFar, body.lite #cMid, body.lite #cFore{display:none}
+  body.lite #clouds, body.lite #Lfar, body.lite #Lmid, body.lite #Lfore, body.lite #tbackG, body.lite #strata1, body.lite #strata2,
+  body.lite #dirtTexRect, body.lite #scorch, body.lite #tufts, body.lite #edgeGrassHi, body.lite #waveBack, body.lite #sunGlowC, body.lite #pshadow{display:none}
+
+  :root{color-scheme:dark} body{box-sizing:border-box;flex-direction:column;font-family:system-ui,sans-serif}
+  .labbar{position:fixed;z-index:5;top:0;left:0;right:0;min-height:45px;background:#101b2b;display:flex;align-items:center;justify-content:center;gap:9px;padding:7px 12px;border-bottom:1px solid #31445d;flex-wrap:wrap;box-sizing:border-box}
+  .labbar strong{font-size:14px;margin-right:9px}.labbar button,.labbar select,.labfoot button{font:600 12px system-ui;color:#e9f2ff;border:1px solid #405675;border-radius:7px;background:#1b2c44;padding:7px 10px;cursor:pointer}
+  .labbar button[aria-pressed=true]{background:#3e86ff;color:#fff;border-color:#7fb3ff}
+  .labbar select{max-width:145px}.labbar button:focus-visible,.labbar select:focus-visible{outline:3px solid #ffcf5b}
+  #labStats{font:600 12px ui-monospace,monospace;color:#94edbd;min-width:165px;text-align:center}
+  .labfoot{position:fixed;bottom:0;left:0;right:0;z-index:5;display:flex;gap:8px;align-items:center;justify-content:center;background:#101b2bee;padding:7px 10px;font-size:11px;color:#b7c8df;flex-wrap:wrap}
+  .labfoot a{color:#9cc4ff}#help{font-size:11px;max-width:95vw;margin:5px auto 0}#rotate{font-size:11px}
+  #gpu{position:absolute;inset:0;width:100%;height:100%;display:none;pointer-events:none}
+  body.webgl #gpu{display:block}body.webgl #sSky,body.webgl .cam{display:none}
+  body.webgl #game{background:transparent}
+  #loader{position:fixed;inset:0;z-index:20;background:#0b1423f7;display:grid;place-content:center;text-align:center;padding:28px;gap:10px}#loader[hidden]{display:none}
+  #loader h1{margin:0;font-size:26px}#loader p{color:#bed1eb;max-width:470px;line-height:1.5;margin:0 auto}#loadDetail{font:13px ui-monospace,monospace;color:#86e8b7!important}
+  @media(max-width:1000px){.labbar{gap:5px;padding:5px}.labbar strong{display:none}.labbar button,.labbar select{font-size:11px;padding:6px}.labfoot{font-size:10px}.labfoot .long{display:none}}
+</style>
+</head>
+<body>
+<header id="labToolbar" class="labbar" aria-label="Comparação de renderização">
+<strong>POKÉMON / LAB</strong>
+<button id="webglMode" aria-pressed="true">WebGL</button><button id="svgMode" aria-pressed="false">SVG</button>
+<select id="scenario" aria-label="Batalha"><option value="simple">Batalha simples</option><option value="stress" selected>Batalha com chuva</option></select>
+<select id="detail" aria-label="Detalhe dos Pokémon"><option value="128">Detalhe 128 · TV</option><option value="192" selected>Detalhe 192 · HD</option></select>
+<select id="rate" aria-label="Limite de quadros"><option value="30" selected>Até 30 FPS</option><option value="60">Até 60 FPS</option></select>
+<button id="restartLab">Reiniciar</button><span id="labStats" aria-live="off">Preparando…</span>
+</header>
+<div id="loader"><h1>Pokémon · Teste WebGL</h1><p>Uma batalha do seu jogo com renderização experimental. As imagens são preparadas uma vez e reutilizadas durante a partida.</p><p id="loadDetail">Iniciando…</p></div>
+<footer id="labFooter" class="labfoot"><span id="backend">Experimento separado · carregando</span><span class="long">← → andar · ↑ ↓ mirar · segure espaço para atacar · B bola · P passar</span><button id="fullLab">Tela cheia</button><button id="exportLab">Salvar resultado</button><a href="https://betoengmece.github.io/hello-world/worms-svg/" target="_blank" rel="noopener">Jogo principal ↗</a></footer>
+<script>window.__seedReset=()=>{let s=1234;Math.random=()=>{s=(Math.imul(s,1664525)+1013904223)>>>0;return s/4294967296}};window.__seedReset();</script>
+<div id="wrap">
+<div id="stage"><canvas id="gpu" aria-hidden="true"></canvas>
+<!-- cada profundidade é uma camada separada; a câmera só desloca as camadas (feito pela placa de vídeo, sem repintar) -->
+<svg id="sSky" class="lay" viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg">
+  <!-- fundo -->
+  <rect width="800" height="500" fill="url(#sky)"/>
+  <g id="Lsky">
+    <g id="sun"><circle id="sunGlowC" cx="660" cy="92" r="90" fill="url(#sunGlow)"/>
+    <circle id="sunC" cx="660" cy="92" r="26" fill="#fff3c4"/></g>
+    <g id="clouds"></g>
+  </g>
+</svg>
+<div class="cam" id="cFar"><svg id="sFar" xmlns="http://www.w3.org/2000/svg">
+  <g id="Lfar"><path id="mtFarPath" fill="url(#mtFar)"/></g>
+</svg></div>
+<div class="cam" id="cNear"><svg id="sNear" xmlns="http://www.w3.org/2000/svg">
+  <g id="Lnear"><path id="mtNearPath" fill="url(#mtNear)" opacity=".9"/></g>
+</svg></div>
+<div class="cam" id="cMid"><svg id="sMid" xmlns="http://www.w3.org/2000/svg">
+  <g id="Lmid"><path id="treeline" fill="#4f7f5c" opacity=".9"/><path id="tlWin" fill="#ffe9a0" opacity=".75"/></g>
+
+</svg></div>
+<div class="cam" id="cWB"><svg id="sWB" xmlns="http://www.w3.org/2000/svg">
+  <g id="Lworld">
+  <path id="waveBack" fill="url(#seaBack)"/>
+
+  <!-- terreno: ilhas flutuantes destrutíveis; a "fatia de trás" deslocada dá espessura (2.5D) e aparece pelos buracos -->
+  <g id="tbackG" transform="translate(7 -9)">
+    <path id="tback" fill="#3d2818" fill-rule="evenodd"/>
+    <path id="tbackBurnt" fill="none" stroke="#1a100a" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+    <path id="tbackGrass" fill="none" stroke="#3a6b25" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>
+  </g>
+  <path id="tfill" fill="url(#dirt)" fill-rule="evenodd"/>
+  <g id="tclipG" clip-path="url(#tclip)">
+    <rect id="dirtRect" width="800" height="500" fill="url(#dirt)"/>
+    <path id="strata1" fill="#4a2c16" opacity=".5"/>
+    <path id="strata2" fill="#2a180c" opacity=".7"/>
+    <rect id="dirtTexRect" width="800" height="500" fill="url(#dirtTex)"/>
+    <g id="scorch" fill="none" stroke="#1a0f08" stroke-width="5" opacity=".42"></g>
+  </g>
+  <path id="tedge" fill="none" stroke="#1e130b" stroke-opacity=".55" stroke-width="2" stroke-linejoin="round" fill-rule="evenodd"/>
+  <path id="edgeBurnt" fill="none" stroke="#1e130b" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+  <path id="edgeGrass" fill="none" stroke="#3f8a2a" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+  <path id="edgeGrassHi" fill="none" stroke="#8fd14f" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" transform="translate(0 -2.5)"/>
+  <path id="tufts" fill="none" stroke="#5aa834" stroke-width="1.3" stroke-linecap="round"/>
+  <g id="decor"></g>
+  <g id="introBack"></g>
+  <g id="pickups"></g>
+
+  </g>
+</svg></div>
+<div class="cam" id="cWF"><svg id="sWF" xmlns="http://www.w3.org/2000/svg">
+  <!-- jogo -->
+  <g id="graves"></g>
+  <g id="aim"></g>
+  <g id="worms"></g>
+  <g id="intro"></g>
+  <g id="volt"></g>
+  <g id="pshadow"></g>
+  <g id="proj"></g>
+  <g id="parts"></g>
+  <g id="fx"></g>
+  <path id="waveFront" fill="url(#seaFront)"/>
+  <g id="floaters"></g>
+</svg></div>
+<div class="cam" id="cFore"><svg id="sFore" xmlns="http://www.w3.org/2000/svg">
+  <g id="Lfore"><path id="fore" fill="#14301a" opacity=".92"/></g>
+
+</svg></div>
+<svg id="game" viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- céu e cenário -->
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop id="skyS0" offset="0" stop-color="#3a78c2"/><stop id="skyS1" offset=".55" stop-color="#8cc4ea"/><stop id="skyS2" offset="1" stop-color="#f3e2b8"/>
+    </linearGradient>
+    <radialGradient id="sunGlow">
+      <stop offset="0" stop-color="#fff6c8" stop-opacity=".9"/><stop offset=".4" stop-color="#ffe7a0" stop-opacity=".35"/>
+      <stop offset="1" stop-color="#ffe7a0" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="mtFar" x1="0" y1="0" x2="0" y2="1">
+      <stop id="farS0" offset="0" stop-color="#9db8d6"/><stop id="farS1" offset="1" stop-color="#c9d9e6"/>
+    </linearGradient>
+    <linearGradient id="mtNear" x1="0" y1="0" x2="0" y2="1">
+      <stop id="nearS0" offset="0" stop-color="#6f9f84"/><stop id="nearS1" offset="1" stop-color="#a8c7a0"/>
+    </linearGradient>
+    <linearGradient id="dirt" gradientUnits="userSpaceOnUse" x1="0" y1="160" x2="0" y2="500">
+      <stop id="dirtS0" offset="0" stop-color="#9a6a3c"/><stop id="dirtS1" offset=".45" stop-color="#6e4526"/><stop id="dirtS2" offset="1" stop-color="#3a2414"/>
+    </linearGradient>
+    <pattern id="dirtTex" width="48" height="40" patternUnits="userSpaceOnUse">
+      <ellipse cx="8" cy="9" rx="3.5" ry="2.2" fill="#2e1b0e" opacity=".35"/>
+      <ellipse cx="30" cy="22" rx="4.5" ry="2.8" fill="#b08a62" opacity=".35"/>
+      <ellipse cx="40" cy="6" rx="2" ry="1.4" fill="#2e1b0e" opacity=".4"/>
+      <ellipse cx="16" cy="32" rx="2.6" ry="1.8" fill="#c49a6c" opacity=".3"/>
+      <circle cx="24" cy="12" r="1" fill="#1f120a" opacity=".45"/>
+      <circle cx="44" cy="34" r="1.2" fill="#1f120a" opacity=".4"/>
+      <circle cx="4" cy="24" r=".9" fill="#d9b88d" opacity=".45"/>
+      <circle cx="34" cy="36" r=".8" fill="#d9b88d" opacity=".4"/>
+    </pattern>
+    <linearGradient id="seaBack" x1="0" y1="0" x2="0" y2="1">
+      <stop id="seaBS0" offset="0" stop-color="#3b86c4"/><stop id="seaBS1" offset="1" stop-color="#1b4a7a"/>
+    </linearGradient>
+    <linearGradient id="seaFront" x1="0" y1="0" x2="0" y2="1">
+      <stop id="seaFS0" offset="0" stop-color="#4aa3e0" stop-opacity=".92"/><stop id="seaFS1" offset="1" stop-color="#123a63"/>
+    </linearGradient>
+    <clipPath id="tclip"><path id="tclipPath" clip-rule="evenodd"/></clipPath>
+
+    <!-- personagens -->
+    <radialGradient id="gOrange" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#ffc283"/><stop offset=".55" stop-color="#f58a30"/><stop offset="1" stop-color="#cf5f17"/>
+    </radialGradient>
+    <radialGradient id="gCream" cx=".4" cy=".3" r=".8">
+      <stop offset="0" stop-color="#fff6d8"/><stop offset="1" stop-color="#f0d08a"/>
+    </radialGradient>
+    <radialGradient id="gCreamGreen" cx=".4" cy=".3" r=".8">
+      <stop offset="0" stop-color="#eaffd8"/><stop offset="1" stop-color="#b6e39a"/>
+    </radialGradient>
+    <radialGradient id="gGreen" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#a6efb0"/><stop offset=".55" stop-color="#5cc46a"/><stop offset="1" stop-color="#358a48"/>
+    </radialGradient>
+    <radialGradient id="gBulb" cx=".35" cy=".3" r=".8">
+      <stop offset="0" stop-color="#7fcf8f"/><stop offset=".6" stop-color="#3e8f58"/><stop offset="1" stop-color="#245e37"/>
+    </radialGradient>
+    <radialGradient id="gBlue" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#e2f7ff"/><stop offset=".55" stop-color="#8fd3ef"/><stop offset="1" stop-color="#4e9fc6"/>
+    </radialGradient>
+    <radialGradient id="gShell" cx=".4" cy=".3" r=".8">
+      <stop offset="0" stop-color="#e3a46a"/><stop offset=".6" stop-color="#b5763a"/><stop offset="1" stop-color="#7a4a1e"/>
+    </radialGradient>
+    <radialGradient id="gYellow" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#fff6a8"/><stop offset=".55" stop-color="#ffd83a"/><stop offset="1" stop-color="#e0a800"/>
+    </radialGradient>
+    <radialGradient id="gTree" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#8fd36a"/><stop offset=".6" stop-color="#4f9a3a"/><stop offset="1" stop-color="#2d6626"/>
+    </radialGradient>
+    <radialGradient id="voltGlow">
+      <stop offset="0" stop-color="#fff9b0" stop-opacity=".9"/><stop offset="1" stop-color="#ffe600" stop-opacity="0"/>
+    </radialGradient>
+
+
+    <radialGradient id="gPurple" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#d9b4ee"/><stop offset=".55" stop-color="#a468c8"/><stop offset="1" stop-color="#6e3d96"/>
+    </radialGradient>
+    <radialGradient id="gBrown" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#ecbf84"/><stop offset=".55" stop-color="#bf8444"/><stop offset="1" stop-color="#7f5328"/>
+    </radialGradient>
+    <radialGradient id="gCat" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#c8f08a"/><stop offset=".55" stop-color="#7cc84a"/><stop offset="1" stop-color="#4a9a2e"/>
+    </radialGradient>
+    <radialGradient id="gFish" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#ffb08a"/><stop offset=".55" stop-color="#ee5a30"/><stop offset="1" stop-color="#aa2c14"/>
+    </radialGradient>
+    <linearGradient id="gDrat" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8fc4ff"/><stop offset=".6" stop-color="#4f8ae0"/><stop offset="1" stop-color="#3566bd"/>
+    </linearGradient>
+    <radialGradient id="gStar" cx=".4" cy=".35" r=".8">
+      <stop offset="0" stop-color="#e2b8ff"/><stop offset=".6" stop-color="#a36ad8"/><stop offset="1" stop-color="#6a3aa8"/>
+    </radialGradient>
+    <radialGradient id="gRed" cx=".35" cy=".3" r=".8">
+      <stop offset="0" stop-color="#ff9aa8"/><stop offset=".5" stop-color="#e0243e"/><stop offset="1" stop-color="#8a1030"/>
+    </radialGradient>
+    <radialGradient id="hitBoom">
+      <stop offset="0" stop-color="#ffffff"/><stop offset=".45" stop-color="#ffe9b0"/>
+      <stop offset="1" stop-color="#c8a060" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="gustBoom">
+      <stop offset="0" stop-color="#ffffff"/><stop offset=".6" stop-color="#d8e8ff"/>
+      <stop offset="1" stop-color="#9ab8e8" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="webBoom">
+      <stop offset="0" stop-color="#ffffff"/><stop offset=".6" stop-color="#f0f0f0"/>
+      <stop offset="1" stop-color="#bbbbbb" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="dragBoom">
+      <stop offset="0" stop-color="#f0e8ff"/><stop offset=".4" stop-color="#9a6aff"/>
+      <stop offset=".8" stop-color="#4a2ab0"/><stop offset="1" stop-color="#2a1070" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="dragFire">
+      <stop offset="0" stop-color="#f4eaff"/><stop offset=".45" stop-color="#8a5cff"/>
+      <stop offset="1" stop-color="#3a1aa0" stop-opacity="0"/>
+    </radialGradient>
+
+    <radialGradient id="gCrimson" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#ff9a82"/><stop offset=".55" stop-color="#e0442e"/><stop offset="1" stop-color="#9a1e14"/>
+    </radialGradient>
+    <radialGradient id="gRock" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#d4d4d8"/><stop offset=".55" stop-color="#9a9aa2"/><stop offset="1" stop-color="#5c5c66"/>
+    </radialGradient>
+    <linearGradient id="gGyar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7ab4f0"/><stop offset=".6" stop-color="#3f74c8"/><stop offset="1" stop-color="#274f98"/>
+    </linearGradient>
+    <linearGradient id="gDrai" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#bfe0ff"/><stop offset=".6" stop-color="#7ab4f4"/><stop offset="1" stop-color="#5a8fe0"/>
+    </linearGradient>
+    <radialGradient id="gTan" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#f0cc98"/><stop offset=".55" stop-color="#c0905a"/><stop offset="1" stop-color="#7e5a34"/>
+    </radialGradient>
+    <radialGradient id="gBfly" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#b8b4f0"/><stop offset=".55" stop-color="#7a74d0"/><stop offset="1" stop-color="#4a4698"/>
+    </radialGradient>
+    <radialGradient id="gWing" cx=".4" cy=".3" r=".9">
+      <stop offset="0" stop-color="#ffffff"/><stop offset=".7" stop-color="#e6e2ff"/><stop offset="1" stop-color="#b8b0f0"/>
+    </radialGradient>
+    <radialGradient id="gPink" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#ffd4e4"/><stop offset=".55" stop-color="#f59cbc"/><stop offset="1" stop-color="#d4709a"/>
+    </radialGradient>
+    <radialGradient id="gBee" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#fff0a0"/><stop offset=".55" stop-color="#f2c230"/><stop offset="1" stop-color="#b88410"/>
+    </radialGradient>
+    <radialGradient id="gSnor" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#8fc0cc"/><stop offset=".55" stop-color="#4f8898"/><stop offset="1" stop-color="#2f5868"/>
+    </radialGradient>
+    <radialGradient id="gCoco" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#fff6c8"/><stop offset=".55" stop-color="#ecd48c"/><stop offset="1" stop-color="#b99a52"/>
+    </radialGradient>
+    <radialGradient id="gBat" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#a8b4ff"/><stop offset=".55" stop-color="#6a76d8"/><stop offset="1" stop-color="#3a42a0"/>
+    </radialGradient>
+    <radialGradient id="gGhost" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#b496e0"/><stop offset=".55" stop-color="#7a56b4"/><stop offset="1" stop-color="#3c2866"/>
+    </radialGradient>
+    <radialGradient id="gMach" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#c4d0ee"/><stop offset=".55" stop-color="#8896c8"/><stop offset="1" stop-color="#505e98"/>
+    </radialGradient>
+    <radialGradient id="gArc" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#ffc468"/><stop offset=".55" stop-color="#f08a22"/><stop offset="1" stop-color="#b24c08"/>
+    </radialGradient>
+    <radialGradient id="gLap" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#8fd8f0"/><stop offset=".55" stop-color="#4a9ccc"/><stop offset="1" stop-color="#245e90"/>
+    </radialGradient>
+    <radialGradient id="gSeel" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#fbfdff"/><stop offset=".55" stop-color="#d4e0f0"/><stop offset="1" stop-color="#9cb0cc"/>
+    </radialGradient>
+    <radialGradient id="gMag" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#e0e4ec"/><stop offset=".55" stop-color="#a4aab8"/><stop offset="1" stop-color="#6c7284"/>
+    </radialGradient>
+    <radialGradient id="gMagmar" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#ffc070"/><stop offset=".55" stop-color="#f2582a"/><stop offset="1" stop-color="#a02008"/>
+    </radialGradient>
+    <radialGradient id="gScy" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#b8ec70"/><stop offset=".55" stop-color="#62b034"/><stop offset="1" stop-color="#2f6c1a"/>
+    </radialGradient>
+    <radialGradient id="gGeo" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#c8c4bc"/><stop offset=".55" stop-color="#9a968c"/><stop offset="1" stop-color="#625e56"/>
+    </radialGradient>
+    <radialGradient id="gBlack" cx=".38" cy=".3" r=".8">
+      <stop offset="0" stop-color="#5a5470"/><stop offset=".55" stop-color="#322e44"/><stop offset="1" stop-color="#1a1626"/>
+    </radialGradient>
+    <radialGradient id="rockBoom">
+      <stop offset="0" stop-color="#f0e8d8"/><stop offset=".4" stop-color="#c8b898"/>
+      <stop offset=".8" stop-color="#7a6a58"/><stop offset="1" stop-color="#4a3e30" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="fWhite" x="-20%" y="-20%" width="140%" height="140%">
+      <feColorMatrix type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 1 0"/>
+    </filter>
+    <clipPath id="pondClip"><rect x="600" y="200" width="120" height="233"/></clipPath>
+
+    <!-- tiros e efeitos -->
+    <radialGradient id="fireball">
+      <stop offset="0" stop-color="#fff6b0"/><stop offset=".45" stop-color="#ffa000"/>
+      <stop offset="1" stop-color="#ff3d00" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="boom">
+      <stop offset="0" stop-color="#fff8c0"/><stop offset=".35" stop-color="#ffb020"/>
+      <stop offset=".75" stop-color="#ff5a1f"/><stop offset="1" stop-color="#7a1c00" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="splash">
+      <stop offset="0" stop-color="#eaf8ff"/><stop offset=".6" stop-color="#6ad0ff"/>
+      <stop offset="1" stop-color="#1f6fb0" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="leafBoom">
+      <stop offset="0" stop-color="#eaffd0"/><stop offset=".6" stop-color="#7be07b"/>
+      <stop offset="1" stop-color="#2e9a4a" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="zap">
+      <stop offset="0" stop-color="#ffffff"/><stop offset=".5" stop-color="#fff27a"/>
+      <stop offset="1" stop-color="#ffd000" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="pow" gradientUnits="userSpaceOnUse" x1="12" y1="0" x2="216" y2="0">
+      <stop offset="0" stop-color="#5ad16a"/><stop offset=".55" stop-color="#ffd34d"/><stop offset="1" stop-color="#ff4d3a"/>
+    </linearGradient>
+  </defs>
+
+  <defs id="shDefs"></defs>
+  <!-- interface -->
+  <g id="wx" style="pointer-events:none"></g>
+  <rect id="flashR" width="800" height="500" fill="#fff" opacity="0" style="pointer-events:none"/>
+  <g id="hud"></g>
+  <g id="mmview" style="pointer-events:none"></g>
+  <g id="powerbar"></g>
+  <g id="msgbox"></g>
+  <g id="touch">
+    <g class="btn" data-act="left"><rect x="12" y="420" width="62" height="62" rx="14"/><text x="43" y="461">◀</text></g>
+    <g class="btn" data-act="right"><rect x="82" y="420" width="62" height="62" rx="14"/><text x="113" y="461">▶</text></g>
+    <g class="btn" data-act="up"><rect x="548" y="420" width="62" height="62" rx="14"/><text x="579" y="461">▲</text></g>
+    <g class="btn" data-act="down"><rect x="618" y="420" width="62" height="62" rx="14"/><text x="649" y="461">▼</text></g>
+    <g class="btn" data-act="fire"><circle cx="738" cy="436" r="46"/><text x="738" y="444" style="font-size:18px">TIRO</text></g>
+    <g class="btn" data-act="pass"><rect x="676" y="8" width="56" height="44" rx="10"/><text x="704" y="36" style="font-size:12px">PASSAR</text></g>
+    <g class="btn" data-act="restart"><rect x="738" y="8" width="54" height="44" rx="10"/><text x="765" y="39" style="font-size:22px">↻</text></g>
+  </g>
+  <g class="btn" id="moveBtn" data-act="move" style="display:none"><circle cx="766" cy="284" r="28"/><text x="766" y="291" style="font-size:13px">GOLPE</text></g>
+  <g class="btn" id="ballBtn" data-act="ball"><circle cx="766" cy="352" r="28"/><text x="766" y="359" style="font-size:14px">BOLA</text></g>
+  <g class="btn" id="menuBtn" data-act="menu"><rect x="552" y="8" width="56" height="44" rx="10"/><text x="580" y="38" style="font-size:22px">☰</text></g>
+  <g class="btn" id="settingsBtn" data-act="settings"><rect x="676" y="8" width="56" height="44" rx="10"/><text x="704" y="38" style="font-size:22px">⚙</text></g>
+  <g class="btn" id="soundBtn" data-act="sound"><rect x="614" y="8" width="56" height="44" rx="10"/><text id="soundIcon" x="642" y="38" style="font-size:20px">🔊</text></g>
+  <g id="overlay" style="pointer-events:none"></g>
+  <text id="fpsT" x="400" y="20" text-anchor="middle" font-size="13" font-weight="bold" fill="#7be07b" stroke="#000" stroke-width=".6" paint-order="stroke" style="pointer-events:none"></text>
+</svg>
+</div>
+<div id="help">
+  <kbd>←</kbd> <kbd>→</kbd> andar &nbsp;·&nbsp; <kbd>↑</kbd> <kbd>↓</kbd> mirar &nbsp;·&nbsp;
+  segure <kbd>ESPAÇO</kbd> para força e solte para atirar &nbsp;·&nbsp; <kbd>B</kbd> Pokébola (inimigo fraco) &nbsp;·&nbsp; <kbd>G</kbd> troca de golpe &nbsp;·&nbsp;
+  <kbd>Q</kbd> <kbd>E</kbd> olham o mapa (arraste na tela) &nbsp;·&nbsp; <kbd>P</kbd> passa a vez (joga quem tem menos atraso) &nbsp;·&nbsp; <b>Controle (PS5/Xbox):</b> direcional anda e mira, segure X para atirar, ▢ bola, △ golpe, R2 passa, L1/R1 olham o mapa, Options ajustes &nbsp;·&nbsp; <kbd>R</kbd> reinicia &nbsp;·&nbsp; <kbd>M</kbd> som &nbsp;·&nbsp; <kbd>ESC</kbd> menu
+</div>
+<div id="rotate">📱 Gire o celular para o modo paisagem (deitado) para jogar melhor.</div>
+</div>
+
+<script src="vendor/pixi.min.js"></script>
+<script src="js/sfx.js?v=20261017g"></script>
+<script src="js/data.js?v=20261017g"></script>
+<script src="js/art.js?v=20261017g"></script>
+<script src="js/art2.js?v=20261017g"></script>
+<script src="js/animated-kanto.js?v=20261017g"></script>
+<script src="js/game.js?v=20261017g"></script>
+<script src="js/prototype.js"></script>
+</body>
+</html>
+

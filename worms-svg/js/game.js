@@ -8,7 +8,7 @@
   const GRAV = 0.2;           // gravidade base (px/frame²)
   const WALK_MAX = 120;       // distância máxima de caminhada por turno (mapas largos dão um pouco mais)
   const walkMax = () => WALK_MAX + Math.max(0, W - 800) * 0.07;
-  const GAME_VERSION = '17/10 d';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
+  const GAME_VERSION = '17/10 e';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
   const TURN_TIME = 30 * 60;  // 30 s para mirar e atirar (estourou: passa a vez)
   const WEAK = 0.35;          // abaixo dessa fração de PV o inimigo pode ser capturado
   const PLAYER_COL = '#3a9bff', WILD_COL = '#e0433a', GUEST_COL = '#ffd34d';
@@ -510,10 +510,11 @@
     Sfx.chargeStop();
   }
 
+  let uidSeq = 0;
   function mkUnit(sp, x, team, face, hpMult = 1, mvs = 'b') {
     const S = SPECIES[sp], maxhp = Math.round(S.maxhp * hpMult);
     mvs = MS.cleanMv(sp, mvs);
-    return { sp, name: S.name, team, x, y: gy(x), hp: maxhp, maxhp, alive: true, face: face || 1, breath: 0, hurt: 0,
+    return { uid: ++uidSeq, sp, name: S.name, team, x, y: gy(x), hp: maxhp, maxhp, alive: true, face: face || 1, breath: 0, hurt: 0,
              mvs, moves: MS.movesOf(sp, mvs), mi: 0,
              walkT: 0, moving: false, blinkOff: Math.floor(rnd(0, 230)), webbed: false, stuck: false, hidden: false, capScale: 1,
              scale: S.scale || 1, hop: 0, dealt: 0, rid: -1, turnsLeft: 0, sh: false, flying: false, alt: 0, dot: null, status: null,
@@ -824,7 +825,7 @@
       for (let tries = 0; tries < 30; tries++) {
         const x = x0 + (x1 - x0) * (i / Math.max(1, n - 1)) + rnd(-22, 22);
         if (gy(x) > WATER - 40 || units.some(u => Math.abs(u.x - x) < 26) || pickups.some(p => Math.abs(p.x - x) < 40)) continue;
-        pickups.push({ x, type, ph: rnd(0, 6) }); break;
+        pickups.push({ x, type, ph: rnd(0, 6), id: ++uidSeq }); break;
       }
     }
   }
@@ -844,20 +845,21 @@
     }
   }
 
-  function pickupsSvg() {
+  function pickupItems() {
     return pickups.map(p => {
-      const af = lite ? frameNo & ~7 : frameNo;
-      const B = BALLS[p.type], y = gy(p.x), bob = Math.sin(af * 0.08 + p.ph) * 3, k = 0.5 + 0.5 * Math.sin(af * 0.1 + p.ph);
+      // o desenho é fixo; flutuar é só o transform do grupo e o brilho pulsa por CSS
+      const B = BALLS[p.type], y = gy(p.x), bob = lite ? 0 : Math.sin(frameNo * 0.08 + p.ph) * 3;
       const big = p.type !== 'ball';
-      return `<g transform="translate(${f1(p.x)} ${f1(y)})">
-        <ellipse cx="0" cy="1" rx="${f1(6 - bob * 0.4)}" ry="1.8" fill="#000" opacity=".25"/>
-        <circle cx="0" cy="${f1(-12 + bob)}" r="${f1(11 + k * 3)}" fill="${B.col}" opacity="${(0.18 + k * 0.14).toFixed(2)}"/>
-        <g transform="translate(0 ${f1(-12 + bob)})">${Art.ball(big ? 7.5 : 6.5, af * (big ? 2 : 0), 0, B.col)}</g>
-        <path transform="translate(0 ${f1(-30 + bob)})" d="M-3.5,0 L3.5,0 L0,5 Z" fill="${big ? B.col : '#fff'}" stroke="#000" stroke-width=".8" stroke-linejoin="round"/>
-        ${big ? `<text x="0" y="${f1(-35 + bob)}" text-anchor="middle" font-size="8.5" font-weight="bold" fill="${B.col}" stroke="#000" stroke-width=".6" paint-order="stroke">${p.type === 'great' ? 'GREAT' : 'ULTRA'}</text>` : ''}
-      </g>`;
-    }).join('');
+      return { k: p.id || p.x, t: `translate(${f1(p.x)} ${f1(y + bob)})`, h: `
+        <ellipse cx="0" cy="${f1(1 - 0)}" rx="6" ry="1.8" fill="#000" opacity=".25"/>
+        <circle class="pulse" cx="0" cy="-12" r="12.5" fill="${B.col}" opacity=".25"/>
+        <g transform="translate(0 -12)">${Art.ball(big ? 7.5 : 6.5, big ? 20 : 0, 0, B.col)}</g>
+        <path transform="translate(0 -30)" d="M-3.5,0 L3.5,0 L0,5 Z" fill="${big ? B.col : '#fff'}" stroke="#000" stroke-width=".8" stroke-linejoin="round"/>
+        ${big ? `<text x="0" y="-35" text-anchor="middle" font-size="8.5" font-weight="bold" fill="${B.col}" stroke="#000" stroke-width=".6" paint-order="stroke">${p.type === 'great' ? 'GREAT' : 'ULTRA'}</text>` : ''}
+      ` };
+    });
   }
+
 
   // ---------- Fase inicial: arremessar Pokébolas na cidade ----------
   const TRAINER = { x: 70, y: 420 };
@@ -1896,7 +1898,8 @@
   }
 
   // simula todos os ângulos/forças para um golpe e devolve o melhor palpite
-  function planWeapon(u, wk) {
+  // a IA testa ângulos e forças; como gerador, pausa entre ângulos para o jogo não travar (stepAI pensa ~6 ms por quadro)
+  function* planWeaponGen(u, wk) {
     const S = spOf(u), wp = WEAPONS[wk];
     const foes = units.filter(v => v.alive && !v.hidden && v.team !== u.team && v.team !== 2);
     let best = null, bestS = -1e9, near = null, nearD = 1e9;
@@ -1922,18 +1925,20 @@
         if (score > bestS) { bestS = score; best = { ang, pw, face }; }
         if (dmin < nearD) { nearD = dmin; near = { ang, pw, face }; }
       }
+      yield;
     }
     return { pick: bestS > 1 ? best : (near || { ang: fromElev(u, 45), pw: 60, face: u.face }), score: bestS > 1 ? bestS : 0, near: nearD };
   }
 
-  function planShot(u) {
+  function* planShotGen(u) {
     // com dois golpes, a IA simula os dois e usa o que promete mais dano
     let bestPlan = null, bestMi = 0;
-    u.moves.forEach((wk, i) => {
-      if (WEAPONS[wk].none || WEAPONS[wk].teleport || WEAPONS[wk].protect) return;
-      const pl = planWeapon(u, wk);
+    for (let i = 0; i < u.moves.length; i++) {
+      const wk = u.moves[i];
+      if (WEAPONS[wk].none || WEAPONS[wk].teleport || WEAPONS[wk].protect) continue;
+      const pl = yield* planWeaponGen(u, wk);
       if (!bestPlan || pl.score > bestPlan.score || (pl.score === bestPlan.score && pl.near < bestPlan.near)) { bestPlan = pl; bestMi = i; }
-    });
+    }
     u.mi = bestMi;
     const pick1 = bestPlan ? bestPlan.pick : { ang: fromElev(u, 45), pw: 60, face: u.face };
     u.face = pick1.face || u.face;
@@ -1943,6 +1948,8 @@
     ai.power = clamp(pick1.pw + e2, 15, 100);
     return bestPlan ? bestPlan.score : 0;
   }
+  // versão de uma vez só (testes)
+  function planShot(u) { const g = planShotGen(u); let r; do r = g.next(); while (!r.done); return r.value; }
 
   function nearestFoe(u) {
     let best = null, bd = 1e9;
@@ -1969,7 +1976,13 @@
         u.face = a.walkDir >= 0 ? 1 : -1;
       } else a.phase = 'plan';
     } else if (a.phase === 'plan') {
-      const sc = planShot(u);
+      // pensa em pedaços de ~6 ms por quadro (num aparelho fraco a IA não congela a tela)
+      if (!a.gen) a.gen = planShotGen(u);
+      const t0 = Date.now(); let r;
+      do r = a.gen.next(); while (!r.done && Date.now() - t0 < 6);
+      if (!r.done) return;
+      a.gen = null;
+      const sc = r.value;
       // nada acerta daqui (faixa de mira estreita, morro no caminho): anda um pouco e tenta de novo
       if (sc <= 1 && (a.tries || 0) < 2 && walkBudget > 30) {
         const f = nearestFoe(u); a.tries = (a.tries || 0) + 1;
@@ -2065,10 +2078,13 @@
   // ---------- Desenho ----------
   const blink = u => ((frameNo + u.blinkOff) % 230) < 7;
 
-  function unitSvg(u, opt = {}) {
+  // devolve { t: transform do Pokémon, h: conteúdo interno } — a camada só reescreve o conteúdo quando ele muda
+  function unitParts(u, opt = {}) {
     const S = spOf(u), sc = u.scale * u.capScale;
-    const af = lite && !u.moving && !u.breath && !u.hurt ? frameNo & ~7 : frameNo;   // modo leve: animação parada muda a cada 8 quadros
-    const bob = Math.sin(af * 0.08 + u.x * 0.1) * 0.7;
+    // parado, a animação (respirar, balançar) muda a cada 4 quadros (8 no modo leve): o desenho não é refeito todo quadro
+    const af = !u.moving && !u.breath && !u.hurt && !u.hop && !(u.capScale < 1) ? frameNo & (lite ? ~15 : ~7) : frameNo;
+    // o balanço vai no transform do grupo (suave e barato); o desenho interno não muda por causa dele
+    const bob = 0, bobT = !lite && opt.noShadow === undefined && scene === 'battle' ? Math.sin(frameNo * 0.08 + u.uid * 1.7) * 0.7 : 0;   // no modo leve, parado é parado
     const step = u.moving ? Math.sin(u.walkT * 0.5) * 1.6 : 0;
     const flash = u.hurt > 0 && (u.hurt % 6 < 3);
     const col = opt.color || sideColor(u);
@@ -2094,12 +2110,33 @@
     const shadow = opt.noShadow || sy > WATER ? '' : `<ellipse cx="0" cy="${f1(sy - u.y + 0.5)}" rx="${f1(11 * u.scale)}" ry="${f1(2.6 * u.scale)}" fill="#000" opacity=".25"/>`;
     const tilt = u.tilt && !u.flying ? `rotate(${f1(u.tilt * 57.3)}) ` : '';
     const lift = u.lift || 0;
-    const shield = u.shield > 0 && u.capScale > 0.5 ? `<circle cx="0" cy="${f1(-S.hitY * u.scale)}" r="${f1(S.hitR * u.scale * 1.75 + 4)}" fill="#8fe0ff" fill-opacity=".13" stroke="#bff3ff" stroke-width="1.8" stroke-opacity="${(0.55 + 0.3 * Math.sin(aF() * 0.12)).toFixed(2)}"/>` : '';
-    return `<g transform="translate(${f1(u.x)} ${f1(u.y + hop - lift)})">
+    const shield = u.shield > 0 && u.capScale > 0.5 ? `<circle cx="0" cy="${f1(-S.hitY * u.scale)}" r="${f1(S.hitR * u.scale * 1.75 + 4)}" fill="#8fe0ff" fill-opacity=".13" stroke="#bff3ff" stroke-width="1.8" stroke-opacity="${(0.55 + 0.3 * Math.sin(af * 0.12)).toFixed(2)}"/>` : '';
+    return { t: `translate(${f1(u.x)} ${f1(u.y + hop - lift + bobT)})`, h: `
       ${lift ? `<g transform="translate(0 ${f1(lift)})">${shadow}</g>` : shadow}${shield}
       <g transform="${tilt}scale(${f1(u.face * sc)} ${f1(sc)})"${flash ? ' opacity=".45"' : ''}><g${shF(u.sp, u.sh)}>${Art.draw(u.sp, ctx)}</g></g>
-      ${u.sh && u.capScale > 0.5 ? glint(frameNo, -S.hitR * u.scale * 0.8, -S.hitY * u.scale - 6, 1.2, u.blinkOff) + glint(frameNo, S.hitR * u.scale * 0.9, -S.hitY * u.scale + 8, 0.9, u.blinkOff + 2) + glint(frameNo, 0, -S.h * u.scale * 0.8, 1, u.blinkOff + 4) : ''}
-      ${statusIcon(u)}${web}${label}</g>`;
+      ${u.sh && u.capScale > 0.5 ? glint(af, -S.hitR * u.scale * 0.8, -S.hitY * u.scale - 6, 1.2, u.blinkOff) + glint(af, S.hitR * u.scale * 0.9, -S.hitY * u.scale + 8, 0.9, u.blinkOff + 2) + glint(af, 0, -S.h * u.scale * 0.8, 1, u.blinkOff + 4) : ''}
+      ${statusIcon(u)}${web}${label}` };
+  }
+  const unitSvg = (u, opt) => { const p = unitParts(u, opt); return `<g transform="${p.t}">${p.h}</g>`; };
+
+  // camada com um <g> por item (Pokémon, Pokébolas no chão): mexe só no transform quando o item anda
+  // e só reescreve o conteúdo quando o desenho dele muda — o navegador não reinterpreta a camada inteira todo quadro
+  const keyedEls = {};
+  function renderKeyed(id, items) {
+    const box = $(id);
+    if (typeof document.createElementNS !== 'function') { box.innerHTML = items.map(it => `<g transform="${it.t}">${it.h}</g>`).join(''); return; }
+    const map = keyedEls[id] || (keyedEls[id] = new Map()), seen = new Set();
+    let prev = null;
+    for (const it of items) {
+      let r = map.get(it.k);
+      if (!r) { r = { g: document.createElementNS('http://www.w3.org/2000/svg', 'g'), t: null, h: null }; map.set(it.k, r); }
+      if (r.t !== it.t) { r.g.setAttribute('transform', it.t); r.t = it.t; }
+      if (r.h !== it.h) { r.g.innerHTML = it.h; r.h = it.h; }
+      const want = prev ? prev.nextSibling : box.firstChild;
+      if (r.g !== want) box.insertBefore(r.g, want);
+      prev = r.g; seen.add(it.k);
+    }
+    for (const [k, r] of map) if (!seen.has(k)) { r.g.remove(); map.delete(k); }
   }
 
   function statusIcon(u) {
@@ -2179,20 +2216,28 @@
     if (bolt && bolt.t === 5) flash.a = Math.max(flash.a, 0.45);
   }
 
-  function wxLayer(w) {
+  // clima: as gotas/flocos são desenhados uma vez (em 3 grupos com velocidades diferentes, duas cópias empilhadas)
+  // e a animação só move os grupos — muda um atributo por quadro em vez de reescrever dezenas de elementos
+  const WX_SP = { rain: [15, 19, 24], snow: [1.1, 1.6, 2.2] };
+  function wxLayer(w, tag) {
     let s = '';
     if (w === 'rain') {
       s += `<rect width="800" height="500" fill="#0a1a33" opacity=".3"/>`;
+      if (lite) return s;
       const sl = -wind * 0.1 - 0.12;
-      for (let i = 0; i < (lite ? 0 : 64); i++) {
-        const sp = 15 + (i % 5) * 2.5, y = ((frameNo * sp + i * 53) % 540) - 20, x = ((i * 131.7) % 880) - 40 + y * -sl;
-        s += `<line x1="${f1(x)}" y1="${f1(y)}" x2="${f1(x + sl * 16)}" y2="${f1(y + 16)}" stroke="#cfe9ff" stroke-width="${i % 3 ? 1.1 : 1.6}" opacity="${(0.28 + (i % 4) * 0.08).toFixed(2)}" stroke-linecap="round"/>`;
+      for (let j = 0; j < 3; j++) {
+        let g = '';
+        for (let i = 0; i < 22; i++) {
+          const y0 = ((i * 53 + j * 177) % 540) - 20, x0 = ((i * 131.7 + j * 211) % 880) - 40;
+          for (const y of [y0, y0 - 540]) g += `<line x1="${f1(x0 - y * sl)}" y1="${f1(y)}" x2="${f1(x0 - y * sl + sl * 16)}" y2="${f1(y + 16)}"/>`;
+        }
+        s += `<g id="wx${tag}${j}" stroke="#cfe9ff" stroke-width="${j === 2 ? 1.6 : 1.1}" opacity="${(0.3 + j * 0.08).toFixed(2)}" stroke-linecap="round">${g}</g>`;
       }
     } else if (w === 'sun') {
       s += `<rect width="800" height="500" fill="#ffb347" opacity=".09"/>
         <g transform="translate(690 52)">
           <circle r="190" fill="#fff2b0" opacity=".05"/><circle r="120" fill="#fff2b0" opacity=".07"/><circle r="64" fill="#fff6c8" opacity=".14"/>
-          ${Array.from({ length: 10 }, (_, i) => `<path transform="rotate(${f1(i * 36 + (lite ? 0 : frameNo * 0.15))})" d="M-5,-70 L0,-260 L5,-70 Z" fill="#fff6c8" opacity=".07"/>`).join('')}
+          <g id="wx${tag}0">${Array.from({ length: 10 }, (_, i) => `<path transform="rotate(${i * 36})" d="M-5,-70 L0,-260 L5,-70 Z" fill="#fff6c8" opacity=".07"/>`).join('')}</g>
         </g>
         <circle cx="560" cy="150" r="14" fill="#fff6c8" opacity=".07"/><circle cx="470" cy="215" r="22" fill="#ffd9a0" opacity=".06"/><circle cx="390" cy="270" r="10" fill="#fff6c8" opacity=".08"/>`;
     } else if (w === 'storm') {
@@ -2204,20 +2249,35 @@
       }
     } else if (w === 'snow') {
       s += `<rect width="800" height="500" fill="#bcd8f0" opacity=".14"/>`;
-      for (let i = 0; i < (lite ? 0 : 70); i++) {
-        const sp = 1.1 + (i % 5) * 0.45, y = ((frameNo * sp + i * 71) % 540) - 20;
-        const x = ((i * 117.3) % 840) - 20 + Math.sin(frameNo * 0.03 + i) * 14 - wind * y * 0.04;
-        s += `<circle cx="${f1(x)}" cy="${f1(y)}" r="${(1.2 + (i % 3) * 0.7).toFixed(1)}" fill="#fff" opacity="${(0.55 + (i % 4) * 0.1).toFixed(2)}"/>`;
+      if (lite) return s;
+      for (let j = 0; j < 3; j++) {
+        let g = '';
+        for (let i = 0; i < 24; i++) {
+          const y0 = ((i * 71 + j * 133) % 540) - 20, x0 = ((i * 117.3 + j * 97) % 840) - 20;
+          for (const y of [y0, y0 - 540]) g += `<circle cx="${f1(x0 - wind * y * 0.04)}" cy="${f1(y)}" r="${(1.2 + j * 0.7).toFixed(1)}"/>`;
+        }
+        s += `<g id="wx${tag}${j}" fill="#fff" opacity="${(0.55 + j * 0.12).toFixed(2)}">${g}</g>`;
       }
     }
     return s;
   }
+  // move os grupos do clima (chamado todo quadro; só mexe em atributos)
+  function animWx(w, tag) {
+    if (lite || !w) return;
+    if (w === 'sun') { setAttrOnce('wx' + tag + '0', 'transform', `rotate(${f1(frameNo * 0.15 % 360)})`); return; }
+    const sp = WX_SP[w]; if (!sp) return;
+    const sl = -wind * 0.1 - 0.12;
+    for (let j = 0; j < 3; j++) {
+      const off = (frameNo * sp[j]) % 540;
+      setAttrOnce('wx' + tag + j, 'transform', w === 'rain' ? `translate(${f1(off * -sl)} ${f1(off)})` : `translate(${f1(Math.sin(frameNo * 0.03 + j * 2) * 14 - wind * off * 0.04)} ${f1(off)})`);
+    }
+  }
 
   function weatherSvg() {
     if ((!weather && !wxPrev) || scene !== 'battle') return '';
-    if (wxK >= 1) return wxLayer(weather);
+    if (wxK >= 1) return wxLayer(weather, 'n');
     // transição suave entre o clima antigo e o novo
-    return `<g opacity="${(1 - wxK).toFixed(2)}">${wxLayer(wxPrev)}</g><g opacity="${wxK.toFixed(2)}">${wxLayer(weather)}</g>`;
+    return `<g opacity="${(1 - wxK).toFixed(2)}">${wxLayer(wxPrev, 'p')}</g><g opacity="${wxK.toFixed(2)}">${wxLayer(weather, 'n')}</g>`;
   }
 
   function weatherBadge() {
@@ -2539,22 +2599,18 @@
   }
 
   function renderBattleUnits(act) {
-    let wh = '';
+    const items = [];
     for (const u of units) {
-      if (!u.alive) continue;
-      if (u.hidden && !(cap && cap.u === u)) continue;
-      if (u.hidden) continue;
-      let extra = '';
+      if (!u.alive || u.hidden) continue;
       const isFoe = kind === 'campaign' && u.team >= 1;
-      let s = unitSvg(u, u.team === 2 ? { extra: `<text x="0" y="-26" text-anchor="middle" font-size="8.5" font-weight="bold" fill="${GUEST_COL}" stroke="#000" stroke-width=".5" letter-spacing="1">VISITANTE</text>` } : {});
-      if (isFoe && u.hp / u.maxhp <= WEAK && state !== 'capture') s = s.replace(/<\/g>$/, `${weakMarker(u)}</g>`);
-      if (u === act && (state === 'aim' || state === 'ai') && !teams[turnTeam].ai) {
-        s = s.replace(/<\/g>$/, `<path transform="translate(0 ${f1(-(spOf(u).h * u.scale + 34) + Math.sin(aF() * 0.15) * 3)})" d="M-6,0 L6,0 L0,8 Z"
-          fill="${teams[u.team].color}" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></g>`);
-      }
-      wh += s + extra;
+      const p = unitParts(u, u.team === 2 ? { extra: `<text x="0" y="-26" text-anchor="middle" font-size="8.5" font-weight="bold" fill="${GUEST_COL}" stroke="#000" stroke-width=".5" letter-spacing="1">VISITANTE</text>` } : {});
+      let h = p.h;
+      if (isFoe && u.hp / u.maxhp <= WEAK && state !== 'capture') h += weakMarker(u);
+      if (u === act && (state === 'aim' || state === 'ai') && !teams[turnTeam].ai)
+        h += `<path transform="translate(0 ${f1(-(spOf(u).h * u.scale + 34) + Math.sin(aF() * 0.15) * 3)})" d="M-6,0 L6,0 L0,8 Z" fill="${teams[u.team].color}" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/>`;
+      items.push({ k: u.uid, t: p.t, h });
     }
-    return wh;
+    return items;
   }
 
   function aimSvg(x1, y1, a, rel) {
@@ -2623,9 +2679,9 @@
       $('aim').innerHTML = aim;
     }
 
-    if (scene === 'battle') $('introBack').innerHTML = pickupsSvg();
+    renderKeyed('pickups', scene === 'battle' ? pickupItems() : []);
 
-    $('worms').innerHTML = scene === 'intro' ? '' : (inBattle ? renderBattleUnits(act) : units.map(u => unitSvg(u, { color: '#fff', noBar: true })).join(''));
+    renderKeyed('worms', scene === 'intro' ? [] : inBattle ? renderBattleUnits(act) : units.map(u => { const p = unitParts(u, { color: '#fff', noBar: true }); return { k: u.uid, t: p.t, h: p.h }; }));
 
     $('proj').innerHTML = projs.map(projSvg).join('') + captureSvg();
 
@@ -2681,7 +2737,12 @@
       : '';
 
     mmShown = false;
-    $('hud').innerHTML = weatherSvg() + (flash.a > 0.01 ? `<rect width="800" height="500" fill="${flash.col}" opacity="${flash.a.toFixed(2)}"/>` : '') + hudSvg();
+    // chuva/neve e o clarão ficam em camadas próprias: o painel só é reescrito quando um texto dele muda
+    $('wx').innerHTML = weatherSvg();
+    if (scene === 'battle') { animWx(weather, 'n'); if (wxK < 1) animWx(wxPrev, 'p'); }
+    setAttrOnce('flashR', 'opacity', flash.a > 0.01 ? flash.a.toFixed(2) : '0');
+    if (flash.a > 0.01) setAttrOnce('flashR', 'fill', flash.col);
+    $('hud').innerHTML = hudSvg();
     $('mmview').innerHTML = mmViewSvg();
     $('msgbox').innerHTML = msgSvg();
     renderOverlay();
@@ -3205,6 +3266,7 @@
   let lastTs = 0, acc = 0, renderPar = 0;
   function frame(ts) {
     requestAnimationFrame(frame);
+    if (typeof document !== 'undefined' && document.hidden) { lastTs = 0; acc = 0; return; }   // aba escondida: não gasta nada
     let steps = 1;
     if (typeof ts === 'number') {
       if (!lastTs) lastTs = ts;
@@ -3253,7 +3315,7 @@
     }
   };
 
-  cacheHtml(['introBack', 'decor', 'intro', 'aim', 'worms', 'proj', 'pshadow', 'parts', 'fx', 'floaters', 'powerbar', 'hud', 'mmview', 'msgbox', 'overlay']);
+  cacheHtml(['introBack', 'decor', 'intro', 'aim', 'proj', 'pshadow', 'parts', 'fx', 'floaters', 'powerbar', 'wx', 'hud', 'mmview', 'msgbox', 'overlay']);
   applySettings();
   fitWrap();
   initMenu();

@@ -21,6 +21,9 @@
   .btn text{fill:#fff;font-size:26px;font-weight:bold;text-anchor:middle;pointer-events:none}
   #help{font-size:13px;margin-top:10px;opacity:.8;line-height:1.5}
   kbd{background:#333;border:1px solid #555;border-radius:4px;padding:1px 5px;font-size:12px}
+  .pulse{animation:pk 1.4s ease-in-out infinite alternate}
+  @keyframes pk{from{opacity:.16}to{opacity:.34}}
+  body.lite .pulse{animation:none}
   /* modo leve (aparelhos fracos): tira as camadas decorativas mais caras de desenhar */
   #tfill{display:none}
   body.lite #tfill{display:inline} body.lite #tclipG, body.lite #tedge{display:none}
@@ -281,6 +284,7 @@
   <path id="tufts" fill="none" stroke="#5aa834" stroke-width="1.3" stroke-linecap="round"/>
   <g id="decor"></g>
   <g id="introBack"></g>
+  <g id="pickups"></g>
 
   <!-- jogo -->
   <g id="graves"></g>
@@ -300,6 +304,8 @@
   <g id="Lfore"><path id="fore" fill="#14301a" opacity=".92"/></g>
 
   <!-- interface -->
+  <g id="wx" style="pointer-events:none"></g>
+  <rect id="flashR" width="800" height="500" fill="#fff" opacity="0" style="pointer-events:none"/>
   <g id="hud"></g>
   <g id="mmview" style="pointer-events:none"></g>
   <g id="powerbar"></g>
@@ -328,12 +334,12 @@
 <div id="rotate">📱 Gire o celular para o modo paisagem (deitado) para jogar melhor.</div>
 </div>
 
-<script src="js/sfx.js?v=20261017d"></script>
-<script src="js/data.js?v=20261017d"></script>
-<script src="js/art.js?v=20261017d"></script>
-<script src="js/art2.js?v=20261017d"></script>
-<script src="js/animated-kanto.js?v=20261017d"></script>
-<script src="js/game.js?v=20261017d"></script>
+<script src="js/sfx.js?v=20261017e"></script>
+<script src="js/data.js?v=20261017e"></script>
+<script src="js/art.js?v=20261017e"></script>
+<script src="js/art2.js?v=20261017e"></script>
+<script src="js/animated-kanto.js?v=20261017e"></script>
+<script src="js/game.js?v=20261017e"></script>
 </body>
 </html>
 

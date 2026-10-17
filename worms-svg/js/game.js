@@ -115,8 +115,18 @@
   const stars = mvs => (mvs === 'b' ? '' : mvs.includes('+') ? '★★' : '★');
   const centerOf = u => ({ x: u.x, y: u.y - spOf(u).hitY * u.scale });
   const hitRof = u => spOf(u).hitR * u.scale * (u.hrMul || 1);
-  // a mira é relativa ao corpo: num morro, o ângulo acompanha a inclinação (como os mobiles)
+  // inclinação do corpo em graus (a faixa de mira gira junto com ela)
   const tiltDeg = u => (u && !u.flying && scene === 'battle' ? (u.tilt || 0) * 180 / Math.PI : 0);
+  // elevação = ângulo em relação à horizontal, para o lado em que o Pokémon olha (0 = reto, 90 = para cima)
+  const elevOf = (u, a = angle) => (u.face > 0 ? a : 180 - a);
+  const fromElev = (u, e) => (u.face > 0 ? e : 180 - e);
+  // faixa de elevações possíveis agora: a faixa da espécie (relativa ao corpo) girada pela inclinação do chão
+  function aimWindow(u, face = u.face) {
+    if (scene !== 'battle' || !u) return [0, 180];
+    const r = MS.aimRange(u.sp), t = tiltDeg(u) * face;
+    return [r[0] - t, r[1] - t];
+  }
+  function clampAim(u) { if (!u) return; const [lo, hi] = aimWindow(u); angle = fromElev(u, clamp(elevOf(u), lo, hi)); }
   // boca (de onde sai o golpe) girada junto com o corpo inclinado
   function mouthAt(u, face, ball) {
     const S = spOf(u), dx = face * (ball ? 8 : S.mouth[0]) * u.scale, dy = (ball ? -S.h * 0.6 : S.mouth[1]) * u.scale;
@@ -1151,8 +1161,7 @@
     if (state !== 'aim' && state !== 'ai') return;
     panX = null;
     const u = activeUnit(); if (!u) return;
-    const S = spOf(u), a = (angle - tiltDeg(u)) * Math.PI / 180, sp = 3 + power * 0.075;
-    u.face = Math.cos(angle * Math.PI / 180) >= 0 ? 1 : -1;
+    const S = spOf(u), a = angle * Math.PI / 180, sp = 3 + power * 0.075;   // ângulo em relação à horizontal
     u.lastPow = power;
     if (!ballMode && !teams[turnTeam].ai) lastBall = false;      // tiro normal: deixa de repetir a Pokébola
     const wk = curW(u);
@@ -1177,7 +1186,7 @@
       muzzle(mx, my, WEAPONS[wk].style, a);
     }
     Sfx.chargeStop();
-    lastAngles[kind + turnTeam] = angle;
+    lastAngles[kind + turnTeam] = elevOf(u);
     power = 0; charging = false; state = 'flying'; ai = null;
   }
 
@@ -1416,7 +1425,6 @@
     if (!u || walkBudget <= 0 || u.air) return false;
     const nx = u.x + dir * 1.2, ny = stepTo(u, nx);
     if (ny === null) return false;
-    for (const v of units) if (v !== u && v.alive && !v.hidden && Math.abs(v.x - nx) < 12 && Math.abs(v.x - nx) < Math.abs(v.x - u.x) && Math.abs(v.y - u.y) < 22) return false;
     u.x = nx; u.y = ny; u.moving = true; u.walkT++;
     if (u.walkT % 10 === 0) Sfx.step();
     walkBudget -= 1.2;
@@ -1466,12 +1474,11 @@
     const mem = lastAngles[kind + turnTeam];        // mantém o último ângulo usado
     if (t.ai) {
       state = 'ai'; ai = { phase: 'think0', t: 0 };
-      angle = mem !== undefined ? mem : 135;
+      angle = fromElev(u, mem !== undefined ? mem : 45); clampAim(u);
       showMsg(`${u.name} selvagem ataca!`, 90);
     } else {
       state = 'aim';
-      angle = mem !== undefined ? mem : (u.face === 1 ? 45 : 135);
-      if ((Math.cos(angle * Math.PI / 180) >= 0 ? 1 : -1) !== u.face) angle = 180 - angle;
+      angle = fromElev(u, mem !== undefined ? mem : 45); clampAim(u);
       const again = autoBall();
       showMsg(kind === 'campaign' ? `Sua vez: ${u.name}!${again ? ` ${BALLS[ballType].name} pronta (como no último tiro)` : ''}` : `Vez de ${t.name}!`, again ? 150 : 110);
     }
@@ -1646,7 +1653,6 @@
       const dir = Math.sign(dx), nx = g.x + dir * sp;
       const ny = g.flying ? g.y : stepTo(g, nx);
       let blocked = !g.flying && (ny === null || ledgeAhead(g, dir));
-      if (!blocked) for (const v of units) if (v !== g && v.alive && !v.hidden && Math.abs(v.x - nx) < 14 && (g.flying || Math.abs(v.y - g.y) < 22)) { blocked = true; break; }
       if (blocked) { g.moving = false; guestWarn(g, g.gTarget); return; }
       g.x = nx; if (!g.flying) g.y = ny; g.face = dir; g.moving = !g.flying; g.walkT++;
       if (!g.flying && g.walkT % 10 === 0) Sfx.step();
@@ -1717,8 +1723,11 @@
     let best = null, bestS = -1e9, near = null, nearD = 1e9;
     const tg = shotTargets(wp, u);
     const heavy = wp.count >= 3 || u.moves.length > 1, aStep = heavy ? 4 : 3, pStep = heavy ? 6 : 5;
-    for (let ang = 8; ang <= 172; ang += aStep) {
-      const a = ang * Math.PI / 180, face = Math.cos((ang + tiltDeg(u)) * Math.PI / 180) >= 0 ? 1 : -1;
+    // só os ângulos que a espécie consegue escolher, olhando para os dois lados
+    const cands = [];
+    for (const face of [1, -1]) { const [lo, hi] = aimWindow(u, face); for (let e = Math.max(-30, lo); e <= Math.min(180, hi) + 0.01; e += aStep) cands.push([face > 0 ? e : 180 - e, face]); }
+    for (const [ang, face] of cands) {
+      const a = ang * Math.PI / 180;
       const { x: x0, y: y0 } = mouthAt(u, face, false);
       for (let pw = 18; pw <= 100; pw += pStep) {
         const sp = 3 + pw * 0.075;
@@ -1731,11 +1740,11 @@
           for (const f of foes) dmin = Math.min(dmin, Math.hypot(r.x - f.x, r.y - f.y));
         }
         score += Math.random() * 0.5;
-        if (score > bestS) { bestS = score; best = { ang, pw }; }
-        if (dmin < nearD) { nearD = dmin; near = { ang, pw }; }
+        if (score > bestS) { bestS = score; best = { ang, pw, face }; }
+        if (dmin < nearD) { nearD = dmin; near = { ang, pw, face }; }
       }
     }
-    return { pick: bestS > 1 ? best : (near || { ang: 120, pw: 60 }), score: bestS > 1 ? bestS : 0, near: nearD };
+    return { pick: bestS > 1 ? best : (near || { ang: fromElev(u, 45), pw: 60, face: u.face }), score: bestS > 1 ? bestS : 0, near: nearD };
   }
 
   function planShot(u) {
@@ -1747,11 +1756,13 @@
       if (!bestPlan || pl.score > bestPlan.score || (pl.score === bestPlan.score && pl.near < bestPlan.near)) { bestPlan = pl; bestMi = i; }
     });
     u.mi = bestMi;
-    const pick1 = bestPlan ? bestPlan.pick : { ang: 120, pw: 60 };
+    const pick1 = bestPlan ? bestPlan.pick : { ang: fromElev(u, 45), pw: 60, face: u.face };
+    u.face = pick1.face || u.face;
     const err = STAGES[stageIdx].err;
     const e1 = (Math.random() + Math.random() - 1) * err, e2 = (Math.random() + Math.random() - 1) * err * 0.7;
-    ai.angle = clamp(pick1.ang + e1 + tiltDeg(u), 0, 180);     // ângulo do plano é absoluto; a mira é relativa ao corpo
+    { const [lo, hi] = aimWindow(u); ai.angle = fromElev(u, clamp(elevOf(u, pick1.ang) + e1 * u.face, lo, hi)); }
     ai.power = clamp(pick1.pw + e2, 15, 100);
+    return bestPlan ? bestPlan.score : 0;
   }
 
   function nearestFoe(u) {
@@ -1777,7 +1788,14 @@
         u.face = a.walkDir >= 0 ? 1 : -1;
       } else a.phase = 'plan';
     } else if (a.phase === 'plan') {
-      planShot(u); a.phase = 'aim';
+      const sc = planShot(u);
+      // nada acerta daqui (faixa de mira estreita, morro no caminho): anda um pouco e tenta de novo
+      if (sc <= 1 && (a.tries || 0) < 2 && walkBudget > 30) {
+        const f = nearestFoe(u); a.tries = (a.tries || 0) + 1;
+        a.walkDir = f ? (Math.sign(f.x - u.x) || 1) * (Math.random() < 0.75 ? 1 : -1) : -u.face;
+        a.walkLeft = rnd(30, 70); a.phase = 'walk'; return;
+      }
+      a.phase = 'aim';
     } else if (a.phase === 'aim') {
       const d = a.angle - angle;
       if (Math.abs(d) <= 1.8) { angle = a.angle; a.phase = 'wait'; a.t = 0; } else angle += Math.sign(d) * 1.8;
@@ -2086,17 +2104,21 @@
   function bottomBarSvg() {
     if (scene !== 'battle' || !(state === 'aim' || state === 'ai') || !teams[turnTeam]) return '';
     const u = activeUnit(); if (!u || !u.alive) return '';
-    const rel = clamp(u.face === 1 ? angle : 180 - angle, 0, 180), tilt = tiltDeg(u) * (u.face === 1 ? 1 : -1);
-    const cx = 186, cy = 476, r = 22, ar = (rel - tilt) * Math.PI / 180;
+    // mostrador: 0° = horizontal à frente do Pokémon; a fatia clara é a faixa que ele consegue escolher agora
+    const el = elevOf(u), [wlo, whi] = aimWindow(u);
+    const cx = 186, cy = 474, r = 22, P = d => [cx + Math.cos(d * Math.PI / 180) * r, cy - Math.sin(d * Math.PI / 180) * r];
+    const w0 = Math.max(-40, wlo), w1 = Math.min(220, whi), p0 = P(w0), p1 = P(w1), pe = P(el);
     const bx = 216, bw = 312, py = 446, my = 476;
     let ticks = '';
     for (let i = 1; i < 10; i++) ticks += `M${f1(bx + bw * i / 10)},${py} v${i === 5 ? 12 : 6}`;
     const lp = u.lastPow;
     return `<rect x="152" y="434" width="388" height="58" rx="12" fill="#0d1b2a" opacity=".78"/>
-      <path d="M${cx - r},${cy} A${r},${r} 0 0 1 ${cx + r},${cy}" fill="#000" fill-opacity=".3" stroke="#8aa0c8" stroke-width="1"/>
-      <line x1="${f1(cx - Math.cos(-tilt * Math.PI / 180) * r)}" y1="${f1(cy - Math.sin(-tilt * Math.PI / 180) * r)}" x2="${f1(cx + Math.cos(-tilt * Math.PI / 180) * r)}" y2="${f1(cy + Math.sin(-tilt * Math.PI / 180) * r)}" stroke="#8aa0c8" stroke-width="1" stroke-dasharray="2 2"/>
-      <line x1="${cx}" y1="${cy}" x2="${f1(cx + Math.cos(ar) * r)}" y2="${f1(cy - Math.sin(ar) * r)}" stroke="#ffb43c" stroke-width="2.6" stroke-linecap="round"/>
-      <text x="${cx}" y="${cy + 12}" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">${Math.round(rel)}°</text>
+      <path d="M${cx - r - 3},${cy} H${cx + r + 3}" stroke="#8aa0c8" stroke-width="1"/>
+      <path d="M${cx - r},${cy} A${r},${r} 0 0 1 ${cx + r},${cy}" fill="none" stroke="#8aa0c8" stroke-opacity=".5" stroke-width="1"/>
+      <path d="M${cx},${cy} L${f1(p0[0])},${f1(p0[1])} A${r},${r} 0 ${w1 - w0 > 180 ? 1 : 0} 0 ${f1(p1[0])},${f1(p1[1])} Z" fill="#6ad0ff" fill-opacity=".28" stroke="#6ad0ff" stroke-opacity=".7" stroke-width="1"/>
+      <line x1="${cx}" y1="${cy}" x2="${f1(pe[0])}" y2="${f1(pe[1])}" stroke="#ffb43c" stroke-width="2.6" stroke-linecap="round"/>
+      <text x="${cx}" y="${cy + 13}" text-anchor="middle" font-size="11" font-weight="bold" fill="#fff">${Math.round(el)}°</text>
+      <text x="${cx}" y="${cy - r - 4}" text-anchor="middle" font-size="7.5" fill="#bfe3ff">${Math.round(wlo)}°–${Math.round(whi)}°</text>
       <text x="${bx}" y="${py - 3}" font-size="8" fill="#bfe3ff" letter-spacing="1.2">FORÇA</text>
       <rect x="${bx}" y="${py}" width="${bw}" height="12" rx="6" fill="#000" opacity=".55"/>
       ${charging ? `<rect x="${bx + 1}" y="${py + 1}" width="${f1(Math.max(0, power / 100 * (bw - 2)))}" height="10" rx="5" fill="url(#pow)"/>` : ''}
@@ -2398,16 +2420,14 @@
 
     const inBattle = scene === 'battle';
     const act = inBattle && state !== 'over' && teams[turnTeam] ? activeUnit() : null;
-    if (act && (state === 'aim' || (state === 'ai' && ai && ai.phase !== 'walk' && ai.phase !== 'think0')) && act.alive)
-      act.face = Math.cos(angle * Math.PI / 180) >= 0 ? 1 : -1;
 
     if (scene === 'intro') renderIntro();
     else {
       $('intro').innerHTML = '';
       let aim = '';
       if (inBattle && act && (state === 'aim' || (state === 'ai' && ai && ['aim', 'wait', 'charge'].includes(ai.phase)))) {
-        const a = (angle - tiltDeg(act)) * Math.PI / 180, m = mouthAt(act, act.face, ballMode);
-        const rel = Math.round(act.face === 1 ? angle : 180 - angle);
+        const a = angle * Math.PI / 180, m = mouthAt(act, act.face, ballMode);
+        const rel = Math.round(elevOf(act));
         aim = aimSvg(m.x, m.y, a, rel);
       }
       $('aim').innerHTML = aim;
@@ -2685,10 +2705,16 @@
   }
   ['keydown', 'pointerdown', 'pointerup', 'touchend', 'click'].forEach(ev => addEventListener(ev, () => Sfx.unlock(), { passive: true }));
 
+  // reiniciar pede confirmação (o ↻ fica perto do PASSAR e um toque errado perderia a batalha)
   function restart() {
     Sfx.click();
-    if (scene === 'intro') initIntro();
-    else if (scene === 'battle' && kind === 'campaign') restartStage();
+    if (panel || (scene !== 'intro' && !(scene === 'battle' && kind === 'campaign'))) return;
+    keys = {}; if (charging) { charging = false; power = 0; Sfx.chargeStop(); }
+    const close = () => { panel = null; uiSel = 0; syncButtons(); };
+    panel = { pause: true, title: 'Reiniciar?', sub: scene === 'intro' ? 'As Pokébolas voltam e a cidade recomeça.' : 'A batalha desta fase recomeça do zero.',
+              lines: [], caught: [],
+              buttons: [{ label: 'Continuar jogando', fn: close }, { label: 'Reiniciar', fn: () => { panel = null; if (scene === 'intro') initIntro(); else restartStage(); } }] };
+    uiSel = 0; syncButtons();
   }
 
   function pressFire() {
@@ -2817,7 +2843,7 @@
       else if (gridN && e.key === 'ArrowDown') { uiSel = uiSel + gridN < nGrid ? uiSel + gridN : (uiSel < nGrid ? n - 1 : uiSel); Sfx.click(); e.preventDefault(); }
       else if (gridN && e.key === 'ArrowUp') { uiSel = uiSel >= nGrid ? nGrid - 1 : Math.max(0, uiSel - gridN); Sfx.click(); e.preventDefault(); }
       else if (e.key === 'Enter' || e.code === 'Space') { e.preventDefault(); if (!e.repeat) { kbd = true; activate(uiSel); kbd = false; } }
-      else if (e.key === 'Escape') { if (scene === 'menu') { if (menuPage === 'stages') { menuPage = 'main'; uiSel = 1; } } else initMenu(); }
+      else if (e.key === 'Escape') { if (panel && panel.pause) { panel = null; syncButtons(); } else if (scene === 'menu') { if (menuPage === 'stages') { menuPage = 'main'; uiSel = 1; } } else initMenu(); }
       return;
     }
     if (e.key === 'Escape') { initMenu(); return; }
@@ -2846,21 +2872,23 @@
   function stepBattle() {
     if (state === 'aim') {
       if (W > VW && (keys.panL || keys.panR)) panX = clamp((panX === null ? cam.x : panX) + (keys.panR ? 8 : 0) - (keys.panL ? 8 : 0), VW / 2, W - VW / 2);
-      if (keys.up)   angle = Math.min(180, angle + 1.2);
-      if (keys.down) angle = Math.max(0, angle - 1.2);
+      const au = activeUnit();
+      if (au && (keys.up || keys.down)) angle = fromElev(au, elevOf(au) + (keys.up ? 1.2 : -1.2));
       if (!charging) {
         const dir = keys.left ? -1 : keys.right ? 1 : 0;
         if (dir) {
           panX = null;
           // virar para o outro lado espelha a mira (mesma elevação, como nos mobiles)
-          if ((Math.cos(angle * Math.PI / 180) >= 0 ? 1 : -1) !== dir) angle = 180 - angle;
-          walkUnit(activeUnit(), dir);
+          const wu = activeUnit();
+          if (wu && wu.face !== dir) { wu.face = dir; angle = 180 - angle; }
+          walkUnit(wu, dir);
         }
       } else {
         power = Math.min(100, power + 0.9);
         Sfx.chargeSet(power);
       }
     }
+    if (state === 'aim' && !teams[turnTeam].ai) clampAim(activeUnit());      // andar muda a inclinação e a faixa de mira
     if (state === 'aim' && !teams[turnTeam].ai && --turnT <= 0) { if (charging) fire(); else passTurn(); }
     if (state === 'ai') stepAI();
     if (state === 'skip' && splashU) splashU.hop++;
@@ -2888,6 +2916,7 @@
       if (u.hurt > 0) u.hurt--;
       if (scene !== 'intro') u.moving = false;
     }
+    if (panel && panel.pause) { updateCamera(); return; }          // pergunta na tela: jogo parado
     if (scene === 'battle') { stepBattle(); stepWeather(); }
     else if (scene === 'intro') stepIntro();
     updateUnits();
@@ -2939,7 +2968,7 @@
     forceGuest: sp => { gCool = 0; STAGES[stageIdx].guests = [{ sp, rarity: 1 }]; },
     skipEvolve, stageClear,
     initMenu, initIntro, playStage, cycleMove, maybeChangeWeather, rollWeather, initStage, newCampaign, beginStage, fire, toggleBall, pickTarget,
-    setAngle: a => { angle = clamp(a + tiltDeg(activeUnit()), 0, 180); }, setPower: p => { power = p; }, passTurn, turnOrder,
+    setAngle: a => { angle = a; const u = activeUnit(); if (u && scene === 'battle') u.face = Math.cos(a * Math.PI / 180) >= 0 ? 1 : -1; }, aimWindow: u => aimWindow(u || activeUnit()), setPower: p => { power = p; }, passTurn, turnOrder,
     get windY() { return windY; }, solid, surf, carve, terrainPath, get mask() { return mask; },
     // procura (ângulo, força) para acertar um alvo com a arma 'wk' a partir do personagem da vez
     findShot: (target, wk) => {

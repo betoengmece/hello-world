@@ -268,6 +268,17 @@
     return 'b+' + pick();
   };
 
+  // ---------- Faixa de mira (como os mobiles) ----------
+  // Ângulos que cada espécie consegue escolher, medidos a partir do corpo (que inclina com o chão).
+  // Fracos escolhem quase qualquer ângulo; fortes têm faixa estreita e precisam andar até um morro para mudar.
+  MS.AIM_TIERS = { wide: [0, 180], basic: [0, 90], mid: [15, 75], narrow: [30, 60] };
+  const AIM_OF = {
+    caterpie: 'wide', metapod: 'wide', magikarp: 'wide', rattata: 'wide', pidgey: 'wide', zubat: 'wide', gastly: 'wide', magnemite: 'wide', jigglypuff: 'wide',
+    charmeleon: 'mid', ivysaur: 'mid', wartortle: 'mid', golbat: 'mid', graveler: 'mid', magneton: 'mid', dewgong: 'mid', electabuzz: 'mid', magmar: 'mid', scyther: 'mid', exeggutor: 'mid',
+    gyarados: 'narrow', dragonair: 'narrow', onix: 'narrow', snorlax: 'narrow', gengar: 'narrow', machamp: 'narrow', arcanine: 'narrow', lapras: 'narrow'
+  };
+  MS.aimRange = sp => MS.AIM_TIERS[AIM_OF[sp] || 'basic'];
+
   // ---------- Cenários ----------
   // sky/far/near/dirt: cores dos degradês; g: grama (borda, brilho, tufos); sea: mar (fundo, frente)
   MS.THEMES = {

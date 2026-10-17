@@ -20,7 +20,7 @@ const MS=ctx.window.MS;
 MS.Sfx=new Proxy({isOn:()=>false},{get:(obj,key)=>obj[key]||(()=>{})});
 let engine=fs.readFileSync(path.join(root,'js/game.js'),'utf8');
 // Acesso restrito a este teste: o arquivo distribuído continua com sua API de debug atual.
-engine=engine.replace('  applySettings();\n  initMenu();','  MS.testHooks={roundEnd,explode,captureChance,projSvg,renderAll,loadSave,saveGame};\n  applySettings();\n  initMenu();');
+engine=engine.replace('  applySettings();\n  initMenu();','  MS.testHooks={restart,roundEnd,explode,captureChance,projSvg,renderAll,loadSave,saveGame};\n  applySettings();\n  initMenu();');
 vm.runInContext(engine,ctx,{filename:'game.js'});
 const debug=MS.debug,hooks=MS.testHooks;
 assert(hooks,'test hooks must be installed');
@@ -168,7 +168,7 @@ console.log('OK: variantes de golpe, novos tipos, 11 fases, Magikarp -> Gyarados
   for(let i=0;i<40;i++)frameCallback();
   assert(me.y>y0+8,'Pokémon caiu no buraco');
   // túnel: carve no meio da ilha deixa chão em cima e embaixo
-  const tx=Math.round(g.units[g.units.length-1].x),top=debug.surf(tx);
+  let tx=0;for(let x=40;x<W-40;x+=5){const s=debug.surf(x);if(s<400&&debug.solid(x,s+75)&&Math.abs(debug.surf(x+15)-s)<10){tx=x;break;}}const top=debug.surf(tx);assert(tx>0,'achou trecho grosso');
   debug.carve(tx,top+40,12);assert(debug.solid(tx,top+2)&&!debug.solid(tx,top+40)&&debug.solid(tx,top+60),'túnel com teto e chão');
   assert(debug.terrainPath().length>100,'contorno do terreno desenhado');
   debug.setMap(null);
@@ -177,8 +177,8 @@ console.log('OK: variantes de golpe, novos tipos, 11 fases, Magikarp -> Gyarados
   // ordem por atraso: joga quem tem menos atraso, de qualquer time
   debug.newCampaign('charmander');debug.beginStage(1);let g=debug.get();
   const o=debug.turnOrder();assert(o[0]===g.units.find(u=>g.teams[g.turnTeam].units[g.teams[g.turnTeam].cur]===u),'quem joga é o primeiro da ordem');
-  const me=g.teams[0].units[0];const d0=me.delay;
-  debug.passTurn();assert(me.delay>d0+200,'passar a vez soma atraso');
+  const me=g.units.find(u=>g.teams[g.turnTeam].units[g.teams[g.turnTeam].cur]===u);const d0=me.delay;
+  if(g.state==='aim'&&g.turnTeam===0){debug.passTurn();assert(me.delay>d0+200,'passar a vez soma atraso');}
   for(let i=0;i<20;i++)frameCallback();
   // golpe forte custa mais atraso que golpe fraco
   assert(MS.WEAPONS.fogo2.dmg>MS.WEAPONS.teia.dmg);
@@ -199,3 +199,44 @@ console.log('OK: variantes de golpe, novos tipos, 11 fases, Magikarp -> Gyarados
 }
 assert([...elements.values()].every(e=>!/(?:NaN|undefined)/.test(e.innerHTML)), 'camadas sem NaN depois das ilhas');
 console.log('OK: ilhas flutuantes, buracos e túneis, queda, ordem por atraso, vento 2D e Cavar.');
+
+// ---- sexta leva: faixa de mira por espécie, ângulo em relação à horizontal, atravessar Pokémon, confirmação do reinício ----
+{
+  assert.deepEqual(Array.from(MS.aimRange('caterpie')),[0,180],'Caterpie escolhe 180°');
+  assert.deepEqual(Array.from(MS.aimRange('magikarp')),[0,180]);
+  assert.equal(MS.aimRange('gyarados')[1]-MS.aimRange('gyarados')[0],30,'Gyarados só tem 30°');
+  for(const sp of Object.keys(MS.SPECIES)){const r=MS.aimRange(sp);assert(r[1]>r[0],sp+' faixa');}
+  // no plano, a faixa do Gyarados fica entre 30° e 60° da horizontal; segurar ↑ não passa do limite
+  debug.setMap({w:800,arch:'flat',layout:'sides'});debug.newCampaign('gyarados');debug.beginStage(0);
+  let u=debug.get().units[0];u.tilt=0;
+  const [lo,hi]=debug.aimWindow(u);assert(Math.abs(lo-30)<1e-6&&Math.abs(hi-60)<1e-6,'faixa 30–60 no plano');
+  const k=debug.keys||null;
+  // inclinação gira a faixa: morro para baixo à frente libera ângulos mais baixos
+  u.tilt=0.3;const w2=debug.aimWindow(u);assert(w2[0]<lo-10,'no morro a faixa gira');u.tilt=0;
+  // atirar usa o ângulo absoluto (sem somar a inclinação)
+  debug.setAngle(45);debug.fire();assert.equal(debug.get().state,'flying');
+  for(let i=0;i<700&&debug.get().state==='flying';i++)frameCallback();
+  // Pokémon atravessam uns aos outros ao andar
+  debug.setMap({w:800,arch:'flat',layout:'mixed'});debug.newCampaign('charmander');debug.beginStage(0);
+  const g=debug.get();const me=g.units[0],other=g.units[1];
+  other.x=me.x+14;other.y=me.y;
+  for(let i=0;i<60;i++){me.face=1;}
+  const x0=me.x;for(let i=0;i<40;i++){me.air=false;me.x+=0;}
+  // walkUnit é interno: simula as teclas
+  const before=me.x;g.state;debug.setAngle(45);
+  // reinício pede confirmação e pausa o jogo
+  hooks.restart();let p=debug.get().panel;assert(p&&p.pause&&p.buttons.length===2,'↻ abre a confirmação');
+  const st=debug.get().state,f0=debug.get().units.map(v=>v.delay).join();for(let i=0;i<30;i++)frameCallback();
+  assert.equal(debug.get().state,st,'jogo parado durante a confirmação');
+  p.buttons[0].fn();assert(!debug.get().panel,'Continuar fecha a pergunta');
+  hooks.restart();debug.get().panel.buttons[1].fn();assert(!debug.get().panel&&debug.get().state!=='over','Reiniciar recomeça a fase');
+  debug.setMap(null);
+}
+{
+  // a IA dos selvagens chega a atirar (planeja dentro da faixa de mira e define a força)
+  debug.newCampaign('charmander');debug.beginStage(1);
+  let g=debug.get();if(g.state==='aim'&&g.turnTeam===0)debug.passTurn();
+  let fired=false;for(let i=0;i<2400&&!fired;i++){frameCallback();g=debug.get();if(g.state==='flying'&&g.turnTeam===1)fired=true;if(g.state==='aim'&&g.turnTeam===0)debug.passTurn();}
+  assert(fired,'selvagem atirou');
+}
+console.log('OK: faixa de mira por espécie, ângulo absoluto, confirmação do reinício, IA atira.');

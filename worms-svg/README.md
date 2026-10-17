@@ -32,9 +32,14 @@ Jogo de artilharia por turnos feito inteiramente com SVG. Personagens, terreno d
 18. **Batalha no estilo dos mobiles (GunBound):**
     - **Ilhas flutuantes:** as fases agora são ilhas soltas no céu, com vãos entre elas e rocha pendurada por baixo. Quem cai das ilhas vai para a água e está fora.
     - **Terreno destrutível de verdade:** cada explosão abre um buraco redondo, que pode virar cratera funda, túnel ou partir a ilha. Quem está em cima despenca. A grama queima onde o golpe passou.
-    - **Andar como os mobiles:** o Pokémon sobe degraus pequenos, para em paredes e tetos de túnel, cai em buracos e **inclina o corpo** com o morro. Dá para andar até a beira e cair (a IA não faz isso).
+    - **Andar como os mobiles:** o Pokémon sobe degraus pequenos, para em paredes e tetos de túnel, cai em buracos e **inclina o corpo** com o morro. Dá para andar até a beira e cair (a IA não faz isso). Os Pokémon **atravessam uns aos outros** ao andar, sem travar.
     - **Ordem por atraso:** não é mais um time de cada vez. Joga o Pokémon (de qualquer lado) com menos **atraso** acumulado. Golpes fortes custam mais atraso; andar e demorar também. O painel **ORDEM · ATRASO** (topo esquerdo) mostra quem vem a seguir. O time com menos Pokémon paga menos atraso por ação, para 1 contra 3 continuar justo.
-    - **Mira relativa ao corpo:** o ângulo é medido a partir do corpo inclinado, então num morro o mesmo ângulo sai mais alto ou mais baixo. Virar para o outro lado espelha a mira.
+    - **Ângulo e faixa de mira:** o ângulo mostrado é sempre em relação à **horizontal**. Cada espécie tem uma **faixa de mira** (a fatia clara no mostrador), medida a partir do corpo, que **gira com a inclinação do chão**:
+      - fracos escolhem quase qualquer ângulo, **180°** (Caterpie, Metapod, Magikarp, Rattata, Pidgey, Zubat, Gastly, Magnemite, Jigglypuff);
+      - a maioria tem **0° a 90°**;
+      - evoluções intermediárias têm **15° a 75°** (Charmeleon, Ivysaur, Wartortle, Golbat, Graveler, Magneton, Dewgong, Electabuzz, Magmar, Scyther, Exeggutor);
+      - os fortes só têm **30°** (30° a 60°: Gyarados, Dragonair, Onix, Snorlax, Gengar, Machamp, Arcanine, Lapras).
+      Para conseguir um ângulo fora da faixa, ande até um morro: subindo, a faixa fica mais alta; descendo, mais baixa. Virar para o outro lado espelha a mira.
     - **Vento em qualquer direção:** muda a cada turno, inclusive para cima e para baixo (bússola no topo).
     - **Barra de baixo:** mostrador do ângulo, força com a **marca do último tiro** daquele Pokémon e barra de movimento. Cada turno tem **30 segundos**; se acabar, passa a vez. **P** (ou o botão **PASSAR**) passa a vez de propósito.
     - **Cavar (Onix):** o golpe entra no chão, abre um túnel e explode lá dentro.
@@ -94,12 +99,12 @@ Relações usadas: Pedra > Fogo, Voador, Inseto · Terra > Fogo, Elétrico, Pedr
 | B | ativar/cancelar a Pokébola (campanha) |
 | G | trocar de golpe (quando o Pokémon tem dois) |
 | P | passar a vez (a ordem dos turnos é por atraso) |
-| R | reiniciar a fase |
+| R | reiniciar a fase (pede confirmação) |
 | M | liga/desliga o som |
 | O (ou botão ⚙) | menu lateral de ajustes: brilho da tela e volume do som (o jogo pausa; ← → ajusta, ↑ ↓ escolhe). Fica salvo no navegador |
 | ESC | volta ao menu |
 
-**No celular:** botões na tela (◀ ▶ andar, ▲ ▼ mirar, segure TIRO para carregar e solte para atirar, BOLA, GOLPE (quando houver dois golpes), PASSAR, ↻ reinicia, ⚙ ajustes à esquerda, ☰ menu, 🔊 som). Jogue com o celular deitado. Menus funcionam por toque. Em mapas largos, arraste na tela ou toque no minimapa para olhar o resto do mapa.
+**No celular:** botões na tela (◀ ▶ andar, ▲ ▼ mirar, segure TIRO para carregar e solte para atirar, BOLA, GOLPE (quando houver dois golpes), PASSAR, ↻ reinicia (pede confirmação), ⚙ ajustes à esquerda, ☰ menu, 🔊 som). Jogue com o celular deitado. Menus funcionam por toque. Em mapas largos, arraste na tela ou toque no minimapa para olhar o resto do mapa.
 
 ## Visual 2.5D e som
 

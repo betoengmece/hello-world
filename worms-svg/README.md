@@ -43,6 +43,14 @@ Jogo de artilharia por turnos feito inteiramente com SVG. Personagens, terreno d
     - **Vento em qualquer direção:** muda a cada turno, inclusive para cima e para baixo (bússola no topo).
     - **Barra de baixo:** mostrador do ângulo, força com a **marca do último tiro** daquele Pokémon e barra de movimento. Cada turno tem **30 segundos**; se acabar, passa a vez. **P** (ou o botão **PASSAR**) passa a vez de propósito.
     - **Cavar (Onix):** o golpe entra no chão, abre um túnel e explode lá dentro.
+19. **Golpes especiais (extra, alterne com G ou GOLPE):** algumas espécies ganharam um golpe a mais, sem perder os que já tinham:
+    - **Ataque Subterrâneo** (Dugtrio): ao bater no chão, entra na terra, corre por baixo e estoura **embaixo do inimigo** (dá para ver a poeira subindo por onde ele passa).
+    - **Raio do Céu** (Pikachu, Magneton) e **Tempestade** (Electabuzz, 3 raios): o golpe marca o ponto, aparece um aviso piscando e **cai um raio do céu** ali.
+    - **Fissura** (Geodude, Graveler, Onix): abre um **buraco enorme** no terreno, mas causa pouco dano. Ótimo para derrubar quem está em cima.
+    - **Teleporte** (Starmie, Exeggutor): o Pokémon **aparece onde o golpe cair** (se cair na água, falha).
+    - **Hiper Raio** (Gyarados, Dragonair, Snorlax, Pidgeotto): quando o golpe cai, sai um **feixe de luz do Pokémon até o ponto**, atravessando o terreno e acertando todos no caminho. Os voadores (Pidgeotto) **sobem** antes de disparar e depois descem.
+    - **Redemoinho** (Pidgey, Butterfree, Golbat): **puxa e agrupa** quem está perto do impacto (pode puxar alguém para dentro de um vão!).
+    - **Proteção** (Metapod, Squirtle, Wartortle, Lapras): cria uma **barreira** que dura 2 turnos do Pokémon; enquanto dura, ele leva só 30% do dano. A IA usa quando está machucada.
 
 ## Tipos e ataques
 

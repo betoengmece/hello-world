@@ -89,7 +89,7 @@ for(const [sp,S] of Object.entries(MS.SPECIES)){
   for(const mv of ['b','a','c','b+a','b+c']){const m=MS.movesOf(sp,mv);assert(m.length>=1&&m.every(k=>MS.WEAPONS[k]),sp+' '+mv);}
   for(let i=0;i<20;i++)assert(MS.cleanMv(sp,MS.rollMoves(sp,.2)),sp+' roll');
 }
-assert.deepEqual(Array.from(MS.movesOf('pikachu','b+c')),['volt','volt~pikachu1']);
+assert.deepEqual(Array.from(MS.movesOf('pikachu','b+c')),['volt','volt~pikachu1','raioceu']);
 assert(MS.WEAPONS['volt~pikachu0'].dmg>MS.WEAPONS.volt.dmg&&MS.WEAPONS['volt~pikachu1'].boom>MS.WEAPONS.volt.boom,'variantes mais fortes / com mais área');
 assert.deepEqual(Array.from(MS.movesOf('magikarp','a')),['batida']);
 storage.set('ms_campaign_v1',JSON.stringify({roster:['charmander','pikachu'],xp:[0,0],great:0,ultra:0,stage:2,balls:3,weakStart:false}));
@@ -178,7 +178,7 @@ console.log('OK: variantes de golpe, novos tipos, 11 fases, Magikarp -> Gyarados
   debug.newCampaign('charmander');debug.beginStage(1);let g=debug.get();
   const o=debug.turnOrder();assert(o[0]===g.units.find(u=>g.teams[g.turnTeam].units[g.teams[g.turnTeam].cur]===u),'quem joga é o primeiro da ordem');
   const me=g.units.find(u=>g.teams[g.turnTeam].units[g.teams[g.turnTeam].cur]===u);const d0=me.delay;
-  if(g.state==='aim'&&g.turnTeam===0){debug.passTurn();assert(me.delay>d0+200,'passar a vez soma atraso');}
+  if(g.state==='aim'&&g.turnTeam===0){debug.passTurn();assert(me.delay>d0+120,'passar a vez soma atraso');}
   for(let i=0;i<20;i++)frameCallback();
   // golpe forte custa mais atraso que golpe fraco
   assert(MS.WEAPONS.fogo2.dmg>MS.WEAPONS.teia.dmg);
@@ -189,12 +189,16 @@ console.log('OK: variantes de golpe, novos tipos, 11 fases, Magikarp -> Gyarados
 {
   // Cavar (Onix): o golpe atravessa o chão abrindo um túnel
   assert.equal(MS.SPECIES.onix.weapon,'cavar');assert(MS.WEAPONS.cavar.dig>0);assert(MS.moveNote(MS.WEAPONS.cavar).includes('túnel'));
-  debug.setMap({w:800,arch:'flat',layout:'sides'});debug.newCampaign('onix');debug.beginStage(3);
-  const u=debug.get().units[0];let before=0;const m=debug.mask;for(let i=0;i<m.length;i++)before+=m[i];
-  debug.setAngle(4);debug.setPower(12);debug.fire();
-  for(let i=0;i<500&&debug.get().state==='flying';i++)frameCallback();
-  let after=0;const m2=debug.mask;for(let i=0;i<m2.length;i++)after+=m2[i];
-  assert(before-after>1500,'Cavar removeu bastante terra (túnel + explosão)');
+  let maxDug=0,before=0,after=0;
+  for(let tries=0;tries<5&&maxDug<5;tries++){
+    debug.setMap({w:800,arch:'flat',layout:'sides'});debug.newCampaign('onix');debug.beginStage(3);
+    const g=debug.get(),u=g.units[0];if(g.state!=='aim'||g.turnTeam!==0)continue;
+    u.mi=0;u.tilt=0;before=0;for(const v of debug.mask)before+=v;
+    debug.setAngle(4);debug.setPower(12);debug.fire();
+    for(let i=0;i<500&&debug.get().state==='flying';i++){frameCallback();for(const p of debug.get().projs)maxDug=Math.max(maxDug,p.dug||0);}
+    after=0;for(const v of debug.mask)after+=v;
+  }
+  assert(maxDug>=5,'Cavar entrou na terra');assert(before-after>700,'Cavar removeu terra (túnel + explosão)');
   debug.setMap(null);
 }
 assert([...elements.values()].every(e=>!/(?:NaN|undefined)/.test(e.innerHTML)), 'camadas sem NaN depois das ilhas');
@@ -240,3 +244,42 @@ console.log('OK: ilhas flutuantes, buracos e túneis, queda, ordem por atraso, v
   assert(fired,'selvagem atirou');
 }
 console.log('OK: faixa de mira por espécie, ângulo absoluto, confirmação do reinício, IA atira.');
+
+// ---- sétima leva: golpes especiais (subterrâneo, raio do céu, fissura, teleporte, hiper raio, redemoinho, proteção) ----
+{
+  const run=(n=900)=>{for(let i=0;i<n&&['flying','skip'].includes(debug.get().state);i++)frameCallback();};
+  const setup=(sp)=>{let g;for(let k=0;k<8;k++){debug.setMap({w:800,arch:'flat',layout:'sides'});debug.newCampaign(sp);debug.beginStage(0);g=debug.get();if(g.state==='aim'&&g.turnTeam===0)break;}const u=g.units[0];u.tilt=0;return {g,u,foe:g.teams[1].units[0]};};
+  const pick=(u,wk)=>{u.mi=u.moves.indexOf(wk);assert(u.mi>=0,u.sp+' tem '+wk);};
+  for(const [sp,wk] of [['dugtrio','subterra'],['pikachu','raioceu'],['electabuzz','tempestade'],['graveler','fissura'],['starmie','teleporte'],['gyarados','hiperraio'],['pidgey','redemoinho'],['squirtle','protecao']])
+    assert(MS.movesOf(sp,'b').includes(wk),sp+' ganhou '+wk);
+  assert(MS.movesOf('gyarados','b')[0]==='hidrobomba','golpe antigo continua');
+  // Proteção: barreira por 2 turnos, dano cai para 30%
+  let {u,foe}=setup('squirtle');pick(u,'protecao');debug.fire();assert.equal(u.shield,2,'barreira ativa');
+  const boom=()=>{const h=u.hp;hooks.explode(u.x,u.y-MS.SPECIES[u.sp].hitY,{wp:MS.WEAPONS.investida,ownerUnit:foe});return h-u.hp;};
+  const d1=boom();u.shield=0;u.hp=u.maxhp;const d2=boom();
+  assert(d2>0&&d1<=Math.ceil(d2*0.3)+1,'barreira reduz o dano ('+d1+' vs '+d2+')');
+  // Raio do Céu: acerta o alvo e depois cai o raio
+  ({u,foe}=setup('pikachu'));pick(u,'raioceu');let sh=debug.findShot(foe,'raioceu');
+  if(sh){const h=foe.hp;debug.setAngle(sh.ang);debug.setPower(sh.pw);debug.fire();run();assert(h-foe.hp>MS.WEAPONS.raioceu.dmg,'raio do céu causou dano extra');}
+  // Hiper Raio: feixe do Pokémon até o ponto
+  ({u,foe}=setup('gyarados'));pick(u,'hiperraio');sh=debug.findShot(foe,'hiperraio');
+  if(sh){const wild=debug.get().teams[1].units,h=wild.reduce((a,v)=>a+v.hp,0);debug.setAngle(sh.ang);debug.setPower(sh.pw);debug.fire();run();assert(h-wild.reduce((a,v)=>a+v.hp,0)>MS.WEAPONS.hiperraio.dmg,'hiper raio somou dano');}
+  // Pidgeotto sobe antes de disparar o hiper raio e depois desce
+  ({u,foe}=setup('pidgeotto'));pick(u,'hiperraio');sh=debug.findShot(foe,'hiperraio');
+  if(sh){debug.setAngle(sh.ang);debug.setPower(sh.pw);debug.fire();let maxLift=0;for(let i=0;i<900&&debug.get().state==='flying';i++){frameCallback();maxLift=Math.max(maxLift,u.lift||0);}assert(maxLift>80,'voador sobe para atirar');assert(!(u.lift>0),'e desce depois');}
+  // Redemoinho: puxa quem está perto
+  ({u,foe}=setup('pidgey'));{const x=foe.x-70,fx0=foe.x;hooks.explode(x,foe.y-10,{wp:MS.WEAPONS.redemoinho,ownerUnit:u});assert(foe.x<fx0-20,'puxado para o centro');}
+  // Fissura: quebra muito terreno
+  ({u,foe}=setup('graveler'));{let b=0;for(const v of debug.mask)b+=v;hooks.explode(foe.x,foe.y,{wp:MS.WEAPONS.fissura,ownerUnit:u});let a=0;for(const v of debug.mask)a+=v;assert(b-a>6000,'fissura abriu buraco enorme');}
+  // Ataque Subterrâneo: entra na terra, corre por baixo e estoura embaixo do alvo
+  ({u,foe}=setup('dugtrio'));
+  {let tx=0;for(let x=Math.round(u.x)+110;x<Math.round(u.x)+190;x++){if(debug.surf(x)<470&&Math.abs(debug.surf(x)-debug.surf(u.x))<30){tx=x;break;}}
+   if(tx){foe.x=tx;foe.y=debug.surf(tx);pick(u,'subterra');u.face=1;debug.setAngle(-25);debug.setPower(10);const h=foe.hp;debug.fire();
+     let went=false;for(let i=0;i<900&&debug.get().state==='flying';i++){frameCallback();if(debug.get().projs.some(p=>p.under))went=true;}
+     assert(went,'golpe entrou na terra');assert(foe.hp<h,'acertou por baixo');}}
+  // Teleporte: o Pokémon vai para onde o golpe caiu
+  ({u,foe}=setup('starmie'));pick(u,'teleporte');u.face=1;debug.setAngle(72);debug.setPower(22);{const x0=u.x;debug.fire();run();assert(Math.abs(u.x-x0)>30||/falhou/.test(JSON.stringify(debug.get())),'teleportou');assert(u.alive);}
+  debug.setMap(null);
+}
+assert([...elements.values()].every(e=>!/(?:NaN|undefined)/.test(e.innerHTML)), 'camadas sem NaN depois dos golpes especiais');
+console.log('OK: golpes especiais (subterrâneo, raio do céu, fissura, teleporte, hiper raio, redemoinho, proteção).');

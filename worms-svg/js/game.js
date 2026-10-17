@@ -97,6 +97,7 @@
   let menuPage = 'main', pageNo = 0, wxRounds = 3, wxPrev = null, wxK = 1;
   let guest = null, gCool = 1, gMode = '', gT = 0, gSide = 1, gDelay = 100, lastShotGuest = false, splashU = null, evo = null;
   let weather = null, lightT = 300, bolt = null;
+  let bolts = [], beams = [];   // raios do céu esperando para cair; hiper raios em andamento
   let terrAt = 0, windY = 0, windA = 0, windS = 0, turnT = 0, roundTurns = 0;   // vento em qualquer direção; tempo do turno; turnos na rodada
   let ballMode = false, ballType = 'ball', lastBall = false, lastBallType = 'ball', pickups = [], ai = null, cap = null, panel = null, pendingPanel = null;
   let campaign = null, stageIdx = 0, stageCaught = [], intro = null, teamSel = null;
@@ -155,6 +156,8 @@
     else if (state === 'flying' && projs.length) {
       const p = projs[Math.floor(projs.length / 2)];
       tx = p.x; ty = p.y; tz = scene === 'intro' ? 1.2 : 1.35; k = 0.12;
+    } else if (state === 'flying' && (bolts.length || beams.length)) {
+      const b = bolts[0] || beams[0]; tx = b.x !== undefined ? b.x : (b.u.x + b.tx) / 2; ty = b.ty !== undefined ? Math.min(b.u.y, b.ty) - 20 : 250; tz = 1.15; k = 0.1;
     } else if (state === 'settle') { tx = focus.x; ty = focus.y; tz = 1.25; }
     else if (state === 'guest' && guest) { tx = guest.x; ty = guest.y - 40; tz = 1.45; }
     else if ((state === 'aim' || state === 'ai') && charging && scene === 'battle') {
@@ -452,7 +455,7 @@
     power = 0; charging = false; ballMode = false; lastBall = false; pickups = []; weather = null; bolt = null; ai = null; cap = null; panel = null; pendingPanel = null;
     keys = {}; wxPrev = null; wxK = 1;
     guest = null; gCool = 1; gMode = ''; lastShotGuest = false; splashU = null; evo = null;
-    roundTurns = 0; windY = 0; windS = 0; turnT = TURN_TIME;
+    roundTurns = 0; windY = 0; windS = 0; turnT = TURN_TIME; bolts = []; beams = [];
     cam.x = 400; cam.y = 250; cam.z = 1; cam.shake = 0;
     Sfx.chargeStop();
   }
@@ -1041,6 +1044,18 @@
     dirty = true;
   }
 
+  // Proteção: enquanto a barreira dura, o Pokémon leva só 30% do dano
+  const shieldDmg = (u, d) => (u.shield > 0 ? Math.round(d * 0.3) : d);
+  // dano direto (raio do céu, hiper raio)
+  function zap(u, base, wp, owner) {
+    const mult = typeMult(wp.type, spOf(u).types), d = shieldDmg(u, Math.round(base * mult * wxMul(wp.type)));
+    if (d <= 0) return 0;
+    u.hp -= d; u.hurt = 22;
+    floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 18, t: 0, text: '-' + d, col: sideColor(u) });
+    if (mult > 1) floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 34, t: 6, text: 'Super efetivo!', col: '#ff9a1a', size: 12 });
+    if (owner && owner.team === 0 && u.team > 0) owner.dealt += d;
+    Sfx.hurt(); return d;
+  }
   const sideColor = u => (u.team === 2 ? GUEST_COL : teams[u.team] ? teams[u.team].color : '#fff');
 
   const wxMul = type => (weather && WEATHER[weather].boost[type]) || 1;
@@ -1060,7 +1075,7 @@
       const c = centerOf(u), d = Math.hypot(c.x - x, c.y - y);
       if (d >= wp.boom) continue;
       const k = 1 - d / wp.boom, mult = typeMult(wp.type, spOf(u).types);
-      const dmg = Math.round(wp.dmg * k * mult * wxMul(wp.type) * (p.crit ? 1.6 : 1));
+      const dmg = shieldDmg(u, Math.round(wp.dmg * k * mult * wxMul(wp.type) * (p.crit ? 1.6 : 1)));
       if (dmg > 0) {
         u.hp -= dmg; u.hurt = 24; anyHurt = true;
         if (p.crit && k > 0.2) floaters.push({ x: u.x + 16, y: u.y - spOf(u).h * u.scale - 4, t: 4, text: 'Crítico!', col: '#ff5a5a', size: 12 });
@@ -1080,6 +1095,9 @@
     if (wp.build) raiseTerrain(x, wp.boom + 4, wp.build);
     if (wp.quake) quakeHit(x, p, wp);
     if (wp.chain) chainHit(x, y, p, wp);
+    if (wp.pull) pullHit(x, y, p, wp);
+    if (wp.bolts) { wp.bolts.forEach((dx, k) => bolts.push({ x: clamp(x + dx, 4, W - 4), t: -(34 + k * 10), dmg: wp.bdmg, wp, owner: p.ownerUnit })); showMsg('Um raio vai cair do céu!', 60); }
+    if (wp.beam && p.ownerUnit && p.ownerUnit.alive) beams.push({ u: p.ownerUnit, tx: x, ty: y, wp, t: 0, rise: !!(SPECIES[p.ownerUnit.sp].fly && !p.ownerUnit.flying) });
     if (anyHurt && wxMul(wp.type) > 1) floaters.push({ x, y: y - 30, t: 0, text: WEATHER[weather].name + ' reforça!', col: '#9fe0ff', size: 12 });
     if (anyHurt) Sfx.hurt();
     if (sup) setTimeout(() => Sfx.superEff(), 140);
@@ -1125,7 +1143,7 @@
       if (!u.alive || u.hidden || u === p.ownerUnit || u.flying) continue;
       const dx = Math.abs(u.x - x); if (dx >= wp.quake) continue;
       const k = 1 - dx / wp.quake, mult = typeMult(wp.type, spOf(u).types);
-      const d = Math.round(wp.dmg * 0.9 * k * mult); if (d <= 0) continue;
+      const d = shieldDmg(u, Math.round(wp.dmg * 0.9 * k * mult)); if (d <= 0) continue;
       u.hp -= d; u.hurt = 20; floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 18, t: 4, text: '-' + d, col: sideColor(u) });
       if (u.team === 0 && p.ownerUnit && p.ownerUnit.team !== 0) { /* fogo amigo não conta */ }
     }
@@ -1138,7 +1156,7 @@
       if (!u.alive || u.hidden || u === p.ownerUnit || n >= 2) continue;
       const c = centerOf(u), d = Math.hypot(c.x - x, c.y - y);
       if (d < wp.boom || d > wp.chain) continue;
-      const mult = typeMult(wp.type, spOf(u).types), dm = Math.round(wp.dmg * 0.45 * mult);
+      const mult = typeMult(wp.type, spOf(u).types), dm = shieldDmg(u, Math.round(wp.dmg * 0.45 * mult));
       if (dm <= 0) continue;
       u.hp -= dm; u.hurt = 20; n++;
       floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 18, t: 0, text: '-' + dm, col: sideColor(u) });
@@ -1146,6 +1164,81 @@
       Sfx.hurt();
     }
   }
+
+  // Redemoinho: puxa para o centro quem estiver perto (pode puxar para dentro de um vão!)
+  function pullHit(x, y, p, wp) {
+    for (const u of units) {
+      if (!u.alive || u.hidden || u === p.ownerUnit) continue;
+      const d = Math.abs(u.x - x); if (d > wp.pull || d < 6 || Math.abs(u.y - y) > 110) continue;
+      const dir = Math.sign(x - u.x), n = Math.round(Math.min(d - 6, wp.pullDist * (1 - 0.4 * d / wp.pull)));
+      for (let i = 0; i < n; i++) { const ny = u.flying ? u.y : stepTo(u, u.x + dir); if (ny === null) break; u.x += dir; if (!u.flying) u.y = ny; }
+      floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 34, t: 6, text: 'Puxado!', col: '#dff6ff', size: 12 });
+    }
+    for (let i = 0; i < 26; i++) { const a = rnd(0, 6.3), r = rnd(30, wp.pull); addPart({ x: x + Math.cos(a) * r, y: y - 10 + Math.sin(a) * r * 0.4, vx: -Math.cos(a) * 2.2, vy: -Math.sin(a) * 0.8, g: 0, life: 30, max: 30, r: rnd(1.4, 2.6), col: '#ffffff', kind: 'drop' }); }
+    Sfx.boom('gust');
+  }
+  // Raio do Céu: depois do aviso, cai um raio na coluna marcada
+  function stepBolts() {
+    for (const b of bolts) {
+      b.t++;
+      if (b.t < 0) { if (b.t % 12 === 0) Sfx.voltWarn(); continue; }
+      if (b.t !== 0) continue;
+      const sy = Math.min(surf(b.x, 0), WATER);
+      const pts = [[b.x + rnd(-10, 10), -40]];
+      for (let y = 0; y < sy; y += rnd(26, 46)) pts.push([b.x + rnd(-13, 13), y]);
+      pts.push([b.x, sy]);
+      for (const u of units) if (u.alive && !u.hidden && Math.abs(u.x - b.x) < 16 + hitRof(u) * 0.6 && u.y <= sy + 30) zap(u, b.dmg, b.wp, b.owner);
+      if (sy < WATER) for (let k = 0; k < 4; k++) carve(b.x + rnd(-2, 2), sy + k * 10, 9, k === 3);
+      fx.push({ sky: true, pts, x: b.x, y: sy, t: 0, max: 22, r: 0 });
+      flash.a = Math.min(0.45, flash.a + 0.3); flash.col = '#fffbb0';
+      cam.shake = Math.max(cam.shake, 7); focus = { x: b.x, y: sy };
+      spray(b.x, sy, 14, '#fff27a', 3.2, 0.12, 30, 2, 'spark'); Sfx.boom('thunder');
+    }
+    bolts = bolts.filter(b => b.t < 1);
+  }
+  // Hiper Raio: o feixe sai do Pokémon até onde o golpe caiu (os voadores sobem antes e descem depois)
+  function stepBeams() {
+    for (const b of beams) {
+      const u = b.u; b.t++;
+      const fireAt = b.rise ? 40 : 12;
+      if (b.rise && b.t <= 34) u.lift = Math.min(110, (u.lift || 0) + 110 / 34);
+      if (b.t === fireAt) fireBeam(b);
+      if (b.rise && b.t > fireAt + 26) u.lift = Math.max(0, (u.lift || 0) - 110 / 30);
+      b.done = b.t > (b.rise ? fireAt + 60 : fireAt + 28);
+      if (b.done) u.lift = 0;
+    }
+    beams = beams.filter(b => !b.done);
+  }
+  function fireBeam(b) {
+    const u = b.u; if (!u.alive) return;
+    u.face = Math.sign(b.tx - u.x) || u.face;
+    const m = mouthAt(u, u.face, false), ox = m.x, oy = m.y - (u.lift || 0);
+    const dx = b.tx - ox, dy = b.ty - oy, L = Math.hypot(dx, dy) || 1, ex = b.tx + dx / L * 34, ey = b.ty + dy / L * 34;
+    for (const v of units) {
+      if (!v.alive || v.hidden || v === u) continue;
+      const c = centerOf(v), t = clamp(((c.x - ox) * (ex - ox) + (c.y - oy) * (ey - oy)) / ((ex - ox) ** 2 + (ey - oy) ** 2), 0, 1);
+      if (Math.hypot(c.x - (ox + (ex - ox) * t), c.y - (oy + (ey - oy) * t)) < hitRof(v) + 8) zap(v, b.wp.beam, b.wp, u);
+    }
+    for (let k = 26; k <= L + 34; k += 11) carve(ox + dx / L * k, oy + dy / L * k, 6, false);
+    fx.push({ beam: true, x: ox, y: oy, x2: ex, y2: ey, t: 0, max: 28, r: 0 });
+    flash.a = Math.min(0.5, flash.a + 0.35); flash.col = '#fff6d0'; cam.shake = Math.max(cam.shake, 6);
+    u.breath = 24; Sfx.boom('dragon');
+  }
+  // Teleporte: o Pokémon aparece onde o golpe caiu
+  function teleportTo(p, outcome, target) {
+    const u = p.ownerUnit; if (!u || !u.alive) return;
+    let x = clamp(p.x, 12, W - 12);
+    if (target) x = clamp(target.x + (u.x < target.x ? -26 : 26), 12, W - 12);
+    const ty = outcome === 'gone' ? H + 200 : surf(x, Math.min(p.y, H) - 40);
+    if (ty >= WATER - 4) { showMsg('Teleporte falhou!', 70); Sfx.weakEff(); return; }
+    spray(u.x, u.y - 14, 16, '#ff8ad0', 3, 0.02, 34, 2, 'spark');
+    u.x = x; u.y = ty; u.vy = 0; u.air = false; focus = { x, y: ty };
+    spray(x, ty - 14, 18, '#ffffff', 3, 0.02, 36, 2, 'spark');
+    floaters.push({ x, y: ty - spOf(u).h * u.scale - 30, t: 0, text: 'Teleporte!', col: '#ff8ad0', size: 14 });
+    Sfx.ballCatch();
+  }
+  // a superfície logo acima de um ponto debaixo da terra
+  function surfAbove(x, y) { let yy = Math.floor(y); while (yy > 0 && solid(x, yy - 1)) yy--; return yy; }
 
   // Cria os projéteis de um ataque (alguns lançam vários)
   function launch(wk, x, y, a, sp, owner, ownerUnit) {
@@ -1170,6 +1263,16 @@
       u.hop = 1; splashU = u; state = 'skip'; skipT = 80; walkBudget = 0; charging = false; power = 0; ai = null;
       Sfx.chargeStop(); Sfx.splash();
       showMsg(`${u.name} usou Splash! Mas nada aconteceu...`, 80);
+      return;
+    }
+    if (!ballMode && WEAPONS[wk].protect) {                  // Proteção: barreira em volta de si, sem tiro
+      payDelay(u, 460);
+      u.shield = WEAPONS[wk].protect; u.breath = 18;
+      state = 'skip'; skipT = 60; walkBudget = 0; charging = false; power = 0; ai = null;
+      Sfx.chargeStop(); Sfx.ballCatch();
+      spray(u.x, u.y - spOf(u).hitY * u.scale, 18, '#bff3ff', 3, 0.02, 34, 2, 'spark');
+      showMsg(`${u.name} usou Proteção! (${u.shield} turnos)`, 80);
+      lastAngles[kind + turnTeam] = elevOf(u);
       return;
     }
     payDelay(u, ballMode ? 480 : shotDelay(wk));
@@ -1259,8 +1362,25 @@
   }
 
   function stepProjs() {
+    stepBolts(); stepBeams();
     for (let i = projs.length - 1; i >= 0; i--) {
       const p = projs[i], isBall = p.wk === 'ball';
+      if (p.under) {                                          // Ataque Subterrâneo: corre por baixo da terra
+        const U = p.under, myTeam = p.ownerUnit ? p.ownerUnit.team : -1; let pop = false;
+        for (let s = 0; s < 3 && !pop; s++) {
+          p.x += U.dir * 1.5; U.left -= 1.5;
+          if (p.x < 2 || p.x > W - 2 || !solid(p.x, p.y) || U.left <= 0) pop = true;
+          else if (units.some(v => v.alive && !v.hidden && v.team !== myTeam && v.team !== 2 && Math.abs(v.x - p.x) < 7 && v.y <= p.y + 2 && v.y > p.y - 140)) pop = true;
+        }
+        if (frameNo % 3 === 0) { const sy = surfAbove(p.x, p.y); addPart({ x: p.x + rnd(-4, 4), y: sy, vx: rnd(-0.6, 0.6), vy: rnd(-1.6, -0.4), g: 0.12, life: 22, max: 22, r: rnd(1.4, 2.6), col: '#8a6a48', kind: 'ember' }); }
+        cam.shake = Math.max(cam.shake, 1.2);
+        if (!pop) continue;
+        projs.splice(i, 1);
+        const sy = solid(p.x, p.y) ? surfAbove(p.x, p.y) : p.y;
+        spray(p.x, sy, 16, '#8a6a48', 3.4, 0.16, 34, 2.6, 'chunk');
+        explode(p.x, sy - 4, p);
+        continue;
+      }
       trailFx(p);
       p.trail.push({ x: p.x, y: p.y });
       if (p.trail.length > 14) p.trail.shift();
@@ -1289,6 +1409,12 @@
           if (Math.hypot(c.x - p.x, c.y - p.y) < hitRof(u)) { target = u; break; }
         }
         if (target) { outcome = 'unit'; break; }
+        if (p.wp.burrow && solid(p.x, p.y)) {                 // entra na terra e segue por baixo
+          p.under = { dir: Math.sign(p.vx) || (p.ownerUnit ? p.ownerUnit.face : 1), left: p.wp.burrow };
+          p.y += 14; p.vx = 0; p.vy = 0; p.trail.length = 0;
+          spray(p.x, p.y - 14, 10, '#8a6a48', 2.6, 0.15, 28, 2.2, 'chunk'); Sfx.boom('rock');
+          break;
+        }
         if (p.wp.dig && p.dug && !solid(p.x, p.y)) { outcome = 'ground'; break; }   // saiu do outro lado: explode na saída
         if (p.wp.dig && solid(p.x, p.y)) {                     // Cavar: abre um túnel e explode lá dentro
           p.dug = (p.dug || 0) + 1;
@@ -1304,11 +1430,12 @@
       }
       if (!outcome) continue;
       projs.splice(i, 1);
+      if (p.wp.teleport) { teleportTo(p, outcome, target); continue; }
       if (outcome === 'gone') continue;
       if (isBall) { ballResolve(p, target, outcome); continue; }
       explode(p.x, Math.min(p.y, H), p);
     }
-    if (!projs.length && state === 'flying') state = 'settle';
+    if (!projs.length && !bolts.length && !beams.length && state === 'flying') state = 'settle';
   }
 
   function homingTarget(p) {
@@ -1338,7 +1465,7 @@
     spray(p.x, p.y, 8, '#8c8f94', 2.6, 0.17, 30, 2.4, 'chunk'); Sfx.boom('rock');
     for (const u of units) {
       if (!u.alive || u.hidden || (u === p.ownerUnit && p.age < 40)) continue;
-      const c = centerOf(u); if (Math.hypot(c.x - p.x, c.y - p.y) < 22) { const d = Math.round(p.wp.dmg * 0.35 * typeMult(p.wp.type, spOf(u).types)); u.hp -= d; u.hurt = 18; floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 18, t: 0, text: '-' + d, col: sideColor(u) }); }
+      const c = centerOf(u); if (Math.hypot(c.x - p.x, c.y - p.y) < 22) { const d = shieldDmg(u, Math.round(p.wp.dmg * 0.35 * typeMult(p.wp.type, spOf(u).types))); u.hp -= d; u.hurt = 18; floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 18, t: 0, text: '-' + d, col: sideColor(u) }); }
     }
     p.trail.length = 0;
   }
@@ -1456,6 +1583,7 @@
     turnTeam = u.team;
     const t = teams[turnTeam]; t.cur = t.units.indexOf(u);
     for (const v of units) v.stuck = false;
+    if (u.shield > 0 && --u.shield === 0) floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 30, t: 0, text: 'Barreira acabou', col: '#bff3ff', size: 12 });
     ai = null; charging = false; power = 0; ballMode = false;
     // vento muda a cada turno, em qualquer direção (força máxima depende da fase)
     const wmax = kind === 'campaign' ? STAGES[stageIdx].wind : 3;
@@ -1751,7 +1879,7 @@
     // com dois golpes, a IA simula os dois e usa o que promete mais dano
     let bestPlan = null, bestMi = 0;
     u.moves.forEach((wk, i) => {
-      if (WEAPONS[wk].none) return;
+      if (WEAPONS[wk].none || WEAPONS[wk].teleport || WEAPONS[wk].protect) return;
       const pl = planWeapon(u, wk);
       if (!bestPlan || pl.score > bestPlan.score || (pl.score === bestPlan.score && pl.near < bestPlan.near)) { bestPlan = pl; bestMi = i; }
     });
@@ -1777,6 +1905,8 @@
     a.t++;
     if (a.phase === 'think0') {
       if (u.moves.every(k => WEAPONS[k].none)) { a.phase = 'splash'; a.t = 0; showMsg(`${u.name} usou Splash!`, 80); Sfx.splash(); return; }
+      const pi = u.moves.findIndex(k => WEAPONS[k].protect);           // machucado e sem barreira: às vezes se protege
+      if (pi >= 0 && !(u.shield > 0) && u.hp / u.maxhp < 0.5 && Math.random() < 0.55) { u.mi = pi; fire(); return; }
       const f = nearestFoe(u);
       const far = f ? Math.abs(f.x - u.x) : 0;
       a.walkDir = f ? Math.sign(f.x - u.x) * (far > 430 || Math.random() < 0.7 ? 1 : -1) : -1;
@@ -1911,8 +2041,10 @@
     const sy = scene === 'intro' ? gy(u.x) : surf(u.x, u.y - 2);
     const shadow = opt.noShadow || sy > WATER ? '' : `<ellipse cx="0" cy="${f1(sy - u.y + 0.5)}" rx="${f1(11 * u.scale)}" ry="${f1(2.6 * u.scale)}" fill="#000" opacity=".25"/>`;
     const tilt = u.tilt && !u.flying ? `rotate(${f1(u.tilt * 57.3)}) ` : '';
-    return `<g transform="translate(${f1(u.x)} ${f1(u.y + hop)})">
-      ${shadow}
+    const lift = u.lift || 0;
+    const shield = u.shield > 0 && u.capScale > 0.5 ? `<circle cx="0" cy="${f1(-S.hitY * u.scale)}" r="${f1(S.hitR * u.scale * 1.75 + 4)}" fill="#8fe0ff" fill-opacity=".13" stroke="#bff3ff" stroke-width="1.8" stroke-opacity="${(0.55 + 0.3 * Math.sin(frameNo * 0.12)).toFixed(2)}"/>` : '';
+    return `<g transform="translate(${f1(u.x)} ${f1(u.y + hop - lift)})">
+      ${lift ? `<g transform="translate(0 ${f1(lift)})">${shadow}</g>` : shadow}${shield}
       <g transform="${tilt}scale(${f1(u.face * sc)} ${f1(sc)})"${flash ? ' opacity=".45"' : ''}><g${shF(u.sp, u.sh)}>${Art.draw(u.sp, ctx)}</g></g>
       ${u.sh && u.capScale > 0.5 ? glint(frameNo, -S.hitR * u.scale * 0.8, -S.hitY * u.scale - 6, 1.2, u.blinkOff) + glint(frameNo, S.hitR * u.scale * 0.9, -S.hitY * u.scale + 8, 0.9, u.blinkOff + 2) + glint(frameNo, 0, -S.h * u.scale * 0.8, 1, u.blinkOff + 4) : ''}
       ${statusIcon(u)}${web}${label}</g>`;
@@ -2188,6 +2320,7 @@
   }
 
   function projSvg(p) {
+    if (p.under) return '';
     const st = p.wp.style;
     let ph = '';
     if (p.wk === 'ball') {
@@ -2453,8 +2586,23 @@
       return `<circle cx="${f1(p.x)}" cy="${f1(p.y)}" r="${f1(p.r)}" fill="${p.col}" opacity="${op}"/>`;
     }).join('');
 
-    $('fx').innerHTML = fx.map(f => {
+    $('fx').innerHTML = bolts.map(b => {                     // aviso piscando onde o raio vai cair
+      if (b.t >= 0 || (frameNo >> 3) % 2) return '';
+      const sy = Math.min(surf(b.x, 0), WATER);
+      return `<line x1="${f1(b.x)}" y1="${f1(sy - 220)}" x2="${f1(b.x)}" y2="${f1(sy)}" stroke="#fff27a" stroke-width="2" stroke-dasharray="6 6" opacity=".8"/>
+        <circle cx="${f1(b.x)}" cy="${f1(sy)}" r="14" fill="none" stroke="#fff27a" stroke-width="2"/><text x="${f1(b.x)}" y="${f1(sy - 226)}" text-anchor="middle" font-size="16">⚡</text>`;
+    }).join('') + fx.map(f => {
       const k = f.t / f.max;
+      if (f.sky) {
+        const d = f.pts.map((q, i) => (i ? 'L' : 'M') + f1(q[0]) + ',' + f1(q[1])).join(' ');
+        return `<path d="${d}" fill="none" stroke="#ffd000" stroke-width="9" opacity="${(0.45 * (1 - k)).toFixed(2)}" stroke-linejoin="round"/><path d="${d}" fill="none" stroke="#fffbe0" stroke-width="3" opacity="${(1 - k).toFixed(2)}" stroke-linejoin="round"/>`;
+      }
+      if (f.beam) {
+        const w = 16 * (1 - k * 0.7);
+        return `<line x1="${f1(f.x)}" y1="${f1(f.y)}" x2="${f1(f.x2)}" y2="${f1(f.y2)}" stroke="#ffb43c" stroke-width="${f1(w + 10)}" stroke-linecap="round" opacity="${(0.35 * (1 - k)).toFixed(2)}"/>
+          <line x1="${f1(f.x)}" y1="${f1(f.y)}" x2="${f1(f.x2)}" y2="${f1(f.y2)}" stroke="#fff3c0" stroke-width="${f1(w)}" stroke-linecap="round" opacity="${(0.9 * (1 - k)).toFixed(2)}"/>
+          <line x1="${f1(f.x)}" y1="${f1(f.y)}" x2="${f1(f.x2)}" y2="${f1(f.y2)}" stroke="#ffffff" stroke-width="${f1(w * 0.35)}" stroke-linecap="round" opacity="${(1 - k).toFixed(2)}"/>`;
+      }
       if (f.bolt) {
         const n = 6; let d = `M${f1(f.x)},${f1(f.y)}`;
         for (let i = 1; i < n; i++) { const t = i / n; d += ` L${f1(f.x + (f.x2 - f.x) * t + ((i * 7 + f.t) % 5 - 2) * 3)},${f1(f.y + (f.y2 - f.y) * t + ((i * 5 + f.t) % 5 - 2) * 3)}`; }

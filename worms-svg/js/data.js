@@ -102,6 +102,15 @@
   const P0 = (k, o) => { MS.WEAPONS[k] = o; };
   // Cavar: entra no chão, abre um túnel e explode lá dentro (quem estiver em cima despenca)
   P0('cavar', { label: 'Cavar', type: 'ground', style: 'rock', count: 1, spread: 0, speed: 1.05, grav: 1.15, boom: 40, carve: 30, dmg: 50, windMul: 0.3, size: 1.2, dig: 66, digR: 12, shake: 9 });
+  // ---------- Golpes especiais (extras de algumas espécies; alternar com G) ----------
+  P0('subterra',   { label: 'Ataque Subterrâneo', type: 'ground',   style: 'rock',    count: 1, spread: 0, speed: 1.0,  grav: 1.1, boom: 34, carve: 22, dmg: 46, windMul: 0.4, size: 0.9, burrow: 240 });
+  P0('raioceu',    { label: 'Raio do Céu',        type: 'electric', style: 'thunder', count: 1, spread: 0, speed: 1.05, grav: 1.0, boom: 18, carve: 6,  dmg: 10, windMul: 0.8, size: 0.8, bolts: [0], bdmg: 46 });
+  P0('tempestade', { label: 'Tempestade',         type: 'electric', style: 'thunder', count: 1, spread: 0, speed: 1.05, grav: 1.0, boom: 18, carve: 6,  dmg: 8,  windMul: 0.8, size: 0.9, bolts: [-46, 0, 46], bdmg: 30 });
+  P0('fissura',    { label: 'Fissura',            type: 'ground',   style: 'rock',    count: 1, spread: 0, speed: 1.0,  grav: 1.3, boom: 62, carve: 66, dmg: 14, windMul: 0.3, size: 1.35, shake: 14 });
+  P0('teleporte',  { label: 'Teleporte',          type: 'psychic',  style: 'psy',     count: 1, spread: 0, speed: 1.0,  grav: 1.0, boom: 0,  carve: 0,  dmg: 0,  windMul: 0.5, size: 0.9, teleport: true });
+  P0('hiperraio',  { label: 'Hiper Raio',         type: 'normal',   style: 'normal',  count: 1, spread: 0, speed: 1.15, grav: 0.8, boom: 28, carve: 12, dmg: 18, windMul: 0.4, size: 1.0, beam: 54 });
+  P0('redemoinho', { label: 'Redemoinho',         type: 'flying',   style: 'gust',    count: 1, spread: 0, speed: 1.0,  grav: 0.8, boom: 40, carve: 4,  dmg: 12, windMul: 1.2, size: 1.15, pull: 125, pullDist: 75 });
+  P0('protecao',   { label: 'Proteção',           type: 'normal',   style: 'normal',  count: 1, spread: 0, speed: 1.0,  grav: 1.0, boom: 0,  carve: 0,  dmg: 0,  windMul: 0,   size: 1.0, protect: 2 });
   P0('casca', { label: 'Casca Dura', type: 'bug', style: 'rock', count: 1, spread: 0, speed: 1.0, grav: 1.1, boom: 26, carve: 4, dmg: 16, windMul: 0.6, size: 0.85, shake: 4 });
   // pesados
   P('pedra',   { speed: 1.12, grav: 1.45, boom: 42, dmg: 52, windMul: 0.2, size: 1.55, shake: 12 });
@@ -251,6 +260,7 @@
       const wk = k || S.weapon;
       if (!out.includes(wk)) out.push(wk);
     }
+    for (const wk of S.extra || []) if (!out.includes(wk)) out.push(wk);   // golpe especial da espécie, sempre disponível
     return out;
   };
   MS.cleanMv = (sp, mvs) => {
@@ -277,6 +287,16 @@
     charmeleon: 'mid', ivysaur: 'mid', wartortle: 'mid', golbat: 'mid', graveler: 'mid', magneton: 'mid', dewgong: 'mid', electabuzz: 'mid', magmar: 'mid', scyther: 'mid', exeggutor: 'mid',
     gyarados: 'narrow', dragonair: 'narrow', onix: 'narrow', snorlax: 'narrow', gengar: 'narrow', machamp: 'narrow', arcanine: 'narrow', lapras: 'narrow'
   };
+  // golpes especiais extras de cada espécie (somam aos golpes normais)
+  const EXTRA = {
+    dugtrio: ['subterra'], geodude: ['fissura'], graveler: ['fissura'], onix: ['fissura'],
+    pikachu: ['raioceu'], magneton: ['raioceu'], electabuzz: ['tempestade'],
+    starmie: ['teleporte'], exeggutor: ['teleporte'],
+    gyarados: ['hiperraio'], dragonair: ['hiperraio'], snorlax: ['hiperraio'], pidgeotto: ['hiperraio'],
+    pidgey: ['redemoinho'], butterfree: ['redemoinho'], golbat: ['redemoinho'],
+    metapod: ['protecao'], squirtle: ['protecao'], wartortle: ['protecao'], lapras: ['protecao']
+  };
+  for (const sp in EXTRA) if (MS.SPECIES[sp]) MS.SPECIES[sp].extra = EXTRA[sp];
   MS.aimRange = sp => MS.AIM_TIERS[AIM_OF[sp] || 'basic'];
 
   // ---------- Cenários ----------
@@ -384,6 +404,13 @@
     if (wp.homing) a.push('busca o alvo');
     if (wp.phase) a.push('atravessa o chão');
     if (wp.dig) a.push('cava um túnel');
+    if (wp.burrow) a.push('anda por baixo da terra e acerta por baixo');
+    if (wp.bolts) a.push(wp.bolts.length > 1 ? 'chama ' + wp.bolts.length + ' raios do céu' : 'chama um raio do céu');
+    if (wp.carve >= 50 && wp.dmg <= 20) a.push('quebra muito terreno, pouco dano');
+    if (wp.teleport) a.push('teleporta você até onde cair');
+    if (wp.beam) a.push('hiper raio do Pokémon até o alvo');
+    if (wp.pull) a.push('puxa e agrupa quem está perto');
+    if (wp.protect) a.push('barreira por ' + wp.protect + ' turnos');
     if (wp.quake) a.push('abala o solo todo');
     if (wp.build) a.push('ergue terreno');
     if (wp.chain) a.push('arco elétrico');

@@ -8,7 +8,7 @@
   const GRAV = 0.2;           // gravidade base (px/frame²)
   const WALK_MAX = 120;       // distância máxima de caminhada por turno (mapas largos dão um pouco mais)
   const walkMax = () => WALK_MAX + Math.max(0, W - 800) * 0.07;
-  const GAME_VERSION = '17/10 j';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
+  const GAME_VERSION = '17/10 k';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
   const TURN_TIME = 30 * 60;  // 30 s para mirar e atirar (estourou: passa a vez)
   const WEAK = 0.35;          // abaixo dessa fração de PV o inimigo pode ser capturado
   const PLAYER_COL = '#3a9bff', WILD_COL = '#e0433a', GUEST_COL = '#ffd34d';
@@ -1622,6 +1622,15 @@
   // logo à frente acaba a ilha? (a IA e os visitantes não se jogam; o jogador pode)
   const ledgeAhead = (u, dir) => surf(u.x + dir * 14, u.y - 10) > u.y + 40;
 
+  // caiu na água: afoga na hora (não dá para atirar depois de cair); se era a vez dele, a vez acaba
+  function drownNow(u) {
+    if (!u.alive || scene !== 'battle') return;
+    u.alive = false; u.hp = 0;
+    for (let k = 0; k < 16; k++) addPart({ x: u.x, y: WATER, vx: rnd(-2, 2), vy: rnd(-4, -1.5), g: 0.15, life: 45, max: 45, r: rnd(1.5, 2.5), col: '#bfe9ff', kind: 'drop' });
+    Sfx.splash(); Sfx.death();
+    showMsg(`${u.name} afogou!`, 100);
+    if (u === activeUnit() && (state === 'aim' || state === 'ai')) { charging = false; power = 0; Sfx.chargeStop(); ai = null; state = 'settle'; }
+  }
   function updateUnits() {
     for (const u of units) {
       if (!u.alive || (scene === 'intro')) continue;
@@ -1631,14 +1640,14 @@
         u.y += (ty - u.y) * 0.1; u.air = false; u.tilt = 0;
         continue;
       }
-      if (u.y > WATER) { u.air = false; u.vy = 0; continue; }       // caiu na água: o settle resolve
+      if (u.y > WATER) { u.air = false; u.vy = 0; drownNow(u); continue; }       // caiu na água: afoga na hora
       for (let k = 0; k < 14 && solid(u.x, u.y - 1); k++) u.y--;    // chão erguido embaixo dele: sobe junto
       if (onGround(u)) { u.vy = 0; u.air = false; }
       else {
         u.air = true; u.vy = Math.min(8, (u.vy || 0) + 0.32);
         const n = Math.ceil(u.vy);
         for (let i = 0; i < n; i++) { u.y += u.vy / n; if (onGround(u)) { u.y = Math.floor(u.y); u.vy = 0; u.air = false; break; } }
-        if (u.y > WATER) { u.y = WATER + 2; u.air = false; }
+        if (u.y > WATER) { u.y = WATER + 2; u.air = false; drownNow(u); continue; }
       }
       // o corpo inclina com o chão (a mira é relativa ao corpo)
       let t = 0;

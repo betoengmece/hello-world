@@ -20,7 +20,7 @@ const MS=ctx.window.MS;
 MS.Sfx=new Proxy({isOn:()=>false},{get:(obj,key)=>obj[key]||(()=>{})});
 let engine=fs.readFileSync(path.join(root,'js/game.js'),'utf8');
 // Acesso restrito a este teste: o arquivo distribuído continua com sua API de debug atual.
-engine=engine.replace('  applySettings();\n  initMenu();','  MS.testHooks={restart,roundEnd,explode,captureChance,projSvg,renderAll,loadSave,saveGame};\n  applySettings();\n  initMenu();');
+engine=engine.replace('  applySettings();\n  fitWrap();\n  initMenu();','  MS.testHooks={restart,roundEnd,explode,captureChance,projSvg,renderAll,loadSave,saveGame};\n  applySettings();\n  fitWrap();\n  initMenu();');
 vm.runInContext(engine,ctx,{filename:'game.js'});
 const debug=MS.debug,hooks=MS.testHooks;
 assert(hooks,'test hooks must be installed');

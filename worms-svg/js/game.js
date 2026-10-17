@@ -60,6 +60,23 @@
   function setSlider(i, v) {
     const S = SLIDERS[i]; settings[S.key] = Math.min(S.max, Math.max(S.min, v)); applySettings();
   }
+  // tela cheia (esconde a barra do navegador, quando o navegador deixa)
+  function toggleFullscreen() {
+    const d = document, el = d.documentElement;
+    try {
+      if (d.fullscreenElement || d.webkitFullscreenElement) (d.exitFullscreen || d.webkitExitFullscreen).call(d);
+      else { const r = (el.requestFullscreen || el.webkitRequestFullscreen).call(el); if (r && r.catch) r.catch(() => showMsg('Este navegador não deixou abrir em tela cheia', 110)); }
+    } catch (_) { showMsg('Este navegador não deixou abrir em tela cheia', 110); }
+    setTimeout(fitWrap, 300);
+  }
+  // o jogo sempre cabe inteiro na janela (TVs e navegadores com barra grande, como o Silk do Fire TV)
+  function fitWrap() {
+    const w = $('wrap'); if (!w || typeof innerWidth !== 'number') return;
+    const help = document.body.classList.contains('touch') ? 0 : 56;
+    const avail = Math.max(200, (innerHeight || 600) - help - 8);
+    w.style.width = Math.floor(Math.min((innerWidth || 800) * 0.98, avail * 1.6)) + 'px';
+  }
+  if (typeof addEventListener === 'function') { addEventListener('resize', () => fitWrap()); addEventListener('fullscreenchange', () => fitWrap()); }
   function toggleSettings(force) {
     settingsOpen = force === undefined ? !settingsOpen : force;
     dragSlider = -1; keys = {}; charging = false; power = 0; Sfx.chargeStop(); Sfx.click();
@@ -2834,7 +2851,7 @@
       <rect x="${f1(X)}" y="0" width="3" height="500" fill="#ffd34d" opacity=".8"/>
       <text x="${f1(X + 24)}" y="38" font-size="20" font-weight="800" fill="#fff">⚙ Ajustes</text>`;
     SLIDERS.forEach((S, i) => {
-      const y = 110 + i * 84, tx = X + 24, tw = 202, v = settings[S.key], k = (v - S.min) / (S.max - S.min), foc = settingsRow === i;
+      const y = 96 + i * 76, tx = X + 24, tw = 202, v = settings[S.key], k = (v - S.min) / (S.max - S.min), foc = settingsRow === i;
       sliderRects.push({ x: tx, y: y - 14, w: tw, h: 36 });
       const def = (S.def - S.min) / (S.max - S.min);
       s += `<g>${foc ? `<rect x="${f1(X + 12)}" y="${y - 34}" width="226" height="72" rx="12" fill="none" stroke="#ffb347" stroke-width="2" opacity=".9"/>` : ''}
@@ -2849,13 +2866,14 @@
     const bx = Math.round(X + 24);
     // qualidade: Automática (liga o modo leve se o aparelho for lento) / Alta / Leve
     const qn = QUALITY_NAME[settings.quality] + (settings.quality === 'auto' ? (lite ? ' (leve)' : ' (alta)') : '');
-    if (settingsRow === 2) s += `<rect x="${f1(X + 12)}" y="238" width="226" height="52" rx="12" fill="none" stroke="#ffb347" stroke-width="2" opacity=".9"/>`;
-    s += uiBtn(bx, 244, 202, 40, `Qualidade: ${qn}`, () => cycleQuality(1), { fs: 14 });
-    s += uiBtn(bx, 300, 202, 40, Sfx.isOn() ? 'Som: ligado' : 'Som: desligado', () => { toggleSound(); }, { fs: 16 });
-    s += uiBtn(bx, 348, 202, 40, 'Restaurar padrão', () => { SLIDERS.forEach((S, i) => setSlider(i, S.def)); }, { fs: 16 });
-    s += uiBtn(bx, 396, 202, 40, 'Fechar', () => toggleSettings(false), { fs: 16 });
-    s += `<text x="${f1(X + 125)}" y="454" text-anchor="middle" font-size="10" fill="#fff" opacity=".6">O abre/fecha · ← → ajusta · ↑ ↓ escolhe</text>
-          <text x="${f1(X + 125)}" y="470" text-anchor="middle" font-size="10" fill="#fff" opacity=".45">(o jogo fica em pausa)</text>`;
+    if (settingsRow === 2) s += `<rect x="${f1(X + 12)}" y="218" width="226" height="48" rx="12" fill="none" stroke="#ffb347" stroke-width="2" opacity=".9"/>`;
+    s += uiBtn(bx, 224, 202, 36, `Qualidade: ${qn}`, () => cycleQuality(1), { fs: 14 });
+    s += uiBtn(bx, 268, 202, 36, document.fullscreenElement ? 'Sair da tela cheia' : 'Tela cheia', toggleFullscreen, { fs: 15 });
+    s += uiBtn(bx, 312, 202, 36, 'Teste do controle', () => { location.href = 'controle.html'; }, { fs: 15 });
+    s += uiBtn(bx, 356, 202, 36, Sfx.isOn() ? 'Som: ligado' : 'Som: desligado', () => { toggleSound(); }, { fs: 15 });
+    s += uiBtn(bx, 400, 202, 36, 'Restaurar padrão', () => { SLIDERS.forEach((S, i) => setSlider(i, S.def)); }, { fs: 15 });
+    s += uiBtn(bx, 444, 202, 36, 'Fechar', () => toggleSettings(false), { fs: 15 });
+    s += `<text x="${f1(X + 125)}" y="494" text-anchor="middle" font-size="9.5" fill="#fff" opacity=".55">O abre/fecha · ← → ajusta · ↑ ↓ escolhe · jogo em pausa</text>`;
     return s;
   }
 
@@ -2910,6 +2928,7 @@
     uiSel = 0; syncButtons();
   }
 
+  let fireLatch = false, fireDownAt = 0;
   function pressFire() {
     if (state === 'aim' && !charging && (scene === 'intro' ? intro.balls > 0 : !teams[turnTeam].ai)) {
       charging = true; power = 0; Sfx.unlock(); Sfx.chargeStart();
@@ -2929,7 +2948,11 @@
       try { btn.setPointerCapture(e.pointerId); } catch (_) {}
       btn.classList.add('on');
       if (holdKey) keys[holdKey] = true;
-      else if (act === 'fire') pressFire();
+      else if (act === 'fire') {
+        // TIRO: segurar e soltar, ou tocar uma vez para começar a carregar e outra para soltar (bom para ponteiro de TV)
+        if (charging && fireLatch) { fireLatch = false; releaseFire(); }
+        else { pressFire(); fireDownAt = Date.now(); fireLatch = false; }
+      }
       else if (act === 'pass') passTurn();
       else if (act === 'restart') restart();
       else if (act === 'ball') toggleBall();
@@ -2942,7 +2965,10 @@
       e.preventDefault();
       btn.classList.remove('on');
       if (holdKey) keys[holdKey] = false;
-      else if (act === 'fire') releaseFire();
+      else if (act === 'fire') {
+        if (charging && !fireLatch && Date.now() - fireDownAt < 260) { fireLatch = true; showMsg('Carregando... toque TIRO de novo para soltar', 90); }
+        else if (!fireLatch) releaseFire();
+      }
     };
     btn.addEventListener('pointerdown', press);
     btn.addEventListener('pointerup', release);
@@ -3022,6 +3048,7 @@
       return;
     }
     if (e.key === 'm' || e.key === 'M') { toggleSound(); return; }
+    if (e.key === 'f' || e.key === 'F') { toggleFullscreen(); return; }
     if (evo) {
       if (e.key === 'Escape') initMenu();
       else if (e.key === 'Enter' || e.code === 'Space') { e.preventDefault(); if (!e.repeat) skipEvolve(); }
@@ -3218,6 +3245,7 @@
 
   cacheHtml(['introBack', 'decor', 'intro', 'aim', 'worms', 'proj', 'pshadow', 'parts', 'fx', 'floaters', 'powerbar', 'hud', 'mmview', 'msgbox', 'overlay']);
   applySettings();
+  fitWrap();
   initMenu();
   requestAnimationFrame(frame);
 })();

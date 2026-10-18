@@ -28,10 +28,10 @@
     for (let i = 0; i < MAXQ; i++) { const o = i * 6, v = i * 4; idx[o] = v; idx[o + 1] = v + 1; idx[o + 2] = v + 2; idx[o + 3] = v; idx[o + 4] = v + 2; idx[o + 5] = v + 3; }
     const vbuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, vbuf); gl.bufferData(gl.ARRAY_BUFFER, data.byteLength, gl.DYNAMIC_DRAW);
     const ibuf = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibuf); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idx, gl.STATIC_DRAW);
-    const loc = n => gl.getAttribLocation(pr, n);
-    gl.enableVertexAttribArray(loc('p')); gl.vertexAttribPointer(loc('p'), 2, gl.FLOAT, false, STRIDE * 4, 0);
-    gl.enableVertexAttribArray(loc('uv')); gl.vertexAttribPointer(loc('uv'), 2, gl.FLOAT, false, STRIDE * 4, 8);
-    gl.enableVertexAttribArray(loc('c')); gl.vertexAttribPointer(loc('c'), 4, gl.FLOAT, false, STRIDE * 4, 16);
+    const loc = n => gl.getAttribLocation(pr, n), locP = loc('p'), locUV = loc('uv'), locC = loc('c');
+    gl.enableVertexAttribArray(locP); gl.vertexAttribPointer(locP, 2, gl.FLOAT, false, STRIDE * 4, 0);
+    gl.enableVertexAttribArray(locUV); gl.vertexAttribPointer(locUV, 2, gl.FLOAT, false, STRIDE * 4, 8);
+    gl.enableVertexAttribArray(locC); gl.vertexAttribPointer(locC, 4, gl.FLOAT, false, STRIDE * 4, 16);
     const uSz = gl.getUniformLocation(pr, 'sz');
     gl.uniform2f(uSz, 800, 500);                         // coordenadas do palco (800 × 500), qualquer resolução
     gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
@@ -144,7 +144,7 @@
       if (w > PS - 8 || h > PS - 8) return null;
       e = { key, s: null, st: 0, w, h, box: [box[0], box[1], w / res, h / res], used: frameN, gen };
       if (typeof snippet === 'function') snippet = snippet();      // o desenho só é montado quando ainda não existe
-      e.src = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${w}" height="${h}" viewBox="${e.box.map(v => +v.toFixed(3)).join(' ')}" preserveAspectRatio="none">${svgDefs(snippet)}${snippet}</svg>`;
+      e.src = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${w}" height="${h}" viewBox="${e.box.map(v => +v.toFixed(3)).join(' ')}" preserveAspectRatio="none" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">${svgDefs(snippet)}${snippet}</svg>`;
       svgCache.set(key, e); queue.push(e);
       return null;
     }
@@ -386,6 +386,34 @@
       if (w <= h) { R.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, col, a); return; }
       R.line(x + h / 2, y + h / 2, x + w - h / 2, y + h / 2, h, col, a, true);
     };
+    // retângulo de cantos redondos (painéis): miolo + 4 quartos de disco, sem sobreposição
+    R.rrect = (x, y, w, h, r, col, a = 1) => {
+      if (w <= 0 || h <= 0) return;
+      r = Math.min(r, w / 2, h / 2);
+      if (!okB()) return;
+      R.rect(x + r, y, w - 2 * r, h, col, a); R.rect(x, y + r, r, h - 2 * r, col, a); R.rect(x + w - r, y + r, r, h - 2 * r, col, a);
+      const k = rgba(col, a), d = disc, um = (d.u0 + d.u1) / 2, vm = (d.v0 + d.v1) / 2, e = r * 64 / 63;
+      emit(d.T, x + r - e, y + r - e, x + r, y + r - e, x + r, y + r, x + r - e, y + r, d.u0, d.v0, um, vm, k[0], k[1], k[2], k[3]);
+      emit(d.T, x + w - r, y + r - e, x + w - r + e, y + r - e, x + w - r + e, y + r, x + w - r, y + r, um, d.v0, d.u1, vm, k[0], k[1], k[2], k[3]);
+      emit(d.T, x + r - e, y + h - r, x + r, y + h - r, x + r, y + h - r + e, x + r - e, y + h - r + e, d.u0, vm, um, d.v1, k[0], k[1], k[2], k[3]);
+      emit(d.T, x + w - r, y + h - r, x + w - r + e, y + h - r, x + w - r + e, y + h - r + e, x + w - r, y + h - r + e, um, vm, d.u1, d.v1, k[0], k[1], k[2], k[3]);
+    };
+    // fatia de pizza (ângulos em graus, 0 = direita, sentido anti-horário como na tela do jogo)
+    R.wedge = (cx, cy, r, a0, a1, col, a = 1) => {
+      const n = Math.max(2, Math.ceil(Math.abs(a1 - a0) / 12));
+      for (let i = 0; i < n; i++) {
+        const t0 = (a0 + (a1 - a0) * i / n) * Math.PI / 180, t1 = (a0 + (a1 - a0) * (i + 1) / n) * Math.PI / 180;
+        R.tri(cx, cy, cx + Math.cos(t0) * r, cy - Math.sin(t0) * r, cx + Math.cos(t1) * r, cy - Math.sin(t1) * r, col, a);
+      }
+    };
+    // degradê horizontal (barra de força)
+    R.hgrad = (x, y, w, h, stops, a = 1) => {
+      const key = 'hg|' + stops.join(',');
+      const s = cvSprite(key, 256, 4, [0, 0, 1, 1], c => { const g = c.createLinearGradient(0, 0, 256, 0); stops.forEach((col, i) => g.addColorStop(i / (stops.length - 1), col)); c.fillStyle = g; c.fillRect(0, 0, 256, 4); });
+      if (!s) return;
+      const k = rgba(null, a), du = (s.u1 - s.u0) / 256, dv = (s.v1 - s.v0) / 2;
+      emit(s.T, x, y, x + w, y, x + w, y + h, x, y + h, s.u0 + du, s.v0 + dv, s.u1 - du, s.v0 + dv, k[0], k[1], k[2], k[3]);
+    };
     // texto: (x, y) = linha de base; o = { size, fill, stroke, sw, weight, anchor, ls }
     R.text = (str, x, y, o = {}, a = 1) => {
       if (str === '' || str === undefined || str === null) return;
@@ -400,6 +428,201 @@
         c.fillStyle = '#fff'; c.fill(); c.strokeStyle = '#ffe27a'; c.lineWidth = 0.7; c.stroke();
       });
       R.push(); R.tr(x, y); R.sc(sc); R.spr(s, a); R.pop();
+    };
+    // ---------- brilho aditivo (luz de fogo, raios, explosões) ----------
+    let additive = false;
+    R.add = on => { if (on === additive) return; flush(); additive = on; gl.blendFunc(gl.ONE, on ? gl.ONE : gl.ONE_MINUS_SRC_ALPHA); };
+    R.glow = (x, y, r, col, a = 1) => {
+      if (r <= 0) return;
+      const s = cvSprite('glow', 128, 128, [-1, -1, 2, 2], c => {
+        const g = c.createRadialGradient(64, 64, 0, 64, 64, 64);
+        g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.25, 'rgba(255,255,255,.55)'); g.addColorStop(0.6, 'rgba(255,255,255,.15)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+        c.fillStyle = g; c.fillRect(0, 0, 128, 128);
+      });
+      if (!s) return;
+      const k = rgba(col, a);
+      emit(s.T, x - r, y - r, x + r, y - r, x + r, y + r, x - r, y + r, s.u0, s.v0, s.u1, s.v1, k[0], k[1], k[2], k[3]);
+    };
+
+    // ---------- terreno calculado pela placa de vídeo ----------
+    // textura de dados (1 texel = 1 unidade do mundo): R = chão, G = profundidade abaixo do ar, A = queimado
+    // textura de colunas (W × 1): R = grama, G = altura do capim, B/A = altura do topo
+    const TVS = `attribute vec2 p; attribute vec2 w; uniform vec2 sz; varying vec2 vw;
+      void main(){ vw = w; gl_Position = vec4(p.x / sz.x * 2.0 - 1.0, 1.0 - p.y / sz.y * 2.0, 0, 1); }`;
+    const TFS = `#ifdef GL_FRAGMENT_PRECISION_HIGH
+      precision highp float;
+      #else
+      precision mediump float;
+      #endif
+      uniform sampler2D D; uniform sampler2D C; uniform vec2 S; uniform float e;
+      uniform vec3 d0, d1, d2, s1, s2, g0, g1, g2; uniform vec2 dy, ph;
+      uniform vec4 L[4]; uniform vec3 LC[4];
+      varying vec2 vw;
+      float solidAt(vec2 p){ return texture2D(D, p / S).r; }
+      float topAt(float x){ vec4 c = texture2D(C, vec2((floor(x) + 0.5) / S.x, 0.5)); return c.b * 255.0 + c.a * 65280.0; }
+      float topL(float x){ float xx = x - 0.5, f = fract(xx), x0 = floor(xx); return mix(topAt(x0), topAt(x0 + 1.0), f); }
+      vec4 colAt(float x){ return texture2D(C, vec2((floor(x) + 0.5) / S.x, 0.5)); }
+      float band(float v, float hw){ return 1.0 - smoothstep(hw - e, hw + e, abs(v)); }
+      vec4 over(vec4 o, vec3 c, float a){ return vec4(c * a, a) + o * (1.0 - a); }
+      float ell(vec2 q, vec2 c, vec2 r){ vec2 d = (q - c) / r; return 1.0 - smoothstep(0.8, 1.0, dot(d, d)); }
+      float seg(vec2 q, vec2 a, vec2 b, float w){ vec2 ab = b - a, aq = q - a; float t = clamp(dot(aq, ab) / dot(ab, ab), 0.0, 1.0); return 1.0 - smoothstep(w - e, w + e, length(aq - ab * t)); }
+      vec3 dirt(float y){ float t = clamp((y - dy.x) / (dy.y - dy.x), 0.0, 1.0); return t < 0.45 ? mix(d0, d1, t / 0.45) : mix(d1, d2, (t - 0.45) / 0.55); }
+      vec3 pebbles(vec3 c, vec2 p){
+        vec2 q = vec2(mod(p.x, 48.0), mod(p.y, 40.0));
+        c = mix(c, vec3(0.18, 0.106, 0.055), 0.35 * ell(q, vec2(8.0, 9.0), vec2(3.5, 2.2)));
+        c = mix(c, vec3(0.69, 0.54, 0.384), 0.35 * ell(q, vec2(30.0, 22.0), vec2(4.5, 2.8)));
+        c = mix(c, vec3(0.18, 0.106, 0.055), 0.4 * ell(q, vec2(40.0, 6.0), vec2(2.0, 1.4)));
+        c = mix(c, vec3(0.77, 0.6, 0.42), 0.3 * ell(q, vec2(16.0, 32.0), vec2(2.6, 1.8)));
+        c = mix(c, vec3(0.12, 0.07, 0.04), 0.45 * ell(q, vec2(24.0, 12.0), vec2(1.0, 1.0)));
+        c = mix(c, vec3(0.12, 0.07, 0.04), 0.4 * ell(q, vec2(44.0, 34.0), vec2(1.2, 1.2)));
+        c = mix(c, vec3(0.85, 0.72, 0.55), 0.45 * ell(q, vec2(4.0, 24.0), vec2(0.9, 0.9)));
+        return c;
+      }
+      void main(){
+        vec2 w = vw;
+        vec4 d = texture2D(D, w / S);
+        vec2 wb = w + vec2(-7.0, 9.0);
+        float rb = solidAt(wb);
+        float top = topL(w.x), dyT = w.y - top;
+        float topB = topL(wb.x), dyB = wb.y - topB;
+        if (d.r < 0.01 && rb < 0.01 && abs(dyT) > 12.0 && abs(dyB) > 6.0) discard;
+        vec4 o = vec4(0.0);
+        // fatia de trás (espessura 2.5D)
+        float sb = smoothstep(0.5 - e, 0.5 + e, rb);
+        o = over(o, vec3(0.239, 0.157, 0.094), sb);
+        vec4 cb = colAt(wb.x);
+        if (topB < 478.0) {
+          if (cb.r > 0.5) o = over(o, g0, band(dyB, 3.0));
+          else o = over(o, vec3(0.1, 0.063, 0.039), band(dyB, 2.0));
+        }
+        // frente: terra com degradê, pedrinhas, camadas de rocha, queimado e contorno escuro
+        float s = smoothstep(0.5 - e, 0.5 + e, d.r);
+        if (s > 0.0) {
+          vec3 c = pebbles(dirt(w.y), w);
+          float dep = d.g * 255.0;
+          if (dep > 48.0 + 8.0 * sin(w.x * 0.05 + ph.y)) c = mix(c, s1, 0.5);
+          if (dep > 115.0 + 12.0 * sin(w.x * 0.03 + ph.x)) c = mix(c, s2, 0.7);
+          c = mix(c, vec3(0.102, 0.059, 0.031), d.a * 0.42);
+          float n4 = min(min(solidAt(w + vec2(1.4, 0.0)), solidAt(w - vec2(1.4, 0.0))), min(solidAt(w + vec2(0.0, 1.4)), solidAt(w - vec2(0.0, 1.4))));
+          c = mix(c, vec3(0.118, 0.075, 0.043), 0.55 * clamp(1.0 - n4 * 1.6, 0.0, 1.0));
+          o = over(o, c, s);
+        }
+        // borda de cima: grama (com brilho e capim) ou queimado
+        vec4 cc = colAt(w.x);
+        if (top < 478.0) {
+          if (cc.r > 0.5) {
+            o = over(o, g0, band(dyT, 3.5));
+            o = over(o, g1, band(dyT + 2.5, 1.0));
+          } else o = over(o, vec3(0.118, 0.075, 0.043), band(dyT, 2.0));
+        }
+        float xb = floor((w.x - 3.0) / 7.0) * 7.0 + 3.0;
+        vec4 ct = colAt(xb + 0.5);
+        float tb = topAt(xb);
+        if (ct.r > 0.5 && tb < 478.0 && abs(tb - topAt(xb - 1.0)) <= 4.0) {
+          float t = ct.g * 12.75; vec2 b0 = vec2(xb, tb);
+          float tf = max(max(seg(w, b0, b0 + vec2(-2.0, -t * 0.7), 0.65), seg(w, b0, b0 + vec2(0.6, -t), 0.65)), seg(w, b0, b0 + vec2(2.6, -t * 0.6), 0.65));
+          o = over(o, g2, tf);
+        }
+        // luz das explosões e do fogo
+        vec3 lit = vec3(0.0);
+        for (int i = 0; i < 4; i++) { float dd = length(w - L[i].xy) / max(L[i].z, 1.0); lit += LC[i] * L[i].w * max(0.0, 1.0 - dd * dd); }
+        o.rgb += o.rgb * lit;
+        gl_FragColor = o;
+      }`;
+    let tp = null, tLoc = null, tBuf = null, tD = null, tC = null, tW = 0, tH = 0;
+    function compile(type, src) {
+      const sh = gl.createShader(type); gl.shaderSource(sh, src); gl.compileShader(sh);
+      if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) { R.terrErr = gl.getShaderInfoLog(sh); return null; }
+      return sh;
+    }
+    function terrProgram() {
+      if (tp !== null) return tp;
+      const v = compile(gl.VERTEX_SHADER, TVS), f = compile(gl.FRAGMENT_SHADER, TFS);
+      if (!v || !f) { tp = false; return tp; }
+      const p = gl.createProgram(); gl.attachShader(p, v); gl.attachShader(p, f);
+      gl.bindAttribLocation(p, 0, 'p'); gl.bindAttribLocation(p, 1, 'w');
+      gl.linkProgram(p);
+      if (!gl.getProgramParameter(p, gl.LINK_STATUS)) { R.terrErr = gl.getProgramInfoLog(p); tp = false; return tp; }
+      tp = p;
+      const u = n => gl.getUniformLocation(p, n);
+      tLoc = { sz: u('sz'), D: u('D'), C: u('C'), S: u('S'), e: u('e'), d0: u('d0'), d1: u('d1'), d2: u('d2'), s1: u('s1'), s2: u('s2'),
+               g0: u('g0'), g1: u('g1'), g2: u('g2'), dy: u('dy'), ph: u('ph'), L: u('L'), LC: u('LC') };
+      tBuf = gl.createBuffer();
+      return tp;
+    }
+    const rawTex = (w, h) => {
+      const t = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, t);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      return t;
+    };
+    R.terrOk = () => !!terrProgram();
+    // envia o mapa inteiro (início da fase) ou só as colunas x0..x1 (explosão)
+    R.terrData = (data, w, h, x0, x1) => {
+      if (!terrProgram()) return;
+      flush();
+      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+      if (!tD || w !== tW || h !== tH) {
+        if (tD) gl.deleteTexture(tD);
+        tD = rawTex(); tW = w; tH = h;
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
+      } else {
+        gl.bindTexture(gl.TEXTURE_2D, tD);
+        if (x0 === undefined) gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, data);
+        else {
+          const cw = x1 - x0 + 1, part = new Uint8Array(cw * h * 4);
+          for (let y = 0; y < h; y++) part.set(data.subarray((y * w + x0) * 4, (y * w + x1 + 1) * 4), y * cw * 4);
+          gl.texSubImage2D(gl.TEXTURE_2D, 0, x0, 0, cw, h, gl.RGBA, gl.UNSIGNED_BYTE, part);
+        }
+      }
+      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+      cur = null;
+    };
+    R.terrCols = (cols, w) => {
+      if (!terrProgram()) return;
+      flush();
+      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+      if (!tC) tC = rawTex();
+      gl.bindTexture(gl.TEXTURE_2D, tC);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, cols);
+      gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+      cur = null;
+    };
+    const hex3 = c => { const v = parseCol(c); return [v[0], v[1], v[2]]; };
+    // desenha o terreno (retângulo 0..W × 0..H do mundo) com a matriz atual; o = cores do tema e luzes
+    R.drawTerrain = o => {
+      if (!terrProgram() || !tD || !tC) return false;
+      flush();
+      const W = tW, H = tH;
+      const P = (x, y) => [ma * x + mc * y + me, mb * x + md * y + mf];
+      const a = P(0, 0), b = P(W, 0), c = P(W, H), d = P(0, H);
+      const v = new Float32Array([a[0], a[1], 0, 0, b[0], b[1], W, 0, c[0], c[1], W, H, a[0], a[1], 0, 0, c[0], c[1], W, H, d[0], d[1], 0, H]);
+      gl.useProgram(tp);
+      gl.bindBuffer(gl.ARRAY_BUFFER, tBuf); gl.bufferData(gl.ARRAY_BUFFER, v, gl.STREAM_DRAW);
+      gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 16, 0); gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 16, 8);
+      gl.disableVertexAttribArray(2);
+      gl.enableVertexAttribArray(0); gl.enableVertexAttribArray(1);
+      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, tC);
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, tD);
+      gl.uniform1i(tLoc.D, 0); gl.uniform1i(tLoc.C, 1);
+      gl.uniform2f(tLoc.sz, 800, 500); gl.uniform2f(tLoc.S, W, H);
+      gl.uniform1f(tLoc.e, Math.min(0.5, Math.max(0.06, 0.6 / Math.max(0.1, Math.sqrt(Math.abs(ma * md - mb * mc)) * (o.px || 1)))));
+      for (const k of ['d0', 'd1', 'd2', 's1', 's2', 'g0', 'g1', 'g2']) gl.uniform3fv(tLoc[k], hex3(o[k]));
+      gl.uniform2f(tLoc.dy, o.dy[0], o.dy[1]); gl.uniform2f(tLoc.ph, o.ph[0], o.ph[1]);
+      const L = new Float32Array(16), LC = new Float32Array(12);
+      (o.lights || []).slice(0, 4).forEach((l, i) => { L.set([l.x, l.y, l.r, l.k], i * 4); LC.set(hex3(l.col || '#ffb347'), i * 3); });
+      gl.uniform4fv(tLoc.L, L); gl.uniform3fv(tLoc.LC, LC);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+      stats.draws++;
+      // volta ao programa dos lotes
+      gl.useProgram(pr);
+      gl.bindBuffer(gl.ARRAY_BUFFER, vbuf);
+      gl.enableVertexAttribArray(locP); gl.vertexAttribPointer(locP, 2, gl.FLOAT, false, STRIDE * 4, 0);
+      gl.enableVertexAttribArray(locUV); gl.vertexAttribPointer(locUV, 2, gl.FLOAT, false, STRIDE * 4, 8);
+      gl.enableVertexAttribArray(locC); gl.vertexAttribPointer(locC, 4, gl.FLOAT, false, STRIDE * 4, 16);
+      cur = null;
+      return true;
     };
     return R;
   };

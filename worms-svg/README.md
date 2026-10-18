@@ -120,6 +120,14 @@ Relações usadas: Pedra > Fogo, Voador, Inseto · Terra > Fogo, Elétrico, Pedr
 
 **Modo leve (TV, Fire TV, aparelhos fracos):** em ⚙ Ajustes → **Qualidade** (Automática / Alta / Leve). Na automática, se o jogo estiver lento o modo leve liga sozinho e fica lembrado. Ele desenha no máximo a 30 quadros por segundo, tira as camadas decorativas mais pesadas (nuvens, montanhas do fundo, textura e faixa 2.5D do chão, chuva/neve) e anima menos os enfeites. O jogo em si não muda.
 
+**Terreno pela placa de vídeo (WebGL):** o chão não é mais uma imagem: o mapa de buracos vira uma textura de dados e um shader pinta terra, rocha, pedrinhas, grama, capim, queimado e a fatia 2.5D a cada quadro. Numa explosão só as colunas atingidas são reenviadas, então o buraco aparece no mesmo quadro e o terreno fica nítido em qualquer zoom. Explosões, raios e tiros de fogo iluminam o terreno em volta e ganham brilho somado à luz.
+
+**Painel no WebGL:** o painel de cima vira uma imagem refeita só quando algum texto muda; a barra de força, o retângulo do minimapa e as mensagens são desenhados direto pela placa de vídeo.
+
+**IA em segundo plano:** a CPU simula seus tiros num Web Worker, fora da linha que desenha a tela.
+
+**Instalável e sem internet:** no celular, o navegador oferece "Adicionar à tela inicial" (ou ⚙ Ajustes → Instalar o jogo). Depois de aberto uma vez, o jogo funciona sem internet.
+
 **WebGL (padrão):** o mundo (céu, montanhas, terreno, água, Pokémon, tiros, partículas, efeitos e clima) é desenhado num `<canvas>` pela placa de vídeo, em poucos lotes por quadro. Os fundos e o terreno são "fotografados" das camadas SVG no início da fase; numa explosão o buraco aparece na hora e só a área atingida é redesenhada logo depois. As poses dos Pokémon (parado, andando, atacando, piscando) viram imagens guardadas num atlas na primeira vez que aparecem. Painel, menus e botões continuam em SVG por cima. A fase da cidade e aparelhos sem WebGL usam o desenho SVG; em ⚙ Ajustes, **Desenho: WebGL/SVG** troca entre os dois. No WebGL a câmera dá zoom 2x no Pokémon da vez e segue o tiro nesse zoom (a arte vetorial continua nítida); Q/E ou arrastar a tela afastam para ver o mapa inteiro. Ao abrir uma fase aparece **Preparando a batalha…** até as fotos do cenário e a primeira pose de cada Pokémon ficarem prontas (a batalha espera; as outras poses chegam com o jogo rodando). O modo leve só baixa um pouco a resolução.
 
 **Desempenho (modo SVG):** a tela é dividida em camadas (fundos, terreno, Pokémon/tiros, primeiro plano, painel). A câmera desloca as camadas inteiras por CSS, feito pela placa de vídeo, então andar e dar zoom não obriga a repintar o cenário. Pokémon e Pokébolas do chão são elementos próprios, atualizados no lugar. Em ⚙ Ajustes, **Mostrar FPS** exibe quantos quadros por segundo o aparelho está desenhando.
@@ -141,7 +149,10 @@ js/data.js      tipos, ataques, variantes de golpe, espécies, cenários e fases
 js/art.js       desenhos dos personagens, Pokébola, treinador e cenário
 js/art2.js      desenhos da segunda leva de Pokémon (Fantasma, Gelo, Lutador...), Electabuzz remasterizado
 js/animated-kanto.js  animações das cinco versões de Pokémon aprovadas
-js/gl.js        desenho em WebGL: lotes de imagens, atlas de poses, textos, formas
+js/gl.js        desenho em WebGL: lotes de imagens, atlas de poses, textos, formas, shader do terreno, brilhos
+js/ai-worker.js simulação dos tiros da CPU em segundo plano
+sw.js           cópia offline dos arquivos (jogo instalável)
+manifest.webmanifest, icons/  dados do app instalável
 js/game.js      motor: física, turnos, IA, captura, fase inicial, campanha e menus
 animated-kanto/index.html  prévia das cinco animações com controles
 tests/kanto-integration.test.cjs  validação da integração com o motor

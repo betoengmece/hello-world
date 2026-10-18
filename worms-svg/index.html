@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Monstrinhos de Artilharia</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0d1b2a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link rel="apple-touch-icon" href="icons/icon192.png">
+<link rel="icon" href="icons/icon192.png">
 <style>
   html,body{margin:0;height:100%;background:#0d1117;color:#eee;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
     overflow:hidden;overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
@@ -359,13 +366,19 @@
 <div id="rotate">📱 Gire o celular para o modo paisagem (deitado) para jogar melhor.</div>
 </div>
 
-<script src="js/sfx.js?v=20261017m"></script>
-<script src="js/data.js?v=20261017m"></script>
-<script src="js/art.js?v=20261017m"></script>
-<script src="js/art2.js?v=20261017m"></script>
-<script src="js/animated-kanto.js?v=20261017m"></script>
-<script src="js/gl.js?v=20261017m"></script>
-<script src="js/game.js?v=20261017m"></script>
+<script src="js/sfx.js?v=20261018a"></script>
+<script src="js/data.js?v=20261018a"></script>
+<script src="js/art.js?v=20261018a"></script>
+<script src="js/art2.js?v=20261018a"></script>
+<script src="js/animated-kanto.js?v=20261018a"></script>
+<script src="js/gl.js?v=20261018a"></script>
+<script src="js/game.js?v=20261018a"></script>
+<script>
+// jogo instalável e sem internet (só funciona em https ou localhost)
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+</script>
 </body>
 </html>
 

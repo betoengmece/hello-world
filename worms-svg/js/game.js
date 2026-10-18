@@ -8,7 +8,7 @@
   const GRAV = 0.2;           // gravidade base (px/frame²)
   const WALK_MAX = 120;       // distância máxima de caminhada por turno (mapas largos dão um pouco mais)
   const walkMax = () => WALK_MAX + Math.max(0, W - 800) * 0.07;
-  const GAME_VERSION = '17/10 m';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
+  const GAME_VERSION = '18/10 a';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
   const TURN_TIME = 30 * 60;  // 30 s para mirar e atirar (estourou: passa a vez)
   const WEAK = 0.35;          // abaixo dessa fração de PV o inimigo pode ser capturado
   const PLAYER_COL = '#3a9bff', WILD_COL = '#e0433a', GUEST_COL = '#ffd34d';
@@ -360,7 +360,7 @@
 
   // ---------- Terreno destrutível: máscara de pixels (1 = chão) ----------
   // A física usa a máscara (buracos, túneis e ilhas de verdade); a tela usa o contorno dela, desenhado em SVG.
-  let mask = new Uint8Array(VW * H), terrDirty = true, scorch = [];
+  let mask = new Uint8Array(VW * H), terrDirty = true, scorch = [], terrPh = [0, 0];
   const solid = (x, y) => { x = Math.floor(x); y = Math.floor(y); return x >= 0 && x < W && y >= 0 && y < H && mask[y * W + x] === 1; };
   // primeira linha de chão na coluna x, procurando de y0 para baixo (H + 200 = nada: vão / água)
   function surf(x, y0 = 0) {
@@ -455,6 +455,7 @@
     const T = THEMES[key], base = T.terrain.base;
     const amp = T.terrain.amp * (arch === 'flat' ? 0.4 : arch === 'spires' ? 1.1 : 1);
     const p1 = rnd(0, 6.3), p2 = rnd(0, 6.3), p3 = rnd(0, 6.3);
+    terrPh = [p1, p2];
     const nb = Math.round((arch === 'flat' ? 3 : arch === 'spires' ? 9 : 5) * W / 800);
     const sp = arch === 'spires';
     const bumps = Array.from({ length: nb }, () => ({ c: rnd(40, W - 40), w: sp ? rnd(16, 38) : rnd(35, 100), h: sp ? rnd(-120, -45) : rnd(-75, 55) }));
@@ -529,7 +530,7 @@
     $('fore').setAttribute('d', fd);
     $('introBack').innerHTML = '';
     decor = []; dirty = true;
-    glFullT = true; glTerrOk = false; glBgDirty = true; glPunches = [];
+    glFullT = true; glTerrOk = false; glBgDirty = true; glPunches = []; glTFull = true;
     glStartLoad();
   }
 
@@ -1143,7 +1144,8 @@
       for (let x = x0; x <= x1; x++) if (mask[row + x] && (x - cx) * (x - cx) + dy * dy <= r * r) { mask[row + x] = 0; any = true; }
     }
     if (!any) return;
-    if (glActive) { glPunch(cx, cy, r); glMark(cx - r - 22, cy - r - 30, cx + r + 22, cy + r + 22); }
+    if (glShader()) glTMark(cx - r - 1, cx + r + 1, burn ? { cx, cy, r } : null);
+    else if (glActive) { glPunch(cx, cy, r); glMark(cx - r - 22, cy - r - 30, cx + r + 22, cy + r + 22); }
     for (let x = Math.max(0, Math.floor(cx - r - 8)); x <= Math.min(W - 1, Math.ceil(cx + r + 8)); x++) {
       if (Math.hypot(x - cx, heights[x] - cy) < r + 8) grass[x] = 0;
     }
@@ -1182,7 +1184,7 @@
     Sfx.boom(style);
     if (wp.boom >= 40 || style === 'thunder') { flash.a = Math.min(0.5, wp.boom / 100); flash.col = { fire: '#ffd9a0', dragon: '#c8b0ff', thunder: '#fffbb0', rock: '#e8dcc0' }[style] || '#ffffff'; }
     carve(x, y, wp.carve);
-    fx.push({ x, y, t: 0, max: 36, r: wp.boom, fill: FX_FILL[style] });
+    fx.push({ x, y, t: 0, max: 36, r: wp.boom, fill: FX_FILL[style], style });
     burst(x, y, style);
     for (const u of units) {
       if (!u.alive || u.hidden) continue;
@@ -1250,7 +1252,7 @@
       for (let y = t1; y < t0; y++) mask[y * W + x] = 1;
       heights[x] = t1; grass[x] = 0; ya = Math.min(ya, t1); yb = Math.max(yb, t0);
     }
-    if (yb > ya) glMark(cx - r - 14, ya - 30, cx + r + 14, yb + 14);
+    if (yb > ya) { glMark(cx - r - 14, ya - 30, cx + r + 14, yb + 14); glTMark(cx - r - 1, cx + r + 1); }
     terrDirty = true; dirty = true;
   }
   function quakeHit(x, p, wp) {
@@ -1415,7 +1417,7 @@
 
   function muzzle(x, y, style, a) {
     const col = STYLE_COL[style] || '#fff';
-    fx.push({ x, y, t: 0, max: 16, r: 20, fill: FX_FILL[style] });
+    fx.push({ x, y, t: 0, max: 16, r: 20, fill: FX_FILL[style], style });
     for (let i = 0; i < 12; i++) {
       const s = rnd(1, 3.2), da = rnd(-0.5, 0.5);
       addPart({ x, y, vx: Math.cos(a + da) * s, vy: -Math.sin(a + da) * s, g: 0, life: 20, max: 20, r: rnd(1.2, 2.6), col, kind: 'ember' });
@@ -2012,6 +2014,9 @@
       const pl = yield* planWeaponGen(u, wk);
       if (!bestPlan || pl.score > bestPlan.score || (pl.score === bestPlan.score && pl.near < bestPlan.near)) { bestPlan = pl; bestMi = i; }
     }
+    return finishPlan(u, bestPlan, bestMi);
+  }
+  function finishPlan(u, bestPlan, bestMi) {
     u.mi = bestMi;
     const pick1 = bestPlan ? bestPlan.pick : { ang: fromElev(u, 45), pw: 60, face: u.face };
     u.face = pick1.face || u.face;
@@ -2020,6 +2025,54 @@
     { const [lo, hi] = aimWindow(u); ai.angle = fromElev(u, clamp(elevOf(u, pick1.ang) + e1 * u.face, lo, hi)); }
     ai.power = clamp(pick1.pw + e2, 15, 100);
     return bestPlan ? bestPlan.score : 0;
+  }
+  // ---------- IA em segundo plano (Web Worker) ----------
+  // o mesmo cálculo de planWeaponGen, mas numa linha de execução separada: a tela continua a 60 fps enquanto a CPU pensa
+  let aiWorker = null, aiWorkerFailed = false, aiJobSeq = 0;
+  function getAiWorker() {
+    if (aiWorker || aiWorkerFailed) return aiWorker;
+    try {
+      if (typeof Worker !== 'function' || typeof location === 'undefined' || location.protocol === 'file:') throw 0;
+      aiWorker = new Worker('js/ai-worker.js?v=' + GAME_VERSION.replace(/\W/g, ''));
+      aiWorker.onerror = () => { aiWorkerFailed = true; aiWorker = null; };
+    } catch (_) { aiWorkerFailed = true; aiWorker = null; }
+    return aiWorker;
+  }
+  function aiJob(u) {
+    const wkr = getAiWorker(); if (!wkr) return null;
+    const job = { done: false, value: 0, want: 0, got: [], id: ++aiJobSeq };
+    const list = [];
+    u.moves.forEach((wk, i) => { const w = WEAPONS[wk]; if (!(w.none || w.teleport || w.protect)) list.push([wk, i]); });
+    if (!list.length) { job.done = true; job.value = finishPlan(u, null, 0); return job; }
+    const foes = units.filter(v => v.alive && !v.hidden && v.team !== u.team && v.team !== 2).map(v => ({ x: v.x, y: v.y }));
+    const heavyAny = u.moves.length > 1;
+    job.want = list.length;
+    wkr.onmessage = e => {
+      const r = e.data; if (r.id !== job.id || job.done) return;
+      const [wk, i] = list[job.got.length];
+      job.got.push({ i, pl: { pick: r.bestS > 1 ? r.best : (r.near || { ang: fromElev(u, 45), pw: 60, face: u.face }), score: r.bestS > 1 ? r.bestS : 0, near: r.nearD } });
+      void wk;
+      if (job.got.length < job.want) return;
+      let bestPlan = null, bestMi = 0;
+      for (const { i: mi, pl } of job.got) if (!bestPlan || pl.score > bestPlan.score || (pl.score === bestPlan.score && pl.near < bestPlan.near)) { bestPlan = pl; bestMi = mi; }
+      job.result = { bestPlan, bestMi }; job.done = true;
+    };
+    let first = true;
+    for (const [wk] of list) {
+      const wp = WEAPONS[wk];
+      const heavy = wp.count >= 3 || heavyAny, aStep = (heavy ? 4 : 3) + (lite ? 2 : 0), pStep = (heavy ? 6 : 5) + (lite ? 3 : 0);
+      const cands = [];
+      for (const face of [1, -1]) {
+        const [lo, hi] = aimWindow(u, face), m = mouthAt(u, face, false);
+        for (let e2 = Math.max(-30, lo); e2 <= Math.min(180, hi) + 0.01; e2 += aStep) cands.push({ ang: face > 0 ? e2 : 180 - e2, face, x0: m.x, y0: m.y });
+      }
+      const scoreU = units.filter(v => v.alive && !v.hidden).map(v => { const c = centerOf(v); return { x: c.x, y: c.y, team: v.team, hp: v.hp, mul: typeMult(wp.type, spOf(v).types) * wxMul(wp.type) }; });
+      const msg = { id: job.id, wp: { speed: wp.speed, grav: wp.grav, windMul: wp.windMul, dig: wp.dig, phase: wp.phase, count: wp.count, spread: wp.spread || 0, boom: wp.boom, dmg: wp.dmg },
+        tg: shotTargets(wp, u), cands, scoreU, foes, team: u.team, pStep, wind, windY, GRAV, WATER };
+      if (first) { msg.mask = mask.slice().buffer; msg.W = W; msg.H = H; first = false; wkr.postMessage(msg, [msg.mask]); }
+      else wkr.postMessage(msg);
+    }
+    return job;
   }
   // versão de uma vez só (testes)
   function planShot(u) { const g = planShotGen(u); let r; do r = g.next(); while (!r.done); return r.value; }
@@ -2050,12 +2103,19 @@
       } else a.phase = 'plan';
     } else if (a.phase === 'plan') {
       // pensa em pedaços de ~6 ms por quadro (num aparelho fraco a IA não congela a tela)
-      if (!a.gen) a.gen = planShotGen(u);
-      const t0 = Date.now(); let r;
-      do r = a.gen.next(); while (!r.done && Date.now() - t0 < 6);
-      if (!r.done) return;
-      a.gen = null;
-      const sc = r.value;
+      let sc;
+      if (!a.gen && !a.job) { a.job = aiJob(u); if (!a.job) a.gen = planShotGen(u); a.jobT = 0; }
+      if (a.job) {                                   // segundo plano: só espera a resposta (até 3 s; depois pensa aqui mesmo)
+        if (!a.job.done) { if (++a.jobT > 180) { a.job = null; a.gen = planShotGen(u); } return; }
+        sc = a.job.result ? finishPlan(u, a.job.result.bestPlan, a.job.result.bestMi) : a.job.value;
+        a.job = null;
+      } else {
+        const t0 = Date.now(); let r;
+        do r = a.gen.next(); while (!r.done && Date.now() - t0 < 6);
+        if (!r.done) return;
+        a.gen = null;
+        sc = r.value;
+      }
       // nada acerta daqui (faixa de mira estreita, morro no caminho): anda um pouco e tenta de novo
       if (sc <= 1 && (a.tries || 0) < 2 && walkBudget > 30) {
         const f = nearestFoe(u); a.tries = (a.tries || 0) + 1;
@@ -2772,7 +2832,7 @@
     const st = $('stage'), r = st.getBoundingClientRect ? st.getBoundingClientRect() : { width: 800 };
     const dpr = Math.min(2, window.devicePixelRatio || 1) * (lite ? 0.7 : 1);
     const w = Math.max(320, Math.round((r.width || 800) * dpr)), h = Math.round(w * 5 / 8);
-    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; glBgDirty = true; glFullT = true; GLR.resetAtlas(); glResetOk = true; }   // desenhos refeitos na resolução nova
+    if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; glBgDirty = true; glFullT = true; GLR.resetAtlas(); glResetOk = true; glHudHave = null; }   // desenhos refeitos na resolução nova
     glP = w / VW; GLR.resize(w, h);
   }
   function glUse() {
@@ -2781,7 +2841,7 @@
       glActive = on;
       document.body.classList.toggle('gl', on);
       if (on) { glBgDirty = true; glFullT = true; glSize(); glStartLoad(); }
-      else { layoutLayers(); dirty = true; }
+      else { layoutLayers(); dirty = true; terrDirty = true; }
     }
     return on;
   }
@@ -2905,6 +2965,7 @@
   function glSchedule() {
     if (glBgDirty) { glBgDirty = false; glSkyDirty = false; glBgSnap(); }
     else if (glSkyDirty) { glSkyDirty = false; glBgSnap('sky'); }
+    if (glShader()) { glTUpload(); return; }                      // terreno pela placa de vídeo: sem fotos
     if (dirty || glTerrBusy) return;                              // espera o SVG do terreno estar em dia
     if (glFullT) glTerrSnap(true);
     else if (glBox && frameNo - glSnapAt >= 6) glTerrSnap(false);
@@ -2922,6 +2983,95 @@
     GLR.img('bg_' + name, 0, 0, T.w, T.h, S.vb[0], S.vb[1], S.vb[2], S.vb[3]);
   }
 
+  // ---------- terreno pela placa de vídeo (shader) ----------
+  // o mapa de chão vira uma textura de dados; o shader pinta terra, rocha, grama, capim, queimado e a fatia 2.5D.
+  // explosão: só as colunas atingidas são recalculadas e reenviadas — o buraco aparece no mesmo quadro
+  let glTD = null, glTC = null, glTFull = true, glTX0 = 1e9, glTX1 = -1, glTColsDirty = false;
+  const glShader = () => glActive && GLR && GLR.terrOk();
+  function glTMark(x0, x1, burn) {
+    glTX0 = Math.min(glTX0, Math.max(0, Math.floor(x0))); glTX1 = Math.max(glTX1, Math.min(W - 1, Math.ceil(x1))); glTColsDirty = true;
+    if (burn && glTD && !glTFull) {            // anel queimado em volta da cratera (canal A)
+      const { cx, cy, r } = burn, R2 = r + 6;
+      for (let y = Math.max(0, Math.floor(cy - R2)); y <= Math.min(H - 1, cy + R2); y++)
+        for (let x = Math.max(0, Math.floor(cx - R2)); x <= Math.min(W - 1, cx + R2); x++) {
+          const dd = Math.hypot(x + 0.5 - cx, y + 0.5 - cy), k = 1 - Math.abs(dd - (r + 2)) / 3.2;
+          if (k > 0) { const o = (y * W + x) * 4 + 3; glTD[o] = Math.max(glTD[o], Math.round(255 * Math.min(1, k * 1.25))); }
+        }
+      glTX0 = Math.min(glTX0, Math.max(0, Math.floor(cx - R2))); glTX1 = Math.max(glTX1, Math.min(W - 1, Math.ceil(cx + R2)));
+    }
+  }
+  function glTCols(x0, x1) {                    // chão e profundidade (canais R e G), coluna por coluna
+    const d = glTD;
+    for (let x = x0; x <= x1; x++) {
+      let run = 0;
+      for (let y = 0; y < H; y++) {
+        const o = (y * W + x) * 4;
+        if (mask[y * W + x]) { d[o] = 255; d[o + 1] = Math.min(255, run); run++; }
+        else { d[o] = 0; d[o + 1] = 0; run = 0; }
+      }
+    }
+  }
+  function glTColsTex() {                       // grama, capim e topo de cada coluna
+    if (!glTC || glTC.length !== W * 4) glTC = new Uint8Array(W * 4);
+    for (let x = 0; x < W; x++) {
+      const t = Math.max(0, Math.min(65535, Math.round(heights[x]))), o = x * 4;
+      glTC[o] = grass[x] ? 255 : 0; glTC[o + 1] = Math.round(Math.min(12.7, tuft[x] || 0) * 20); glTC[o + 2] = t & 255; glTC[o + 3] = t >> 8;
+    }
+    GLR.terrCols(glTC, W);
+  }
+  function glTUpload() {
+    if (glTFull || !glTD || glTD.length !== W * H * 4) {
+      glTD = new Uint8Array(W * H * 4); glTCols(0, W - 1);
+      GLR.terrData(glTD, W, H); glTColsTex();
+      glTFull = false; glTX0 = 1e9; glTX1 = -1; glTColsDirty = false; glTerrOk = true; glFullT = false; glBox = null;
+      return;
+    }
+    if (glTX1 >= glTX0) { glTCols(glTX0, glTX1); GLR.terrData(glTD, W, H, glTX0, glTX1); glTX0 = 1e9; glTX1 = -1; }
+    if (glTColsDirty) { glTColsTex(); glTColsDirty = false; }
+  }
+  function glLights() {                         // até 4 luzes: explosões, raios e tiros de fogo
+    const L = [];
+    for (const f of fx) {
+      const k = 1 - f.t / f.max; if (k <= 0) continue;
+      if (f.sky) { const q = f.pts[f.pts.length - 1]; L.push({ x: q[0], y: q[1], r: 140, k: 1.1 * k, col: '#fff3a0' }); }
+      else if (f.beam) L.push({ x: (f.x + f.x2) / 2, y: (f.y + f.y2) / 2, r: 160, k: 0.7 * k, col: '#ffd27a' });
+      else if (!f.bolt) L.push({ x: f.x, y: f.y, r: f.r * 3.2, k: 1.2 * k * k, col: LIGHT_COL[f.style] || '#ffb347' });
+    }
+    for (const p of projs) { const c = PROJ_LIGHT[p.wp.style]; if (c && !p.under && p.wk !== 'ball') L.push({ x: p.x, y: p.y, r: 70, k: 0.45, col: c }); }
+    if (flash.a > 0.05) L.push({ x: cam.x, y: 0, r: 900, k: flash.a * 0.5, col: '#ffffff' });
+    return L.sort((a, b) => b.k - a.k).slice(0, 4);
+  }
+  const LIGHT_COL = { fire: '#ff9a3c', dragon: '#b08aff', thunder: '#fff27a', water: '#9fdcff', ice: '#cff3ff', psy: '#ff9ad8', ghost: '#a68ae0', leaf: '#b8f07a', poison: '#d08ae8' };
+  const PROJ_LIGHT = { fire: '#ff8a2a', dragon: '#9a7aff', thunder: '#fff27a', psy: '#ff8ad0', ghost: '#8a6ac0' };
+  function glDrawTerrain() {
+    const t = THEMES[themeKey], y1 = parseFloat($('dirt').getAttribute('y1')) || 160;
+    GLR.drawTerrain({ d0: t.dirt[0], d1: t.dirt[1], d2: t.dirt[2], s1: t.s1, s2: t.s2, g0: t.g[0], g1: t.g[1], g2: t.g[2],
+      dy: [y1, 500], ph: terrPh, px: glP, lights: lite ? [] : glLights() });
+    // árvores, pedras e flores (desenho SVG de cada uma vira imagem)
+    const R = GLR;
+    for (const d of decor) {
+      const key = 'dc|' + d.type + '|' + (d.col || ''), snip = () => Art.decor({ ...d, x: 0, base: -1, s: 1 });
+      const s = R.svg(key, snip, measureBox(key, snip, [-40, -110, 80, 116]), R.res * Math.max(1, d.s));
+      if (s) { R.push(); R.tr(d.x, d.base + 1); R.sc(d.s); R.spr(s); R.pop(); }
+    }
+  }
+  // contorno de um desenho SVG qualquer (medido uma vez num SVG escondido)
+  const boxCache = {};
+  function measureBox(key, snip, fallback) {
+    if (boxCache[key]) return boxCache[key];
+    let box = null;
+    try {
+      let m = document.getElementById('glMeasure');
+      if (!m) {
+        m = document.createElementNS(SVGNS, 'svg'); m.id = 'glMeasure'; m.setAttribute('width', '10'); m.setAttribute('height', '10');
+        m.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;pointer-events:none'; document.body.appendChild(m);
+      }
+      m.innerHTML = `<g>${typeof snip === 'function' ? snip() : snip}</g>`;
+      const b = m.firstChild.getBBox(); m.innerHTML = '';
+      if (b && b.width > 0) box = [b.x - 3, b.y - 3, b.width + 6, b.height + 6];
+    } catch (_) { box = null; }
+    return (boxCache[key] = box || fallback);
+  }
   // contorno do desenho de cada espécie (medido uma vez no SVG escondido)
   const artBoxes = {};
   function artBox(sp) {
@@ -3201,6 +3351,59 @@
       <rect x="252" y="314" width="${f1(296 * k)}" height="10" rx="5" fill="#ffd34d"/>
       <text x="400" y="352" text-anchor="middle" font-size="13" fill="#bfe3ff">desenhando cenário e Pokémon na placa de vídeo</text></g>`;
   }
+  // ---------- painel no WebGL ----------
+  // o painel (vez, tempo, vento, ordem, minimapa) vira uma imagem refeita só quando um texto dele muda;
+  // a barra de força, o retângulo do minimapa e as mensagens são desenhados direto, todo quadro
+  let glHudWant = '', glHudHave = null, glHudBusy = false, glHudOk = false;
+  const HUD_H = 240;
+  function glHudSnap() {
+    if (glHudBusy || glHudWant === glHudHave) return;
+    const str = glHudWant; glHudBusy = true;
+    if (!str) { glHudHave = str; glHudOk = false; glHudBusy = false; return; }
+    const w = Math.round(800 * glP), h = Math.round(HUD_H * glP);
+    const src = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${w}" height="${h}" viewBox="0 0 800 ${HUD_H}" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">${defsFor(str)}${str}</svg>`;
+    const im = new Image();
+    im.onload = () => {
+      glHudBusy = false; if (!GLR) return;
+      try { const c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d').drawImage(im, 0, 0, w, h); GLR.setTex('hud', c); c.width = 0; glHudOk = true; glHudHave = str; } catch (_) { glHudHave = str; }
+    };
+    im.onerror = () => { glHudBusy = false; glHudHave = str; };
+    im.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(src);
+  }
+  function glBottomBar() {
+    if (scene !== 'battle' || !(state === 'aim' || state === 'ai') || !teams[turnTeam]) return;
+    const u = activeUnit(); if (!u || !u.alive) return;
+    const R = GLR, el = elevOf(u), [wlo, whi] = aimWindow(u);
+    const cx = 186, cy = 474, r = 22, P = d => [cx + Math.cos(d * Math.PI / 180) * r, cy - Math.sin(d * Math.PI / 180) * r];
+    const w0 = Math.max(-40, wlo), w1 = Math.min(220, whi), pe = P(el);
+    const bx = 216, bw = 312, py = 446, my = 476;
+    R.rrect(152, 434, 388, 58, 12, '#0d1b2a', 0.78);
+    R.line(cx - r - 3, cy, cx + r + 3, cy, 1, '#8aa0c8', 1, false);
+    for (let i = 0; i < 12; i++) { const a = P(i * 15), b = P((i + 1) * 15); R.line(a[0], a[1], b[0], b[1], 1, '#8aa0c8', 0.5, false); }
+    R.wedge(cx, cy, r, w0, w1, '#6ad0ff', 0.28);
+    { const p0 = P(w0), p1 = P(w1); R.line(cx, cy, p0[0], p0[1], 1, '#6ad0ff', 0.7, false); R.line(cx, cy, p1[0], p1[1], 1, '#6ad0ff', 0.7, false); }
+    R.line(cx, cy, pe[0], pe[1], 2.6, '#ffb43c');
+    R.text(Math.round(el) + '°', cx, cy + 13, { size: 11, fill: '#fff' });
+    R.text(`${Math.round(wlo)}°–${Math.round(whi)}°`, cx, cy - r - 4, { size: 7.5, fill: '#bfe3ff', weight: 'normal' });
+    R.text('FORÇA', bx, py - 3, { size: 8, fill: '#bfe3ff', weight: 'normal', anchor: 'start', ls: 1.2 });
+    R.pill(bx, py, bw, 12, '#000', 0.55);
+    if (charging) { const pw = Math.max(0, power / 100 * (bw - 2)); if (pw > 0) { R.hgrad(bx + 1 + 5, py + 1, Math.max(0, pw - 10), 10, ['#5ad16a', '#ffd34d', '#ff4d3a']); R.circle(bx + 6, py + 6, 5, '#5ad16a'); R.circle(bx + 1 + Math.max(5, pw - 5), py + 6, 5, power > 70 ? '#ff6a3a' : power > 40 ? '#ffd34d' : '#5ad16a'); } }
+    for (let i = 1; i < 10; i++) R.line(bx + bw * i / 10, py, bx + bw * i / 10, py + (i === 5 ? 12 : 6), 1, '#fff', 0.25, false);
+    const lp = u.lastPow;
+    if (lp !== null && lp !== undefined) { const lx = bx + bw * lp / 100; R.tri(lx, py - 1, lx - 4, py - 7, lx + 4, py - 7, '#fff'); R.text('último', Math.min(bx + bw - 30, lx + 6), py - 2, { size: 7.5, fill: '#fff', weight: 'normal', anchor: 'start' }, 0.8); }
+    R.text('MOVER', bx, my - 3, { size: 8, fill: '#bfe3ff', weight: 'normal', anchor: 'start', ls: 1.2 });
+    R.pill(bx + 44, my - 9, bw - 44, 6, '#000', 0.55);
+    R.pill(bx + 45, my - 8, Math.max(0, walkBudget / walkMax()) * (bw - 46), 4, '#9be36a');
+    if (!teams[turnTeam].ai) R.text('P passa a vez · golpe forte = mais atraso', bx + bw, my + 12, { size: 8, fill: '#bfe3ff', weight: 'normal', anchor: 'end' });
+  }
+  function glUi() {
+    const R = GLR;
+    glHudSnap();
+    if (glHudOk && glHudWant) { const T = R.tex('hud'); if (T) R.img('hud', 0, 0, T.w, T.h, 0, 0, 800, HUD_H); }
+    if (mmShown && scene === 'battle') { const k = MM.w / W, vw = VW / cam.z, vx = clamp(cam.x - vw / 2, 0, W - vw); R.rrect(MM.x + vx * k, MM.y + 1, vw * k, MM.h - 2, 3, '#fff', 0.1); R.line(MM.x + vx * k, MM.y + 1, MM.x + vx * k + vw * k, MM.y + 1, 1.4, '#fff', 1, false); R.line(MM.x + vx * k, MM.y + MM.h - 1, MM.x + vx * k + vw * k, MM.y + MM.h - 1, 1.4, '#fff', 1, false); R.line(MM.x + vx * k, MM.y + 1, MM.x + vx * k, MM.y + MM.h - 1, 1.4, '#fff', 1, false); R.line(MM.x + vx * k + vw * k, MM.y + 1, MM.x + vx * k + vw * k, MM.y + MM.h - 1, 1.4, '#fff', 1, false); }
+    glBottomBar();
+    if (msg) { const w = Math.min(780, msg.length * 12.5 + 40), my = state === 'guest' ? 84 : 206; R.rrect(400 - w / 2, my, w, 44, 14, '#000', 0.45); R.text(msg, 400, my + 29, { size: 22, fill: '#fff' }); }
+  }
   function renderGL(act, inBattle) {
     const R = GLR;
     if (R.gen !== glGen) {             // o atlas encheu e recomeçou? baixa a resolução das poses para não ficar refazendo (piscar)
@@ -3226,7 +3429,8 @@
     // mundo
     glLayer(1);
     glWater(false);
-    if (glTerrOk && glTerr) for (let i = 0; i < glTerr.n; i++) {
+    if (glShader()) glDrawTerrain();
+    else if (glTerrOk && glTerr) for (let i = 0; i < glTerr.n; i++) {
       const T = R.tex('terr' + i); if (T) R.img('terr' + i, 0, 0, T.w, T.h, -40 + i * glTerr.tw / glTerr.sx, -20, T.w / glTerr.sx, T.h / glTerr.sy);
     }
     if (scene === 'battle') for (const p of pickups) {
@@ -3316,6 +3520,20 @@
       } else R.circle(f.x, f.y, r, f.fill, 1 - k);
       R.ring(f.x, f.y, f.r * k * 1.4, 3 * (1 - k), '#fff', 0.8 * (1 - k));
     }
+    // brilhos somados à luz (fogo, raios, explosões): ficam bonitos e custam quase nada na placa de vídeo
+    if (!lite) {
+      R.add(true);
+      for (const p of projs) { if (p.under || p.wk === 'ball') continue; const c = PROJ_LIGHT[p.wp.style]; if (c) R.glow(p.x, p.y, 22 + Math.sin(frameNo * 0.5) * 2, c, 0.55); }
+      for (const f of fx) {
+        const k = 1 - f.t / f.max; if (k <= 0) continue;
+        if (f.sky) { const q = f.pts[f.pts.length - 1]; R.glow(q[0], q[1], 70, '#fff3a0', 0.8 * k); for (const pt of f.pts) R.glow(pt[0], pt[1], 22, '#ffe96a', 0.25 * k); }
+        else if (f.beam) { const n = 8; for (let i = 0; i <= n; i++) R.glow(f.x + (f.x2 - f.x) * i / n, f.y + (f.y2 - f.y) * i / n, 34, '#ffc070', 0.35 * k); }
+        else if (f.bolt) R.glow(f.x2, f.y2, 26, '#fff27a', 0.5 * k);
+        else R.glow(f.x, f.y, f.r * 1.9, LIGHT_COL[f.style] || '#ffb347', 0.75 * k * k);
+      }
+      for (const u of units) if (u.alive && !u.hidden && u.shield > 0) { const S2 = spOf(u); R.glow(u.x, u.y - S2.hitY * u.scale, S2.hitR * u.scale * 2.4, '#8fe0ff', 0.18); }
+      R.add(false);
+    }
     glWater(true);
     for (const f of floaters) R.text(f.text, f.x, f.y - f.t * 0.5, { size: f.size || 15, fill: f.col, stroke: f.col === '#ffffff' || f.col === '#fff' ? '#000' : '#fff', sw: 0.8 }, clamp(1 - f.t / 60, 0, 1));
     // primeiro plano
@@ -3324,6 +3542,7 @@
     R.setBase(1, 0, 0);
     if (scene === 'battle' && (weather || wxPrev)) { if (wxK >= 1) glWx(weather, 1); else { glWx(wxPrev, 1 - wxK); glWx(weather, wxK); } }
     if (flash.a > 0.01) R.rect(0, 0, 800, 500, flash.col, flash.a);
+    glUi();
     R.end();
     R.pump(glLoading ? 40 : lite ? 3 : 5);      // na tela de preparo, envia bem mais imagens por quadro
   }
@@ -3348,7 +3567,8 @@
   function renderAllInner() {
     fpsTick();
     // enquanto um golpe cava, o contorno do terreno é refeito no máximo a cada 4 quadros
-    if (dirty && (!terrDirty || state !== 'flying' || frameNo - terrAt > 3)) { renderTerrain(); dirty = false; terrAt = frameNo; }
+    if (dirty && glShader()) { miniTerr = null; dirty = false; }      // terreno pela placa de vídeo: o SVG do chão não precisa ser refeito
+    else if (dirty && (!terrDirty || state !== 'flying' || frameNo - terrAt > 3)) { renderTerrain(); dirty = false; terrAt = frameNo; }
     // água e nuvens se mexem devagar: atualizar a cada poucos quadros evita repintar faixas largas da tela
     const useGL = glUse();
     if (!useGL) {
@@ -3430,7 +3650,8 @@
         opacity="${clamp(1 - f.t / 60, 0, 1).toFixed(2)}">${f.text}</text>`).join('');
     }
 
-    if (charging || keys.up || keys.down || keys.left || keys.right || frameNo - barAt >= 4 || scene !== 'battle') { barAt = frameNo;
+    if (useGL) $('powerbar').innerHTML = '';                     // no WebGL a barra é desenhada pela placa de vídeo
+    else if (charging || keys.up || keys.down || keys.left || keys.right || frameNo - barAt >= 4 || scene !== 'battle') { barAt = frameNo;
     $('powerbar').innerHTML = scene === 'battle' ? bottomBarSvg() : charging
       ? `<rect x="10" y="54" width="208" height="14" rx="7" fill="#000" opacity=".45"/>
          <rect x="12" y="56" width="${f1(power * 2.04)}" height="10" rx="5" fill="url(#pow)"/>`
@@ -3445,9 +3666,13 @@
     }
     // painel: refeito a cada poucos quadros (ou na hora, quando muda o estado/turno) — nada nele precisa de 60 por segundo
     const hk = scene + state + turnTeam + (teams[turnTeam] ? teams[turnTeam].cur : '') + ballMode + !!panel + (guest ? guest.uid : '');
-    if (hk !== hudKey || frameNo - hudAt >= (lite ? 6 : 3)) { hudKey = hk; hudAt = frameNo; mmShown = false; $('hud').innerHTML = hudSvg(); }
-    $('mmview').innerHTML = mmViewSvg();
-    $('msgbox').innerHTML = msgSvg();
+    if (hk !== hudKey || frameNo - hudAt >= (lite ? 6 : 3)) {
+      hudKey = hk; hudAt = frameNo; mmShown = false;
+      const h = hudSvg();
+      if (useGL) { glHudWant = h; $('hud').innerHTML = ''; } else $('hud').innerHTML = h;
+    }
+    if (useGL) { $('mmview').innerHTML = ''; $('msgbox').innerHTML = ''; }
+    else { $('mmview').innerHTML = mmViewSvg(); $('msgbox').innerHTML = msgSvg(); }
     renderOverlay();
   }
 
@@ -3609,6 +3834,14 @@
   }
 
   // botões do ⚙ (também navegáveis pelas setas do controle: linhas 2 em diante)
+  // instalar o jogo (ícone na tela inicial, abre sem internet) quando o navegador oferece
+  let installEvt = null;
+  if (typeof addEventListener === 'function') addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; });
+  function installApp() {
+    if (!installEvt) return;
+    try { installEvt.prompt(); installEvt.userChoice && installEvt.userChoice.then(() => { installEvt = null; }); } catch (_) { installEvt = null; }
+    Sfx.click();
+  }
   function drawerBtns() {
     const qn = 'Qualidade: ' + (settings.quality === 'auto' ? (lite ? 'Auto (leve)' : 'Auto (alta)') : QUALITY_NAME[settings.quality]);
     return [
@@ -3618,8 +3851,9 @@
       ['Teste do controle', () => { location.href = 'controle.html'; }],
       [Sfx.isOn() ? 'Som: ligado' : 'Som: desligado', () => toggleSound()],
       [settings.showFps ? 'Mostrar FPS: sim' : 'Mostrar FPS: não', () => { settings.showFps = !settings.showFps; applySettings(); Sfx.click(); }],
+      installEvt ? ['Instalar o jogo', () => installApp()] : null,
       ['Fechar', () => toggleSettings(false)]
-    ];
+    ].filter(Boolean);
   }
   function drawerSvg() {
     const e = 1 - Math.pow(1 - drawerT, 3), X = 800 - 250 * e;
@@ -3644,7 +3878,7 @@
     const bx = Math.round(X + 24);
     // qualidade: Automática (liga o modo leve se o aparelho for lento) / Alta / Leve
     if (settingsOpen) uiSel = settingsRow >= SLIDERS.length ? uiList.length + settingsRow - SLIDERS.length : -1;   // destaque segue a linha escolhida
-    drawerBtns().forEach((b, i) => { s += uiBtn(bx, 214 + i * 38, 202, 32, b[0], b[1], { fs: 14 }); });
+    { const bl = drawerBtns(), st = bl.length > 7 ? 34 : 38; bl.forEach((b, i) => { s += uiBtn(bx, 210 + i * st, 202, st - 6, b[0], b[1], { fs: 14 }); }); }
     s += `<text x="${f1(X + 125)}" y="494" text-anchor="middle" font-size="9.5" fill="#fff" opacity=".55">O abre e fecha · jogo em pausa</text>
           <text x="${f1(X + 236)}" y="38" text-anchor="end" font-size="9" fill="#fff" opacity=".5">versão ${GAME_VERSION}</text>`;
     return s;
@@ -4007,7 +4241,7 @@
     get: () => ({ scene, kind, state, stageIdx, units, teams, campaign, cap, intro, panel, angle, power, wind, ballMode, turnTeam, ai, guest, gCool, gMode, evo, projs }),
     get pickups() { return pickups; }, BALLS,
     setWeather: w => { weather = w; lightT = 5; $('sun').style.display = (w === 'rain' || w === 'storm') ? 'none' : ''; glSkyDirty = true; }, get weather() { return weather; },
-    glInfo: () => ({ active: glActive, loading: glLoading, prog: glLoadProg, gen: GLR && GLR.gen, resK: glResK, P: glP, snaps: Object.fromEntries(Object.entries(glSnap).map(([k, v]) => [k, { ok: v.ok, vb: v.vb }])), terrOk: glTerrOk, busy: glTerrBusy, full: glFullT, box: glBox, stats: GLR && GLR.stats, lite, ms: rN ? +(rTime / rN).toFixed(2) : 0, resetMs: (rTime = 0, rN = 0) }),
+    glInfo: () => ({ aiw: !!aiWorker, aiJobs: aiJobSeq, active: glActive, loading: glLoading, prog: glLoadProg, gen: GLR && GLR.gen, resK: glResK, P: glP, snaps: Object.fromEntries(Object.entries(glSnap).map(([k, v]) => [k, { ok: v.ok, vb: v.vb }])), terrOk: glTerrOk, busy: glTerrBusy, full: glFullT, box: glBox, stats: GLR && GLR.stats, lite, ms: rN ? +(rTime / rN).toFixed(2) : 0, resetMs: (rTime = 0, rN = 0) }),
     setRender: r => { if ((settings.render === 'svg') !== (r === 'svg')) toggleRender(); },
     setMap: o => { mapOverride = o; }, setShinyP: v => { shinyP = v; }, get W() { return W; }, get panX() { return panX; }, get mapArch() { return mapArch; }, get cam() { return cam; }, get heights() { return heights; }, shF, rollArch, layoutSpawns, applyStatus, applyDots,
     toggleSettings, settings, sync: () => syncButtons(), plan: u => { ai = { phase: 'plan', t: 0 }; planShot(u); },

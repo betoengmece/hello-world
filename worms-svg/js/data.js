@@ -465,11 +465,11 @@
     faiscolino: { name: 'Faiscolino', types: ['electric'],         weapon: 'volt',     maxhp: 90,  h: 40, hitY: 12, hitR: 12, catch: 0.6, mouth: [12, -9],  mania: true, orig: true, sh: 300 },
     pedrugo:    { name: 'Pedrugo',    types: ['rock'],             weapon: 'pedra',    maxhp: 115, h: 26, hitY: 9,  hitR: 13, catch: 0.6, mouth: [19, -8],  mania: true, orig: true, sh: 60 },
     ventolina:  { name: 'Ventolina',  types: ['normal', 'flying'], weapon: 'ventania', maxhp: 85,  h: 38, hitY: 15, hitR: 13, catch: 0.6, mouth: [10, -13], mania: true, orig: true, sh: 180 },
-    caramelo:   { name: 'Caramelo',   types: ['normal'],             weapon: 'osso',      maxhp: 100, h: 32, hitY: 13, hitR: 13, catch: 0.6, mouth: [22, -18], mania: true, orig: true, sh: 200 },
-    pinscher:   { name: 'Pinscher',   types: ['normal', 'fighting'], weapon: 'latido',    maxhp: 80,  h: 34, hitY: 12, hitR: 10, catch: 0.6, mouth: [21, -15], mania: true, orig: true, furia: true, sh: 160 },
-    tatubola:   { name: 'Tatu-bola',  types: ['rock'],               weapon: 'rolamento', maxhp: 115, h: 22, hitY: 9,  hitR: 13, catch: 0.6, mouth: [21, -8],  mania: true, orig: true, sh: 100 },
-    formiga:    { name: 'Formiga',    types: ['bug'],                weapon: 'migalha',   maxhp: 85,  h: 40, hitY: 13, hitR: 11, catch: 0.6, mouth: [14, -17], mania: true, orig: true, sh: 120 },
-    rolabosta:  { name: 'Rola-bosta', types: ['ground', 'bug'],      weapon: 'bolaterra', maxhp: 100, h: 22, hitY: 10, hitR: 12, catch: 0.6, mouth: [14, -10], mania: true, orig: true, sh: 60 }
+    caramelo:   { name: 'Caramelo',   types: ['normal'],             weapon: 'osso',      maxhp: 100, h: 34, hitY: 15, hitR: 12, catch: 0.6, mouth: [16, -14], mania: true, orig: true, sh: 200 },
+    pinscher:   { name: 'Pinscher',   types: ['normal', 'fighting'], weapon: 'latido',    maxhp: 80,  h: 40, hitY: 15, hitR: 11, catch: 0.6, mouth: [15, -13], mania: true, orig: true, furia: true, sh: 160 },
+    tatubola:   { name: 'Tatu-bola',  types: ['rock'],               weapon: 'rolamento', maxhp: 115, h: 30, hitY: 11, hitR: 12, catch: 0.6, mouth: [20, -13],  mania: true, orig: true, sh: 100 },
+    formiga:    { name: 'Formiga',    types: ['bug'],                weapon: 'migalha',   maxhp: 85,  h: 44, hitY: 16, hitR: 11, catch: 0.6, mouth: [17, -12], mania: true, orig: true, sh: 120 },
+    rolabosta:  { name: 'Rola-bosta', types: ['ground', 'bug'],      weapon: 'bolaterra', maxhp: 100, h: 34, hitY: 12, hitR: 12, catch: 0.6, mouth: [18, -12], mania: true, orig: true, sh: 60 }
   });
   Object.assign(MS.WEAPONS, {
     osso:      { label: 'Osso',            type: 'normal',   style: 'bone',  count: 1, spread: 0, speed: 1.05, grav: 0.95, boom: 34, carve: 14, dmg: 40, windMul: 0.7 },

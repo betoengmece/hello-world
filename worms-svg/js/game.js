@@ -8,11 +8,11 @@
   const GRAV = 0.2;           // gravidade base (px/frame²)
   const WALK_MAX = 120;       // distância máxima de caminhada por turno (mapas largos dão um pouco mais)
   const walkMax = () => WALK_MAX + Math.max(0, W - 800) * 0.07;
-  const GAME_VERSION = '18/10 orig-1';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
+  const GAME_VERSION = '18/10 orig-2';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
   const TURN_TIME = 30 * 60;  // 30 s para mirar e atirar (estourou: passa a vez)
   const WEAK = 0.35;          // abaixo dessa fração de PV o inimigo pode ser capturado
   const PLAYER_COL = '#3a9bff', WILD_COL = '#e0433a', GUEST_COL = '#ffd34d';
-  const SAVE_KEY = 'ms_campaign_v1', SET_KEY = 'ms_settings_v1';
+  const SAVE_KEY = MS.ORIGINAIS ? 'ms_campaign_orig_v1' : 'ms_campaign_v1', SET_KEY = 'ms_settings_v1';
   // ajustes (menu lateral): brilho da tela e volume do som
   const settings = { bright: 1, vol: 0.6, quality: 'auto', autoLite: false, showFps: false, zoom: 'auto', render: 'webgl', glv: 1 };   // render: 'webgl' | 'svg'   // zoom: 'auto' (desliga no modo leve) | 'on' | 'off'   // quality: 'auto' | 'alta' | 'leve'
   try { const t = JSON.parse(localStorage.getItem(SET_KEY)); if (t) { settings.bright = Math.min(1.5, Math.max(0.6, +t.bright || 1)); settings.vol = Math.min(1, Math.max(0, t.vol === undefined ? 0.6 : +t.vol)); if (['auto', 'alta', 'leve'].includes(t.quality)) settings.quality = t.quality; settings.autoLite = !!t.autoLite; settings.showFps = !!t.showFps; if (['auto', 'on', 'off'].includes(t.zoom)) settings.zoom = t.zoom; if (t.render === 'svg') settings.render = 'svg'; if (!t.glv) settings.autoLite = false; } } catch (_) {}   // com o WebGL, o modo leve automático da versão antiga recomeça desligado

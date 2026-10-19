@@ -454,4 +454,35 @@
     vitoria: ['machop', 'scyther', 'geodude', 'golbat'], montanha: []
   };
   MS.STAGES.forEach(st => { st.pool = POOL[st.theme] || []; });
+
+  // ---------- Versão com monstrinhos originais (sem personagens de terceiros) ----------
+  // mania: cada um tem um gesto próprio quando está parado (desenhado em art-originais.js)
+  Object.assign(MS.SPECIES, {
+    brasito:    { name: 'Brasito',    types: ['fire'],             weapon: 'fogo',     maxhp: 100, h: 36, hitY: 12, hitR: 12, catch: 0.6, mouth: [12, -9],  mania: true, orig: true, sh: 200 },
+    gotalho:    { name: 'Gotalho',    types: ['water'],            weapon: 'agua',     maxhp: 100, h: 34, hitY: 12, hitR: 12, catch: 0.6, mouth: [13, -9],  mania: true, orig: true, sh: 120 },
+    musguinho:  { name: 'Musguinho',  types: ['grass'],            weapon: 'planta',   maxhp: 100, h: 38, hitY: 12, hitR: 11, catch: 0.6, mouth: [9, -12],  mania: true, orig: true, sh: 260 },
+    faiscolino: { name: 'Faiscolino', types: ['electric'],         weapon: 'volt',     maxhp: 90,  h: 40, hitY: 12, hitR: 12, catch: 0.6, mouth: [12, -9],  mania: true, orig: true, sh: 300 },
+    pedrugo:    { name: 'Pedrugo',    types: ['rock'],             weapon: 'pedra',    maxhp: 115, h: 26, hitY: 9,  hitR: 13, catch: 0.6, mouth: [19, -8],  mania: true, orig: true, sh: 60 },
+    ventolina:  { name: 'Ventolina',  types: ['normal', 'flying'], weapon: 'ventania', maxhp: 85,  h: 38, hitY: 15, hitR: 13, catch: 0.6, mouth: [10, -13], mania: true, orig: true, sh: 180 }
+  });
+  MS.ORIG_STARTERS = ['brasito', 'gotalho', 'musguinho'];
+  if (MS.AIM_TIERS) { const base = MS.aimRange, tier = { pedrugo: 'mid', ventolina: 'wide', musguinho: 'basic' }; MS.aimRange = sp => (tier[sp] ? MS.AIM_TIERS[tier[sp]] : base(sp)); }
+  const G = (sp, rarity) => ({ sp, rarity });
+  const ORIG_STAGES = [
+    { name: 'Campina',             theme: 'campo',    enemies: ['musguinho', 'ventolina'],              err: 12,  hpMult: 1.0,  wind: 2, guests: [G('faiscolino', 0.2)], weather: [{ type: 'sun', p: 0.3 }, { type: 'rain', p: 0.25 }] },
+    { name: 'Bosque Verde',        theme: 'floresta', enemies: ['musguinho', 'musguinho', 'ventolina'], err: 10,  hpMult: 1.0,  wind: 2, guests: [G('brasito', 0.15)], weather: [{ type: 'rain', p: 0.35 }, { type: 'sun', p: 0.25 }] },
+    { name: 'Praia',               theme: 'praia',    enemies: ['gotalho', 'gotalho', 'ventolina'],     err: 8,   hpMult: 1.0,  wind: 3, guests: [G('faiscolino', 0.12)], weather: [{ type: 'sun', p: 0.35 }, { type: 'rain', p: 0.25 }, { type: 'storm', p: 0.15 }] },
+    { name: 'Caverna',             theme: 'caverna',  enemies: ['pedrugo', 'pedrugo', 'brasito'],       err: 6,   hpMult: 1.15, wind: 1, guests: [G('gotalho', 0.15)] },
+    { name: 'Torre Assombrada',    theme: 'noite',    enemies: ['faiscolino', 'ventolina', 'faiscolino'], err: 5.5, hpMult: 1.15, wind: 2, guests: [G('pedrugo', 0.12)], weather: [{ type: 'rain', p: 0.25 }, { type: 'storm', p: 0.2 }] },
+    { name: 'Usina Abandonada',    theme: 'usina',    enemies: ['faiscolino', 'faiscolino', 'pedrugo'], err: 5,   hpMult: 1.2,  wind: 2, guests: [G('brasito', 0.1)], weather: [{ type: 'storm', p: 0.4 }, { type: 'rain', p: 0.15 }] },
+    { name: 'Cabo Azul',           theme: 'cabo',     enemies: ['gotalho', 'pedrugo', 'gotalho'],       err: 4.8, hpMult: 1.25, wind: 3, guests: [G('ventolina', 0.15)], weather: [{ type: 'rain', p: 0.35 }, { type: 'sun', p: 0.2 }] },
+    { name: 'Gruta Gelada',        theme: 'gelo',     enemies: ['gotalho', 'ventolina', 'pedrugo'],     err: 4.4, hpMult: 1.3,  wind: 2, guests: [G('musguinho', 0.12)], weather: [{ type: 'snow', p: 0.65 }] },
+    { name: 'Ilha Vulcânica',      theme: 'lava',     enemies: ['brasito', 'brasito', 'pedrugo'],       err: 4.2, hpMult: 1.35, wind: 2, guests: [G('gotalho', 0.12)], weather: [{ type: 'sun', p: 0.55 }] },
+    { name: 'Estrada da Vitória',  theme: 'vitoria',  enemies: ['brasito', 'gotalho', 'musguinho'],     err: 4,   hpMult: 1.4,  wind: 3, guests: [G('faiscolino', 0.1)], weather: [{ type: 'sun', p: 0.25 }, { type: 'storm', p: 0.2 }] },
+    { name: 'Pico do Vento',       theme: 'montanha', enemies: ['ventolina', 'pedrugo'],                err: 3.5, hpMult: 1.9,  wind: 4, boss: true, guests: [], weather: [{ type: 'storm', p: 0.35 }, { type: 'rain', p: 0.15 }] }
+  ];
+  const ORIG_POOL = { campo: ['musguinho', 'ventolina'], floresta: ['musguinho', 'ventolina'], praia: ['gotalho', 'ventolina'], caverna: ['pedrugo', 'brasito'],
+    noite: ['faiscolino', 'ventolina'], usina: ['faiscolino', 'pedrugo'], cabo: ['gotalho', 'pedrugo'], gelo: ['gotalho', 'ventolina'], lava: ['brasito', 'pedrugo'], vitoria: ['brasito', 'gotalho', 'musguinho', 'faiscolino'], montanha: [] };
+  ORIG_STAGES.forEach(st => { st.pool = ORIG_POOL[st.theme] || []; });
+  if (!MS.KEEP_POKEMON) { MS.STAGES.length = 0; MS.STAGES.push(...ORIG_STAGES); MS.ORIGINAIS = true; }   // KEEP_POKEMON: testes da versão antiga
 })();

@@ -15,7 +15,8 @@ const math=Object.create(Math);let seed=7351;math.random=()=>{seed=(seed*1664525
 const storage=new Map();
 const ctx={console,Math:math,window:{},navigator:{maxTouchPoints:0},document:{getElementById:element,querySelectorAll(){return [];},body:element('body')},localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,String(v)),removeItem:k=>storage.delete(k)},addEventListener(){},matchMedia:()=>({matches:false}),requestAnimationFrame:f=>{frameCallback=f;},setTimeout(){},clearTimeout(){}};
 vm.createContext(ctx);
-for(const name of ['data.js','art.js','art2.js','animated-kanto.js'])vm.runInContext(fs.readFileSync(path.join(root,'js',name),'utf8'),ctx,{filename:name});
+vm.runInContext('window.MS = window.MS || {}; window.MS.KEEP_POKEMON = true;',ctx);
+for(const name of ['data.js','art.js','art2.js','animated-kanto.js','art-originais.js'])vm.runInContext(fs.readFileSync(path.join(root,'js',name),'utf8'),ctx,{filename:name});
 const MS=ctx.window.MS;
 MS.Sfx=new Proxy({isOn:()=>false},{get:(obj,key)=>obj[key]||(()=>{})});
 let engine=fs.readFileSync(path.join(root,'js/game.js'),'utf8');

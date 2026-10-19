@@ -8,7 +8,7 @@
   const GRAV = 0.2;           // gravidade base (px/frame²)
   const WALK_MAX = 120;       // distância máxima de caminhada por turno (mapas largos dão um pouco mais)
   const walkMax = () => WALK_MAX + Math.max(0, W - 800) * 0.07;
-  const GAME_VERSION = '18/10 a';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
+  const GAME_VERSION = '18/10 orig-1';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
   const TURN_TIME = 30 * 60;  // 30 s para mirar e atirar (estourou: passa a vez)
   const WEAK = 0.35;          // abaixo dessa fração de PV o inimigo pode ser capturado
   const PLAYER_COL = '#3a9bff', WILD_COL = '#e0433a', GUEST_COL = '#ffd34d';
@@ -96,6 +96,14 @@
     ultra: { name: 'Ultra Ball', mul: 2.3, col: '#f2c230', key: 'ultra' }
   };
   const BALL_ORDER = ['ball', 'great', 'ultra'];
+  // versão original: monstrinhos próprios e captura por Ovo de Laço (sem Pokébolas)
+  const ORIG = !!MS.ORIGINAIS;
+  const ORIG_COL = { brasito: '#e0583a', gotalho: '#4aa8e8', musguinho: '#4fae6a', faiscolino: '#7a6ac8', pedrugo: '#9a8f7c', ventolina: '#a9a0ec' };
+  const eggCol = sp => ORIG_COL[sp] || '#e0583a';
+  const eggSvg = col => `<ellipse cx="0" cy="-7.5" rx="6.2" ry="7.6" fill="#fff6e0" stroke="#3a2a33" stroke-width="1.1"/>
+    <path d="M-5.4,-5 l2.4,-2 l2.2,2.2 l2.4,-2.2 l2.2,2.2 l2,-1.8" fill="none" stroke="${col}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="-2" cy="-11" r="1.5" fill="${col}"/><circle cx="2.6" cy="-12.4" r="1" fill="${col}"/><circle cx="2.4" cy="-2.6" r="1.2" fill="${col}"/>
+    <ellipse cx="-2.4" cy="-11.8" rx="1.2" ry="2" fill="#fff" opacity=".8"/>`;
   // clima: só em cenários ao ar livre (a Caverna não tem). Reforça golpes de certos tipos
   const WEATHER = {
     rain:  { name: 'Chuva',       note: 'Água +50%',            boost: { water: 1.5 } },
@@ -560,8 +568,56 @@
     cloudEls = [...$('clouds').children];
   }
 
+  // ---------- Ovo de Laço (versão original) ----------
+  // monstrinho selvagem derrotado sem exagero no dano solta um ovo; um dos seus precisa andar até ele
+  // antes que caia na água ou seja destruído por uma explosão. Os ovos chocam ao fim da fase
+  let eggs = [], stageEggs = [], eggSeq = 0;
+  function dropEgg(u) {
+    const overkill = Math.max(0, -u.hp), gentle = overkill <= u.maxhp * 0.35;
+    if (!gentle && Math.random() > 0.3) { floaters.push({ x: u.x, y: u.y - 40, t: 0, text: 'Golpe forte demais: sem ovo', col: '#ffffff', size: 11 }); return; }
+    eggs.push({ id: ++eggSeq, x: u.x, y: u.y - 12, vy: -3, vx: (Math.random() - 0.5) * 1.6, sp: u.sp, mvs: u.mvs, sh: !!u.sh, t: 0, col: eggCol(u.sp) });
+    floaters.push({ x: u.x, y: u.y - 44, t: 0, text: `🥚 Ovo de ${u.name}!`, col: '#ffe27a', size: 14 });
+    showMsg(`${u.name} deixou um ovo! Ande até ele para pegar.`, 140);
+  }
+  function stepEggs() {
+    for (let i = eggs.length - 1; i >= 0; i--) {
+      const e = eggs[i]; e.t++;
+      const g = surf(e.x, e.y - 3);
+      if (e.y < g - 0.5 || e.vy < 0) { e.vy = Math.min(7, e.vy + 0.25); e.x = clamp(e.x + e.vx, 2, W - 2); e.y = Math.min(e.y + e.vy, g); if (e.y >= g && e.vy > 0) { e.vy = 0; e.vx = 0; } }
+      else {                                                       // no chão: rola devagar morro abaixo
+        e.y = g; const sl = surf(e.x + 3, e.y - 8) - surf(e.x - 3, e.y - 8);
+        if (Math.abs(sl) > 3 && Math.abs(sl) < 30) { e.x = clamp(e.x + Math.sign(sl) * 0.35, 2, W - 2); e.y = surf(e.x, e.y - 6); }
+      }
+      if (e.y > WATER - 2) {
+        for (let k = 0; k < 10; k++) addPart({ x: e.x, y: WATER, vx: rnd(-1.5, 1.5), vy: rnd(-3, -1), g: 0.15, life: 40, max: 40, r: rnd(1.2, 2), col: '#bfe9ff', kind: 'drop' });
+        Sfx.splash(); showMsg(`O ovo de ${SPECIES[e.sp].name} caiu na água...`, 110); eggs.splice(i, 1); continue;
+      }
+      for (const u of units) {
+        if (!u.alive || u.hidden || u.team !== 0) continue;
+        if (Math.abs(u.x - e.x) < 14 && Math.abs(u.y - e.y) < 24) {
+          stageEggs.push(e); eggs.splice(i, 1);
+          floaters.push({ x: e.x, y: e.y - 30, t: 0, text: `Ovo de ${SPECIES[e.sp].name} guardado!`, col: '#8fe070', size: 13 });
+          Sfx.ballCatch(); break;
+        }
+      }
+    }
+  }
+  function breakEggs(x, y, r) {
+    for (let i = eggs.length - 1; i >= 0; i--) {
+      const e = eggs[i]; if (Math.hypot(e.x - x, e.y - 7 - y) > r) continue;
+      spray(e.x, e.y - 7, 10, '#fff6e0', 2.5, 0.12, 40, 2, 'chunk');
+      showMsg(`O ovo de ${SPECIES[e.sp].name} quebrou!`, 110); eggs.splice(i, 1);
+    }
+  }
+  function hatchEggs() {
+    for (const e of stageEggs.concat(eggs)) {                  // os que ficaram no chão no fim da fase também vêm junto
+      campaign.roster.push(e.sp); campaign.xp.push(0); campaign.mv.push(e.mvs); campaign.sh.push(e.sh ? 1 : 0);
+      stageCaught.push({ sp: e.sp, mvs: e.mvs, sh: e.sh });
+    }
+    stageEggs = []; eggs = [];
+  }
   function resetCommon() {
-    fx = []; projs = []; parts = []; floaters = []; graves = [];
+    fx = []; projs = []; parts = []; floaters = []; graves = []; eggs = []; stageEggs = [];
     power = 0; charging = false; ballMode = false; lastBall = false; pickups = []; weather = null; bolt = null; ai = null; cap = null; panel = null; pendingPanel = null;
     keys = {}; wxPrev = null; wxK = 1;
     guest = null; gCool = 1; gMode = ''; lastShotGuest = false; splashU = null; evo = null;
@@ -585,7 +641,8 @@
   function initMenu() {
     scene = 'menu'; kind = 'menu'; menuPage = 'main'; resetCommon();
     genWorld('campo', VW, 'ground'); genClouds(); genDecor([105, 185, 615, 695]);
-    units = [mkUnit('charmander', 105, 0, 1), mkUnit('bulbasaur', 185, 0, 1), mkUnit('squirtle', 615, 0, -1), mkUnit('pikachu', 695, 0, -1)];
+    units = ORIG ? [mkUnit('brasito', 105, 0, 1), mkUnit('musguinho', 185, 0, 1), mkUnit('gotalho', 615, 0, -1), mkUnit('faiscolino', 695, 0, -1)]
+                 : [mkUnit('charmander', 105, 0, 1), mkUnit('bulbasaur', 185, 0, 1), mkUnit('squirtle', 615, 0, -1), mkUnit('pikachu', 695, 0, -1)];
     teams = []; state = 'menu'; wind = 0; msg = ''; msgT = 0; uiSel = 0;
     syncButtons();
   }
@@ -790,6 +847,7 @@
 
   function stageClear() {
     state = 'over'; guest = null; units = units.filter(u => u.team !== 2);
+    if (ORIG) hatchEggs();
     const last = stageIdx >= STAGES.length - 1;
     Sfx.win();
     const xp = awardXp();
@@ -800,7 +858,7 @@
       : [{ label: 'Próxima fase ▶', fn: () => beginStage(stageIdx + 1) }, { label: 'Menu', fn: initMenu }];
     pendingPanel = { t: 70, evos: xp.evos, panel: {
       title: last ? '🏆 Você é o Campeão!' : 'Fase concluída!',
-      sub: last ? `Você terminou a campanha com ${campaign.roster.length} Pokémon. Dá para rejogar qualquer fase pelo menu.` : `${STAGES[stageIdx].name} superada.`,
+      sub: last ? `Você terminou a campanha com ${campaign.roster.length} ${ORIG ? 'monstrinhos' : 'Pokémon'}. Dá para rejogar qualquer fase pelo menu.` : `${STAGES[stageIdx].name} superada.`,
       lines: xp.lines, caught: stageCaught.slice(), buttons } };
     showMsg(last ? 'Campeão!' : 'Fase concluída!', 70);
   }
@@ -871,7 +929,7 @@
   function stageLose() {
     state = 'over'; guest = null; units = units.filter(u => u.team !== 2); Sfx.lose();
     pendingPanel = { t: 70, panel: {
-      title: 'Seus Pokémon desmaiaram...', sub: 'Tente de novo com outra estratégia.', lines: [], caught: [],
+      title: ORIG ? 'Seus monstrinhos desmaiaram...' : 'Seus Pokémon desmaiaram...', sub: 'Tente de novo com outra estratégia.', lines: [], caught: [],
       buttons: [{ label: 'Tentar de novo', fn: restartStage }, { label: 'Menu', fn: initMenu }] } };
     showMsg('Derrota...', 70);
   }
@@ -879,6 +937,7 @@
   // ---------- Itens: Pokébolas espalhadas pelo campo (um motivo para andar) ----------
   function spawnPickups() {
     pickups = [];
+    if (ORIG) return;                                            // versão original: sem Pokébolas espalhadas
     const n = 4 + Math.round((W - 800) / 220), x0 = W > VW ? 110 : 270, x1 = W > VW ? W - 110 : 530;
     for (let i = 0; i < n; i++) {
       const roll = Math.random();
@@ -907,7 +966,8 @@
   }
 
   function pickupItems() {
-    return pickups.map(p => {
+    return eggs.map(e => ({ k: 'egg' + e.id, t: `translate(${f1(e.x)} ${f1(e.y)})`, h: `<ellipse cx="0" cy=".5" rx="6" ry="1.8" fill="#000" opacity=".25"/><circle class="pulse" cx="0" cy="-8" r="11" fill="${e.col}" opacity=".22"/>
+      <g transform="rotate(${f1(Math.sin(frameNo * 0.25 + e.id) * (e.t % 120 < 30 ? 14 : 2))}) scale(1.35)">${eggSvg(e.col)}</g><path d="M-4,-30 L4,-30 L0,-25 Z" fill="#ffe27a"/>` })).concat(pickups.map(p => {
       // o desenho é fixo; flutuar é só o transform do grupo e o brilho pulsa por CSS
       const B = BALLS[p.type], y = gy(p.x), bob = lite ? 0 : Math.sin(frameNo * 0.08 + p.ph) * 3;
       const big = p.type !== 'ball';
@@ -918,7 +978,7 @@
         <path transform="translate(0 -30)" d="M-3.5,0 L3.5,0 L0,5 Z" fill="${big ? B.col : '#fff'}" stroke="#000" stroke-width=".8" stroke-linejoin="round"/>
         ${big ? `<text x="0" y="-35" text-anchor="middle" font-size="8.5" font-weight="bold" fill="${B.col}" stroke="#000" stroke-width=".6" paint-order="stroke">${p.type === 'great' ? 'GREAT' : 'ULTRA'}</text>` : ''}
       ` };
-    });
+    }));
   }
 
 
@@ -1108,6 +1168,7 @@
 
   // se o último tiro do jogador foi uma Pokébola, a próxima vez já começa com ela pronta
   function autoBall() {
+    if (ORIG) return;
     if (!lastBall || kind !== 'campaign' || !weakFoeExists()) return false;
     const avail = BALL_ORDER.filter(k => campaign[BALLS[k].key] > 0);
     if (!avail.length) return false;
@@ -1116,6 +1177,7 @@
   }
 
   function toggleBall() {
+    if (ORIG) return;
     if (scene !== 'battle' || kind !== 'campaign' || state !== 'aim' || charging) return;
     const avail = BALL_ORDER.filter(k => campaign[BALLS[k].key] > 0);
     if (ballMode) {            // B de novo: troca para a próxima bola (Great, Ultra) e por fim guarda
@@ -1178,6 +1240,7 @@
 
   function explode(x, y, p) {
     const wp = p.wp, style = wp.style;
+    if (eggs.length) breakEggs(x, y, wp.boom * 0.6);
     let anyHurt = false, sup = false, weak = false;
     focus = { x, y };
     cam.shake = Math.max(cam.shake, wp.shake !== undefined ? wp.shake : wp.boom / 6);
@@ -1779,7 +1842,7 @@
         if (drowned) {
           for (let k = 0; k < 16; k++) addPart({ x: u.x, y: WATER, vx: rnd(-2, 2), vy: rnd(-4, -1.5), g: 0.15, life: 45, max: 45, r: rnd(1.5, 2.5), col: '#bfe9ff', kind: 'drop' });
           Sfx.splash();
-        } else { smoke(u.x, u.y - 14, 8); spray(u.x, u.y - 14, 10, '#ffffff', 2.5, 0.02, 30, 2, 'spark'); }
+        } else { smoke(u.x, u.y - 14, 8); spray(u.x, u.y - 14, 10, '#ffffff', 2.5, 0.02, 30, 2, 'spark'); if (ORIG && u.team >= 1 && scene === 'battle') dropEgg(u); }
         Sfx.death();
         showMsg(`${u.name} ${drowned ? 'afogou!' : 'desmaiou!'}`, 100);
       }
@@ -2210,6 +2273,11 @@
 
   // ---------- Desenho ----------
   const blink = u => ((frameNo + u.blinkOff) % 230) < 7;
+  // mania dos monstrinhos originais: de tempos em tempos (parado) faz o seu gesto; devolve o progresso 0..1 ou null
+  const maniaOf = u => {
+    const S = spOf(u); if (!S.mania || u.moving || u.breath > 0 || u.hurt > 0 || u.capScale < 1 || scene === 'intro') return null;
+    const t = (frameNo + u.uid * 97) % 600; return t < 90 ? t / 90 : null;
+  };
 
   // devolve { t: transform do Pokémon, h: conteúdo interno } — a camada só reescreve o conteúdo quando ele muda
   function unitParts(u, opt = {}) {
@@ -2222,7 +2290,7 @@
     const flash = u.hurt > 0 && (u.hurt % 6 < 3);
     const col = opt.color || sideColor(u);
     const hop = u.hop ? -Math.abs(Math.sin(u.hop * 0.18)) * 16 : 0;
-    const ctx = { f: af, blink: lite ? false : blink(u), breath: u.breath, bob, step, x: u.x, charge: !!opt.charge, flap: !!u.flying };
+    const ctx = { f: af, blink: lite ? false : blink(u), breath: u.breath, bob, step, x: u.x, charge: !!opt.charge, flap: !!u.flying, mania: maniaOf(u), hurt: u.hurt > 0 };
     const ly = -(S.h * u.scale + 12);
     let label = '';
     if (!opt.noLabel && u.capScale > 0.5) {
@@ -2549,7 +2617,11 @@
     s += orderSvg();
     s += weatherBadge();
     if (W > VW) s += miniSvg();
-    {
+    if (ORIG) s += `<rect x="238" y="8" width="84" height="40" rx="12" fill="#0d1b2a" opacity=".72"/>
+        <g transform="translate(258 38) scale(1.15)">${eggSvg('#e0583a')}</g>
+        <text x="274" y="33" font-size="16" font-weight="bold" fill="#fff">×${stageEggs.length}</text>
+        <text x="314" y="44" text-anchor="end" font-size="7.5" fill="#bbb">${eggs.length ? eggs.length + ' no chão' : 'ovos'}</text>`;
+    else {
       s += `<rect x="238" y="8" width="84" height="40" rx="12" fill="#0d1b2a" opacity=".72"/>
         ${ballIcon(258, 28, 9)}
         <text x="274" y="33" font-size="16" font-weight="bold" fill="#fff">×${campaign.balls}</text>
@@ -2730,6 +2802,7 @@
   function weakMarker(u) {
     // bolinha pulsando sobre inimigos que já podem ser capturados
     const S = spOf(u), bounce = Math.sin(aF() * 0.2) * 2.5;
+    if (ORIG) return `<g transform="translate(0 ${f1(-(S.h * u.scale + 30) + bounce)}) scale(.8)">${eggSvg(eggCol(u.sp))}</g>`;
     let s = `<g transform="translate(0 ${f1(-(S.h * u.scale + 36) + bounce)})">${Art.ball(6, 0)}</g>`;
     if (ballMode) s += `<text x="0" y="${f1(-(S.h * u.scale + 46))}" text-anchor="middle" font-size="12" font-weight="bold" fill="#ffd34d" stroke="#000" stroke-width=".7">${Math.round(captureChance(u) * 100)}%</text>`;
     return s;
@@ -3101,7 +3174,7 @@
     const box = artBox(u.sp);
     return GLR.svg(glBodyKey(u, res, q, mode), () => {
       const walk = mode === 'w', ctx = { f: q * 8, blink: mode === 'k', breath: mode === 'b' ? 10 : 0, bob: 0,
-        step: walk ? Math.sin(q * Math.PI / 3) * 1.6 : 0, x: 0, charge: false, flap: !!u.flying };
+        step: walk ? Math.sin(q * Math.PI / 3) * 1.6 : 0, x: 0, charge: false, flap: !!u.flying, mania: mode === 'm' ? (q + 0.5) / 8 : null, hurt: mode === 'h' };
       return `<g${shF(u.sp, u.sh)}>${Art.draw(u.sp, ctx)}</g>`;
     }, box, res);
   }
@@ -3115,6 +3188,8 @@
     let q, mode;
     if (u.moving) { const ph = ((u.walkT * 0.5) % 6.2832 + 6.2832) % 6.2832; q = Math.round(ph / 1.0472) % 6; mode = 'w'; }
     else if (u.breath > 0) { q = (frameNo >> 3) % 4; mode = 'b'; }
+    else if (u.hurt > 0 && spOf(u).orig) { q = 0; mode = 'h'; }
+    else if (maniaOf(u) !== null) { q = Math.min(7, Math.floor(maniaOf(u) * 8)); mode = 'm'; }
     else if (!lite && blink(u)) { q = 0; mode = 'k'; }
     else { const t = ((frameNo + u.uid * 29) >> (lite ? 4 : 3)) % 14; q = t < 8 ? t : 14 - t; mode = 'i'; }   // 8 quadros, vai e volta
     const wk = R.gen + ':' + res;
@@ -3177,8 +3252,9 @@
     }
     if (opt.weak) {
       const bounce = Math.sin(aF() * 0.2) * 2.5;
-      const s = R.svg('ballIcon', Art.ball(6, 0), [-7.5, -7.5, 15, 15], R.res);
-      if (s) { R.push(); R.tr(0, -(S.h * u.scale + 36) + bounce); R.spr(s); R.pop(); }
+      if (ORIG) { const s = R.svg('egg|' + u.sp, eggSvg(eggCol(u.sp)), [-8, -17, 16, 18], R.res); if (s) { R.push(); R.tr(0, -(S.h * u.scale + 30) + bounce); R.sc(0.8); R.spr(s); R.pop(); } }
+      else { const s = R.svg('ballIcon', Art.ball(6, 0), [-7.5, -7.5, 15, 15], R.res);
+      if (s) { R.push(); R.tr(0, -(S.h * u.scale + 36) + bounce); R.spr(s); R.pop(); } }
       if (ballMode) R.text(Math.round(captureChance(u) * 100) + '%', 0, -(S.h * u.scale + 46), { size: 12, fill: '#ffd34d', stroke: '#000', sw: 0.7 });
     }
     if (opt.arrow) {
@@ -3349,7 +3425,7 @@
       <text x="400" y="290" text-anchor="middle" font-size="24" font-weight="800" fill="#fff">${scene === 'battle' ? 'Preparando a batalha…' : 'Preparando…'}</text>
       <rect x="250" y="312" width="300" height="14" rx="7" fill="#000" opacity=".5"/>
       <rect x="252" y="314" width="${f1(296 * k)}" height="10" rx="5" fill="#ffd34d"/>
-      <text x="400" y="352" text-anchor="middle" font-size="13" fill="#bfe3ff">desenhando cenário e Pokémon na placa de vídeo</text></g>`;
+      <text x="400" y="352" text-anchor="middle" font-size="13" fill="#bfe3ff">desenhando cenário e ${ORIG ? 'monstrinhos' : 'Pokémon'} na placa de vídeo</text></g>`;
   }
   // ---------- painel no WebGL ----------
   // o painel (vez, tempo, vento, ordem, minimapa) vira uma imagem refeita só quando um texto dele muda;
@@ -3443,6 +3519,14 @@
       if (s) R.spr(s);
       if (big) R.text(p.type === 'great' ? 'GREAT' : 'ULTRA', 0, -35, { size: 8.5, fill: B.col, stroke: '#000', sw: 0.6 });
       R.pop();
+    }
+    // ovos no chão (versão original): balançam e têm uma setinha pulando em cima
+    for (const e of eggs) {
+      const s = R.svg('egg|' + e.sp, eggSvg(e.col), [-8, -17, 16, 18], R.res);
+      const wob = Math.sin(frameNo * 0.25 + e.id) * (e.t % 120 < 30 ? 0.25 : 0.04);
+      R.push(); R.tr(e.x, e.y); R.ellipse(0, 0.5, 6, 1.8, '#000', 0.25); R.circle(0, -10, 14, e.col, 0.18 + 0.08 * Math.sin(frameNo * 0.1));
+      R.rot(wob); R.sc(1.35); if (s) R.spr(s); R.pop();
+      const ay = e.y - 30 + Math.sin(frameNo * 0.15) * 3; R.tri(e.x - 4, ay, e.x + 4, ay, e.x, ay + 5, '#ffe27a');
     }
     // mira
     if (inBattle && act && (state === 'aim' || (state === 'ai' && ai && ['aim', 'wait', 'charge'].includes(ai.phase)))) {
@@ -3689,20 +3773,23 @@
 
   function menuSvg() {
     if (menuPage === 'stages') return stagesSvg();
+    if (menuPage === 'starter') return starterSvg();
     const save = loadSave();
     let s = `<rect width="800" height="500" fill="#0b1630" opacity=".38"/>
       <g transform="translate(400 112)" text-anchor="middle">
         <text y="0" font-size="52" font-weight="900" fill="#fff" stroke="#173a78" stroke-width="7" paint-order="stroke" letter-spacing="1">Monstrinhos</text>
         <text y="38" font-size="30" font-weight="800" fill="#ffd34d" stroke="#6a3a00" stroke-width="5" paint-order="stroke" letter-spacing="4">DE ARTILHARIA</text>
       </g>
-      <g transform="translate(130 100)">${Art.ball(30, -12)}</g><g transform="translate(670 100)">${Art.ball(30, 12)}</g>`;
+      ${ORIG ? `<g transform="translate(130 128) scale(4) rotate(-12)">${eggSvg('#e0583a')}</g><g transform="translate(670 128) scale(4) rotate(12)">${eggSvg('#4aa8e8')}</g>`
+             : `<g transform="translate(130 100)">${Art.ball(30, -12)}</g><g transform="translate(670 100)">${Art.ball(30, 12)}</g>`}`;
     let y = 196;
     if (save) {
       s += uiBtn(250, y, 300, 50, save.done ? 'Continuar — Campeão ★' : `Continuar — Fase ${save.stage + 1}`, continueCampaign); y += 62;
       s += uiBtn(250, y, 300, 50, 'Escolher fase', openStages); y += 62;
     }
     s += uiBtn(250, y, 300, 50, save ? 'Novo jogo (apaga o progresso)' : 'Novo jogo', startNewGame, { fs: save ? 18 : 20 });
-    s += `<text x="400" y="472" text-anchor="middle" font-size="10" fill="#fff" opacity=".8">Projeto de fã, sem fins lucrativos. Pokémon e seus nomes pertencem a Nintendo / Game Freak / Creatures.</text>
+    s += ORIG ? `<text x="400" y="472" text-anchor="middle" font-size="10" fill="#fff" opacity=".8">Versão com monstrinhos originais.</text>` : `<text x="400" y="472" text-anchor="middle" font-size="10" fill="#fff" opacity=".8">Projeto de fã, sem fins lucrativos. Pokémon e seus nomes pertencem a Nintendo / Game Freak / Creatures.</text>`;
+    s += `
       <text x="400" y="488" text-anchor="middle" font-size="10" fill="#fff" opacity=".6">Todas as artes são desenhos próprios em SVG.</text>`;
     return s;
   }
@@ -3747,7 +3834,29 @@
     return s;
   }
 
-  function startNewGame() { clearSave(); initIntro(); }
+  function startNewGame() { clearSave(); if (ORIG) { menuPage = 'starter'; uiSel = 0; Sfx.select(); } else initIntro(); }
+  // versão original: em vez da cidade das Pokébolas, escolhe o parceiro inicial
+  function starterSvg() {
+    const list = MS.ORIG_STARTERS;
+    let s = `<rect width="800" height="500" fill="#0b1630" opacity=".55"/>
+      <text x="400" y="78" text-anchor="middle" font-size="34" font-weight="900" fill="#fff" stroke="#173a78" stroke-width="6" paint-order="stroke">Escolha seu parceiro</text>
+      <text x="400" y="108" text-anchor="middle" font-size="14" fill="#bfe3ff">Os outros você ganha nas fases: derrote com um golpe fraco e pegue o ovo!</text>`;
+    const NOTE = { brasito: 'Esquentadinho. Assopra o próprio topete.', gotalho: 'Calmo e cuidadoso. Rega toda plantinha que vê.', musguinho: 'Tímido. O chapéu sempre cai nos olhos.' };
+    list.forEach((sp, i) => {
+      const x = 130 + i * 190, S = SPECIES[sp], sel = uiSel === i;
+      const u = { uid: i + 1, sp, moving: false, breath: 0, hurt: 0, capScale: 1 };
+      const mania = ((frameNo + i * 200) % 300) < 90 ? ((frameNo + i * 200) % 300) / 90 : null;
+      s += uiBtn(x, 140, 160, 250, '', () => newCampaign(sp), { fs: 1 });
+      s += `<g transform="translate(${x + 80} 290) scale(2.6)" style="pointer-events:none">${Art.draw(sp, { f: frameNo, blink: ((frameNo + i * 50) % 200) < 7, breath: 0, bob: Math.sin(frameNo * 0.08 + i) * 0.7, step: 0, x: i, charge: false, flap: false, mania, hurt: false })}</g>
+        <text x="${x + 80}" y="320" text-anchor="middle" font-size="20" font-weight="800" fill="${sel ? '#3a2400' : '#fff'}" style="pointer-events:none">${S.name}</text>
+        <g transform="translate(${x + 80} 336)">${Art.typeDots(S.types, 0, 0, TYPE_COLOR)}</g>
+        <text x="${x + 80}" y="358" text-anchor="middle" font-size="10.5" fill="${sel ? '#3a2400' : '#bfe3ff'}" style="pointer-events:none">${NOTE[sp].split('. ')[0]}.</text>
+        <text x="${x + 80}" y="372" text-anchor="middle" font-size="10.5" fill="${sel ? '#3a2400' : '#bfe3ff'}" style="pointer-events:none">${NOTE[sp].split('. ')[1] || ''}</text>`;
+      void u;
+    });
+    s += uiBtn(300, 420, 200, 42, '◀ Voltar', () => { menuPage = 'main'; uiSel = 0; }, { fs: 17 });
+    return s;
+  }
 
   function typeChips(types, cx, y) { return Art.typeDots(types, cx, y, TYPE_COLOR); }
 
@@ -3760,7 +3869,7 @@
     pageNo = clamp(pageNo, 0, pages - 1);
     const foes = st.enemies.map(e => SPECIES[e]);
     let s = `<rect width="800" height="500" fill="#0b1630" opacity=".55"/>
-      <text x="400" y="38" text-anchor="middle" font-size="26" font-weight="800" fill="#fff">Escolha até 3 Pokémon</text>
+      <text x="400" y="38" text-anchor="middle" font-size="26" font-weight="800" fill="#fff">Escolha até 3 ${ORIG ? 'monstrinhos' : 'Pokémon'}</text>
       <text x="400" y="60" text-anchor="middle" font-size="13" fill="#ffd34d">Fase ${stageIdx + 1}: ${st.name}</text>
       <text x="400" y="80" text-anchor="middle" font-size="12" fill="#cfe">Inimigos: ${Array.from(new Set(foes.map(f => f.name))).join(', ')}</text>
       <text x="400" y="97" text-anchor="middle" font-size="10.5" fill="#fff" opacity=".8">▲ = algum golpe seu é super efetivo contra um inimigo &nbsp;·&nbsp; ★ = golpe variante</text>`;
@@ -3773,7 +3882,7 @@
         const kk = campaign.sel.indexOf(i);
         if (kk >= 0) { if (campaign.sel.length > 1) campaign.sel.splice(kk, 1); }
         else if (campaign.sel.length < 3) campaign.sel.push(i);
-        else { showMsg('Máximo de 3 Pokémon!', 60); return; }
+        else { showMsg(ORIG ? 'Máximo de 3 monstrinhos!' : 'Máximo de 3 Pokémon!', 60); return; }
         Sfx.click();
       } });
       const mvs = campaign.mv[i], mk = MS.movesOf(sp, mvs), wps = mk.map(k2 => WEAPONS[k2]);
@@ -3797,7 +3906,7 @@
       s += `<text x="400" y="${by + 18}" text-anchor="middle" font-size="12" fill="#fff">Página ${pageNo + 1}/${pages}</text>`;
       s += uiBtn(456, by, 44, 26, '▶', () => { pageNo = (pageNo + 1) % pages; uiSel = 0; }, { fs: 14 });
     }
-    s += `<text x="400" y="${by + 48}" text-anchor="middle" font-size="13" fill="#fff">Escolhidos: ${campaign.sel.length}/3 &nbsp;·&nbsp; Pokébolas: ${campaign.balls}</text>`;
+    s += `<text x="400" y="${by + 48}" text-anchor="middle" font-size="13" fill="#fff">Escolhidos: ${campaign.sel.length}/3${ORIG ? '' : ` &nbsp;·&nbsp; Pokébolas: ${campaign.balls}`}</text>`;
     s += uiBtn(280, by + 56, 240, 38, 'Começar ▶', () => {
       campaign.partyIdx = campaign.sel.slice();
       campaign.party = campaign.sel.map(i => campaign.roster[i]);
@@ -3818,7 +3927,7 @@
     (P.lines || []).forEach((ln, i) => { s += `<text x="400" y="${y + 6 + i * 20}" text-anchor="middle" font-size="13.5" fill="${ln.includes('evoluiu') ? '#6ad0ff' : '#cfe'}" font-weight="${ln.includes('evoluiu') ? 'bold' : 'normal'}">${ln}</text>`; });
     y += nl * 20;
     if (P.caught.length) {
-      s += `<text x="400" y="${y + 18}" text-anchor="middle" font-size="13" fill="#8fe070" font-weight="bold">Capturados nesta fase</text>`;
+      s += `<text x="400" y="${y + 18}" text-anchor="middle" font-size="13" fill="#8fe070" font-weight="bold">${ORIG ? '🥚 Ovos chocados nesta fase' : 'Capturados nesta fase'}</text>`;
       const n = P.caught.length, step = 90, sx = 400 - (n - 1) * step / 2;
       P.caught.forEach((c, i) => {
         const sp = c.sp;
@@ -3909,7 +4018,7 @@
     const camp = b && kind === 'campaign';
     const au = b && teams[turnTeam] && !teams[turnTeam].ai ? activeUnit() : null;
     const show = { left: b, right: b, up: b || i, down: b || i, fire: b || i, pass: !!au, restart: b || i,
-                   ball: camp, move: !!(au && au.moves.length > 1), menu: b || i, sound: !settingsOpen, settings: true };
+                   ball: camp && !ORIG, move: !!(au && au.moves.length > 1), menu: b || i, sound: !settingsOpen, settings: true };
     // na fase da cidade os botões vão para a esquerda, para não cobrir a lagoa e os alvos da direita
     const introPos = { up: 'translate(-536 0)', down: 'translate(-536 0)', fire: 'translate(190 452) scale(.75) translate(-738 -436)' };
     document.querySelectorAll('.btn').forEach(el => {
@@ -4076,7 +4185,7 @@
       else if (gridN && e.key === 'ArrowDown') { uiSel = uiSel + gridN < nGrid ? uiSel + gridN : (uiSel < nGrid ? n - 1 : uiSel); Sfx.click(); e.preventDefault(); }
       else if (gridN && e.key === 'ArrowUp') { uiSel = uiSel >= nGrid ? nGrid - 1 : Math.max(0, uiSel - gridN); Sfx.click(); e.preventDefault(); }
       else if (e.key === 'Enter' || e.code === 'Space') { e.preventDefault(); if (!e.repeat) { kbd = true; activate(uiSel); kbd = false; } }
-      else if (e.key === 'Escape') { if (panel && panel.pause) { panel = null; syncButtons(); } else if (scene === 'menu') { if (menuPage === 'stages') { menuPage = 'main'; uiSel = 1; } } else initMenu(); }
+      else if (e.key === 'Escape') { if (panel && panel.pause) { panel = null; syncButtons(); } else if (scene === 'menu') { if (menuPage === 'stages') { menuPage = 'main'; uiSel = 1; } else if (menuPage === 'starter') { menuPage = 'main'; uiSel = 0; } } else initMenu(); }
       return;
     }
     if (e.key === 'Escape') { initMenu(); return; }
@@ -4190,7 +4299,7 @@
       if (scene !== 'intro') u.moving = false;
     }
     if (panel && panel.pause) { updateCamera(); return; }          // pergunta na tela: jogo parado
-    if (scene === 'battle') { stepBattle(); stepWeather(); }
+    if (scene === 'battle') { stepBattle(); stepWeather(); if (eggs.length) stepEggs(); }
     else if (scene === 'intro') stepIntro();
     updateUnits();
     stepParts();
@@ -4239,7 +4348,7 @@
   MS.debug = {
     get lastBall() { return lastBall; },
     get: () => ({ scene, kind, state, stageIdx, units, teams, campaign, cap, intro, panel, angle, power, wind, ballMode, turnTeam, ai, guest, gCool, gMode, evo, projs }),
-    get pickups() { return pickups; }, BALLS,
+    get pickups() { return pickups; }, BALLS, get eggs() { return eggs; }, get stageEggs() { return stageEggs; }, get campaign() { return campaign; },
     setWeather: w => { weather = w; lightT = 5; $('sun').style.display = (w === 'rain' || w === 'storm') ? 'none' : ''; glSkyDirty = true; }, get weather() { return weather; },
     glInfo: () => ({ aiw: !!aiWorker, aiJobs: aiJobSeq, active: glActive, loading: glLoading, prog: glLoadProg, gen: GLR && GLR.gen, resK: glResK, P: glP, snaps: Object.fromEntries(Object.entries(glSnap).map(([k, v]) => [k, { ok: v.ok, vb: v.vb }])), terrOk: glTerrOk, busy: glTerrBusy, full: glFullT, box: glBox, stats: GLR && GLR.stats, lite, ms: rN ? +(rTime / rN).toFixed(2) : 0, resetMs: (rTime = 0, rN = 0) }),
     setRender: r => { if ((settings.render === 'svg') !== (r === 'svg')) toggleRender(); },

@@ -1,3 +1,16 @@
+# Monstrinhos de Artilharia — versão com monstrinhos originais (ramo `originais`)
+
+Esta versão troca os personagens de terceiros por seis monstrinhos próprios e a captura por Pokébola pelo **Ovo de Laço**.
+
+- **Brasito** (fogo), **Gotalho** (água), **Musguinho** (planta), **Faiscolino** (elétrico), **Pedrugo** (pedra) e **Ventolina** (normal/voador), desenhados em `js/art-originais.js`. Cada um tem uma **mania** que faz de tempos em tempos quando está parado (assoprar o topete, regar uma plantinha, arrumar o chapéu, dar tapinhas na lâmpada, rolar como bola, voar contra o vento) e cara de atordoado quando apanha.
+- **Início:** em vez da cidade das Pokébolas, você escolhe o parceiro (Brasito, Gotalho ou Musguinho).
+- **Ovo de Laço:** um selvagem derrotado sem exagero no dano (sobra de dano até 35% da vida dele) solta um ovo; com golpe forte demais a chance cai para 30%. O ovo rola pelo terreno: ande com um dos seus até ele antes que caia na água ou seja quebrado por uma explosão. Os ovos guardados (e os que ainda estiverem no chão no fim da fase) chocam e o monstrinho entra no seu time. Sobre os selvagens fracos aparece um ovinho como dica.
+- As fases usam só os monstrinhos originais. Sem Pokébolas no campo e sem o botão BOLA.
+
+O resto do jogo (WebGL, terreno por shader, câmera, controles) é igual ao ramo principal.
+
+---
+
 # Monstrinhos de Artilharia
 
 Jogo de artilharia por turnos feito inteiramente com SVG. Personagens, terreno destrutível, mira, projéteis e menus são elementos `<svg>`; o JavaScript só cuida da lógica. Sem dependências: abra o `index.html` no navegador.

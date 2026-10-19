@@ -8,7 +8,7 @@
   const GRAV = 0.2;           // gravidade base (px/frame²)
   const WALK_MAX = 120;       // distância máxima de caminhada por turno (mapas largos dão um pouco mais)
   const walkMax = () => WALK_MAX + Math.max(0, W - 800) * 0.07;
-  const GAME_VERSION = '18/10 orig-2';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
+  const GAME_VERSION = '18/10 orig-3';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
   const TURN_TIME = 30 * 60;  // 30 s para mirar e atirar (estourou: passa a vez)
   const WEAK = 0.35;          // abaixo dessa fração de PV o inimigo pode ser capturado
   const PLAYER_COL = '#3a9bff', WILD_COL = '#e0433a', GUEST_COL = '#ffd34d';
@@ -100,6 +100,7 @@
   const ORIG = !!MS.ORIGINAIS;
   const ORIG_COL = { brasito: '#e0583a', gotalho: '#4aa8e8', musguinho: '#4fae6a', faiscolino: '#7a6ac8', pedrugo: '#9a8f7c', ventolina: '#a9a0ec' };
   const eggCol = sp => ORIG_COL[sp] || '#e0583a';
+  const NET_SVG = `<g stroke="#e8f4ff" stroke-width=".9" fill="rgba(232,244,255,.18)"><circle r="8"/><circle r="4.4" fill="none"/><path d="M-8,0H8M0,-8V8M-5.7,-5.7L5.7,5.7M5.7,-5.7L-5.7,5.7" fill="none"/></g><g fill="#c98a2a"><circle cx="8" cy="0" r="1.3"/><circle cx="-8" cy="0" r="1.3"/><circle cx="0" cy="8" r="1.3"/><circle cx="0" cy="-8" r="1.3"/></g>`;
   const eggSvg = col => `<ellipse cx="0" cy="-7.5" rx="6.2" ry="7.6" fill="#fff6e0" stroke="#3a2a33" stroke-width="1.1"/>
     <path d="M-5.4,-5 l2.4,-2 l2.2,2.2 l2.4,-2.2 l2.2,2.2 l2,-1.8" fill="none" stroke="${col}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
     <circle cx="-2" cy="-11" r="1.5" fill="${col}"/><circle cx="2.6" cy="-12.4" r="1" fill="${col}"/><circle cx="2.4" cy="-2.6" r="1.2" fill="${col}"/>
@@ -165,6 +166,7 @@
   let weather = null, lightT = 300, bolt = null;
   let bolts = [], beams = [];   // raios do céu esperando para cair; hiper raios em andamento
   let terrAt = 0, windY = 0, windA = 0, windS = 0, turnT = 0, roundTurns = 0;   // vento em qualquer direção; tempo do turno; turnos na rodada
+  let netMode = false, lastNet = false, nets = [];   // versão original: rede para pegar ovos
   let ballMode = false, ballType = 'ball', lastBall = false, lastBallType = 'ball', pickups = [], ai = null, cap = null, panel = null, pendingPanel = null;
   let campaign = null, stageIdx = 0, stageCaught = [], intro = null, teamSel = null;
   let uiList = [], uiSel = 0, themeKey = 'campo';
@@ -592,15 +594,56 @@
         for (let k = 0; k < 10; k++) addPart({ x: e.x, y: WATER, vx: rnd(-1.5, 1.5), vy: rnd(-3, -1), g: 0.15, life: 40, max: 40, r: rnd(1.2, 2), col: '#bfe9ff', kind: 'drop' });
         Sfx.splash(); showMsg(`O ovo de ${SPECIES[e.sp].name} caiu na água...`, 110); eggs.splice(i, 1); continue;
       }
-      for (const u of units) {
-        if (!u.alive || u.hidden || u.team !== 0) continue;
-        if (Math.abs(u.x - e.x) < 14 && Math.abs(u.y - e.y) < 24) {
-          stageEggs.push(e); eggs.splice(i, 1);
-          floaters.push({ x: e.x, y: e.y - 30, t: 0, text: `Ovo de ${SPECIES[e.sp].name} guardado!`, col: '#8fe070', size: 13 });
-          Sfx.ballCatch(); break;
-        }
+    }
+    stepNets();
+  }
+  // rede acertou o ovo: a rede fecha, o ovo voa até quem lançou e fica com ele; choca depois de um turno
+  function netCatch(p, e) {
+    const i = eggs.indexOf(e); if (i >= 0) eggs.splice(i, 1);
+    const u = p.ownerUnit;
+    nets.push({ e, u, x: e.x, y: e.y - 8, t: 0 });
+    focus = { x: e.x, y: e.y };
+    Sfx.ballCatch();
+    showMsg(`Ovo de ${SPECIES[e.sp].name} na rede! Choca no próximo turno.`, 130);
+  }
+  function stepNets() {
+    for (let i = nets.length - 1; i >= 0; i--) {
+      const n = nets[i]; n.t++;
+      if (n.t === 1) spray(n.x, n.y, 12, '#e8f4ff', 2, 0.05, 30, 1.6, 'spark');
+      if (n.t > 70) {
+        nets.splice(i, 1);
+        n.e.u = n.u; n.e.hatchIn = 2; stageEggs.push(n.e);
+        if (n.u) floaters.push({ x: n.u.x, y: n.u.y - spOf(n.u).h * n.u.scale - 24, t: 0, text: '🥚 guardado!', col: '#8fe070', size: 13 });
       }
     }
+  }
+  // posição da rede/ovo durante a animação (fecha no ovo e depois voa em arco até o dono)
+  function netPos(n) {
+    const k = clamp((n.t - 22) / 48, 0, 1), u = n.u;
+    const tx = u ? u.x - u.face * 12 : n.x, ty = u ? u.y - 6 : n.y;
+    return { x: n.x + (tx - n.x) * k, y: n.y + (ty - n.y) * k - Math.sin(Math.PI * k) * 40, close: clamp(n.t / 22, 0, 1), k };
+  }
+  // ovo choca: nasce um filhote do lado de quem guardou o ovo, com metade do tamanho e da força
+  function hatchCarried() {
+    for (const e of stageEggs) {
+      if (e.baby || !(--e.hatchIn <= 0)) continue;
+      const c = e.u, x = clamp((c ? c.x : e.x) + (c ? -c.face : 1) * 18, 10, W - 10);
+      const b = mkUnit(e.sp, x, 0, c ? c.face : 1, 0.5, e.mvs);
+      b.scale = (SPECIES[e.sp].scale || 1) * 0.5; b.dmgMul = 0.5; b.sh = e.sh; b.baby = true; b.rid = -1;
+      b.delay = (c ? c.delay : 0) + 40; b.hop = 1;
+      if (b.y > WATER - 4 && c) { b.x = c.x; b.y = c.y; }
+      units.push(b); teams[0].units.push(b); e.baby = b;
+      spray(b.x, b.y - 8, 18, '#fff6e0', 2.6, 0.1, 40, 2, 'chunk'); spray(b.x, b.y - 10, 12, '#ffe27a', 2, 0.02, 40, 1.6, 'spark');
+      floaters.push({ x: b.x, y: b.y - 36, t: 0, text: `${b.name} nasceu!`, col: '#ffe27a', size: 15 });
+      Sfx.shiny();
+    }
+  }
+  function toggleNet() {
+    if (scene !== 'battle' || state !== 'aim' || teams[turnTeam].ai) return;
+    if (lastNet) { netMode = true; return; }
+    if (!eggs.length) { showMsg('Nenhum ovo no chão para pegar.', 80); Sfx.ballFail(); netMode = false; return; }
+    netMode = !netMode; Sfx.click();
+    showMsg(netMode ? 'Rede pronta! Acerte o ovo.' : 'Rede guardada.', 80);
   }
   function breakEggs(x, y, r) {
     for (let i = eggs.length - 1; i >= 0; i--) {
@@ -610,14 +653,28 @@
     }
   }
   function hatchEggs() {
-    for (const e of stageEggs.concat(eggs)) {                  // os que ficaram no chão no fim da fase também vêm junto
+    for (const e of stageEggs) {                                // só os ovos pegos com a rede (chocados ou não)
       campaign.roster.push(e.sp); campaign.xp.push(0); campaign.mv.push(e.mvs); campaign.sh.push(e.sh ? 1 : 0);
       stageCaught.push({ sp: e.sp, mvs: e.mvs, sh: e.sh });
     }
-    stageEggs = []; eggs = [];
+    // os filhotes vivos crescem até o tamanho normal na frente do jogador
+    for (const e of stageEggs) if (e.baby && e.baby.alive) { e.baby.growT = 0; e.baby.growFrom = e.baby.scale; }
+    stageEggs = []; eggs = []; nets = [];
+  }
+  function stepGrow() {
+    for (const u of units) {
+      if (u.growT === undefined || u.growT >= 100) continue;
+      u.growT++;
+      const k = u.growT / 100, ease = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+      const full = SPECIES[u.sp].scale || 1;
+      u.scale = u.growFrom + (full - u.growFrom) * ease;
+      if (u.growT % 8 === 0) spray(u.x + rnd(-10, 10), u.y - 10 - rnd(0, 20), 3, '#ffe27a', 1.6, -0.02, 30, 1.6, 'spark');
+      if (u.growT === 100) { floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 26, t: 0, text: `${u.name} cresceu e entrou no time!`, col: '#8fe070', size: 14 }); Sfx.evolveDone(); }
+      else if (u.growT === 1) Sfx.evolve();
+    }
   }
   function resetCommon() {
-    fx = []; projs = []; parts = []; floaters = []; graves = []; eggs = []; stageEggs = [];
+    fx = []; projs = []; parts = []; floaters = []; graves = []; eggs = []; stageEggs = []; nets = []; netMode = false; lastNet = false;
     power = 0; charging = false; ballMode = false; lastBall = false; pickups = []; weather = null; bolt = null; ai = null; cap = null; panel = null; pendingPanel = null;
     keys = {}; wxPrev = null; wxK = 1;
     guest = null; gCool = 1; gMode = ''; lastShotGuest = false; splashU = null; evo = null;
@@ -847,7 +904,8 @@
 
   function stageClear() {
     state = 'over'; guest = null; units = units.filter(u => u.team !== 2);
-    if (ORIG) hatchEggs();
+    let grow = false;
+    if (ORIG) { grow = stageEggs.some(e => e.baby && e.baby.alive); hatchEggs(); }
     const last = stageIdx >= STAGES.length - 1;
     Sfx.win();
     const xp = awardXp();
@@ -856,7 +914,7 @@
     const buttons = last
       ? [{ label: 'Menu principal', fn: initMenu }]
       : [{ label: 'Próxima fase ▶', fn: () => beginStage(stageIdx + 1) }, { label: 'Menu', fn: initMenu }];
-    pendingPanel = { t: 70, evos: xp.evos, panel: {
+    pendingPanel = { t: grow ? 150 : 70, evos: xp.evos, panel: {
       title: last ? '🏆 Você é o Campeão!' : 'Fase concluída!',
       sub: last ? `Você terminou a campanha com ${campaign.roster.length} ${ORIG ? 'monstrinhos' : 'Pokémon'}. Dá para rejogar qualquer fase pelo menu.` : `${STAGES[stageIdx].name} superada.`,
       lines: xp.lines, caught: stageCaught.slice(), buttons } };
@@ -1177,7 +1235,7 @@
   }
 
   function toggleBall() {
-    if (ORIG) return;
+    if (ORIG) { toggleNet(); return; }
     if (scene !== 'battle' || kind !== 'campaign' || state !== 'aim' || charging) return;
     const avail = BALL_ORDER.filter(k => campaign[BALLS[k].key] > 0);
     if (ballMode) {            // B de novo: troca para a próxima bola (Great, Ultra) e por fim guarda
@@ -1254,7 +1312,7 @@
       const c = centerOf(u), d = Math.hypot(c.x - x, c.y - y);
       if (d >= wp.boom) continue;
       const k = 1 - d / wp.boom, mult = typeMult(wp.type, spOf(u).types);
-      const dmg = shieldDmg(u, Math.round(wp.dmg * k * mult * wxMul(wp.type) * (p.crit ? 1.6 : 1)));
+      const dmg = shieldDmg(u, Math.round(wp.dmg * k * mult * wxMul(wp.type) * (p.crit ? 1.6 : 1) * ((p.ownerUnit && p.ownerUnit.dmgMul) || 1)));
       if (dmg > 0) {
         u.hp -= dmg; u.hurt = 24; anyHurt = true;
         if (p.crit && k > 0.2) floaters.push({ x: u.x + 16, y: u.y - spOf(u).h * u.scale - 4, t: 4, text: 'Crítico!', col: '#ff5a5a', size: 12 });
@@ -1457,6 +1515,15 @@
       lastAngles[kind + turnTeam] = elevOf(u);
       return;
     }
+    if (ORIG && netMode && !teams[turnTeam].ai) {
+      payDelay(u, 360);
+      const m = mouthAt(u, u.face, true);
+      launch('rede', m.x, m.y, a, sp, 'player', u);
+      netMode = false; Sfx.ballThrow(); Sfx.chargeStop();
+      lastAngles[kind + turnTeam] = elevOf(u);
+      power = 0; charging = false; state = 'flying'; ai = null;
+      return;
+    }
     payDelay(u, ballMode ? 480 : shotDelay(wk));
     if (ballMode) {
       const m = mouthAt(u, u.face, true);
@@ -1546,7 +1613,7 @@
   function stepProjs() {
     stepBolts(); stepBeams();
     for (let i = projs.length - 1; i >= 0; i--) {
-      const p = projs[i], isBall = p.wk === 'ball';
+      const p = projs[i], isBall = p.wk === 'ball', isNet = p.wk === 'rede';
       if (p.under) {                                          // Ataque Subterrâneo: corre por baixo da terra
         const U = p.under, myTeam = p.ownerUnit ? p.ownerUnit.team : -1; let pop = false;
         for (let s = 0; s < 3 && !pop; s++) {
@@ -1583,8 +1650,12 @@
           for (let k = 0; k < 10; k++) addPart({ x: p.x, y: WATER, vx: rnd(-1.5, 1.5), vy: rnd(-3, -1), g: 0.15, life: 40, max: 40, r: rnd(1.2, 2.2), col: '#bfe9ff', kind: 'drop' });
           break;
         }
+        if (isNet) {
+          const e = eggs.find(e => Math.hypot(e.x - p.x, e.y - 9 - p.y) < 16);
+          if (e) { target = e; outcome = 'egg'; break; }
+        }
         for (const u of units) {
-          if (!u.alive || u.hidden) continue;
+          if (!u.alive || u.hidden || isNet) continue;
           if (u === p.ownerUnit && p.age < 40) continue;
           if (isBall && u.team === 0) continue;                       // a bola atravessa os seus parceiros
           const c = centerOf(u);
@@ -1614,6 +1685,11 @@
       projs.splice(i, 1);
       if (p.wp.teleport) { teleportTo(p, outcome, target); continue; }
       if (outcome === 'gone') continue;
+      if (isNet) {
+        if (outcome === 'egg') netCatch(p, target);
+        else { spray(p.x, p.y - 3, 8, '#e8f4ff', 1.6, 0.1, 26, 1.4, 'spark'); showMsg('A rede errou o ovo...', 70); focus = { x: p.x, y: p.y }; }
+        continue;
+      }
       if (isBall) { ballResolve(p, target, outcome); continue; }
       explode(p.x, Math.min(p.y, H), p);
     }
@@ -1775,7 +1851,8 @@
     const t = teams[turnTeam]; t.cur = t.units.indexOf(u);
     for (const v of units) v.stuck = false;
     if (u.shield > 0 && --u.shield === 0) floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 30, t: 0, text: 'Barreira acabou', col: '#bff3ff', size: 12 });
-    ai = null; charging = false; power = 0; ballMode = false;
+    ai = null; charging = false; power = 0; ballMode = false; netMode = false;
+    if (ORIG && stageEggs.length) hatchCarried();
     // vento muda a cada turno, em qualquer direção (força máxima depende da fase)
     const wmax = kind === 'campaign' ? STAGES[stageIdx].wind : 3;
     windA = rnd(0, Math.PI * 2); windS = Math.random() < 0.15 ? rnd(0, wmax * 0.2) : rnd(wmax * 0.15, wmax * 1.15);
@@ -1804,6 +1881,18 @@
     Sfx.turn(); syncButtons();
   }
 
+  // versão original: última chance de pegar o ovo do último selvagem com a rede
+  function netTurn() {
+    dotDone = false; panX = null;
+    const t = teams[0], u = t.units.find(v => v.alive && !v.hidden && !v.baby) || t.units.find(v => v.alive && !v.hidden);
+    if (!u) { stageClear(); return; }
+    turnTeam = 0; t.cur = t.units.indexOf(u);
+    ai = null; charging = false; power = 0; ballMode = false; netMode = true;
+    wind = 0; windY = 0; windS = 0; walkBudget = walkMax(); turnT = TURN_TIME;
+    state = 'aim'; angle = fromElev(u, 45); clampAim(u);
+    showMsg('Última chance: lance a rede no ovo!', 150);
+    Sfx.turn(); syncButtons();
+  }
   // passa a vez sem atirar (tecla P, ou quando o tempo acaba)
   function passTurn() {
     if (scene !== 'battle' || state !== 'aim' || teams[turnTeam].ai) return;
@@ -1852,7 +1941,10 @@
     units = units.filter(u => u.team !== 2 || u.alive);
 
     {
-      if (!teamAlive(teams[1])) { stageClear(); return; }
+      if (!teamAlive(teams[1])) {
+        if (ORIG && eggs.length && !lastNet && teamAlive(teams[0])) { lastNet = true; netTurn(); return; }   // ovo do último selvagem: uma vez só para a rede
+        stageClear(); return;
+      }
       if (!teamAlive(teams[0])) { stageLose(); return; }
       if (lastShotGuest) { lastShotGuest = false; startTurn(); return; }
       // uma rodada = todos já jogaram uma vez (em média): o visitante pode aparecer, atacar ou sumir
@@ -2500,6 +2592,7 @@
   // golpe atual (e dica de troca quando o Pokémon tem dois golpes)
   function moveHud(u) {
     const wp = WEAPONS[curW(u)];
+    if (netMode) return `<text x="40" y="57" font-size="11" font-weight="bold" fill="#7fe0f0">Rede pronta (acerte o ovo)</text>`;
     if (ballMode) return `<text x="40" y="57" font-size="11" font-weight="bold" fill="#ffd34d">Pokébola pronta</text>`;
     if (wp.none) return `<text x="40" y="57" font-size="11" fill="#cfe">Golpe: Splash (não causa dano)</text>`;
     const two = u.moves.length > 1, vr = wp.variant ? ` · ${MS.MODE_NOTE[wp.variant]}` : '';
@@ -2620,7 +2713,7 @@
     if (ORIG) s += `<rect x="238" y="8" width="84" height="40" rx="12" fill="#0d1b2a" opacity=".72"/>
         <g transform="translate(258 38) scale(1.15)">${eggSvg('#e0583a')}</g>
         <text x="274" y="33" font-size="16" font-weight="bold" fill="#fff">×${stageEggs.length}</text>
-        <text x="314" y="44" text-anchor="end" font-size="7.5" fill="#bbb">${eggs.length ? eggs.length + ' no chão' : 'ovos'}</text>`;
+        <text x="314" y="44" text-anchor="end" font-size="7.5" fill="#bbb">${eggs.length ? eggs.length + ' no chão [B]' : 'ovos'}</text>`;
     else {
       s += `<rect x="238" y="8" width="84" height="40" rx="12" fill="#0d1b2a" opacity=".72"/>
         ${ballIcon(258, 28, 9)}
@@ -2769,6 +2862,8 @@
         }
         return `<g transform="translate(${f1(p.x)} ${f1(p.y)})"><circle r="10" fill="#d8c8ff" opacity=".22"/>${dots}</g>`;
       }
+      case 'net':
+        return `<g transform="translate(${f1(p.x)} ${f1(p.y)}) rotate(${(frameNo * 9) % 360}) scale(1.15)">${NET_SVG}</g>`;
       case 'web':
         p.trail.forEach((tp, i) => {
           const k = (i + 1) / p.trail.length;
@@ -2786,6 +2881,16 @@
     }
   }
 
+  function netsSvg() {
+    let s = '';
+    for (const n of nets) { const q = netPos(n); s += `<g transform="translate(${f1(q.x)} ${f1(q.y + 8)}) scale(${(1.35 - q.k * 0.4).toFixed(2)})">${eggSvg(n.e.col)}</g><g transform="translate(${f1(q.x)} ${f1(q.y)}) rotate(${f1(q.k * 340)}) scale(${(1.9 - q.close * 0.75).toFixed(2)})">${NET_SVG}</g>`; }
+    for (const e of stageEggs) {
+      if (e.baby || !e.u || !e.u.alive) continue;
+      const u = e.u, x = u.x - u.face * 12;
+      s += `<g transform="translate(${f1(x)} ${f1(u.y)}) scale(.95)">${eggSvg(e.col)}</g><g transform="translate(${f1(x)} ${f1(u.y - 7)}) scale(.95)" opacity=".75">${NET_SVG}</g>`;
+    }
+    return s;
+  }
   function captureSvg() {
     if (!cap) return '';
     const c = cap;
@@ -2828,8 +2933,8 @@
     return `<line x1="${f1(x1)}" y1="${f1(y1)}" x2="${f1(x2)}" y2="${f1(y2)}"
               stroke="#fff" stroke-opacity=".85" stroke-width="2" stroke-dasharray="3 5" stroke-linecap="round"/>
              <g transform="translate(${f1(x2)} ${f1(y2)})">
-               <circle r="6" fill="none" stroke="${ballMode ? '#ffd34d' : '#ff4d4d'}" stroke-width="2"/>
-               <path d="M-10,0 L-4,0 M4,0 L10,0 M0,-10 L0,-4 M0,4 L0,10" stroke="${ballMode ? '#ffd34d' : '#ff4d4d'}" stroke-width="2" stroke-linecap="round"/>
+               <circle r="6" fill="none" stroke="${netMode ? '#7fe0f0' : ballMode ? '#ffd34d' : '#ff4d4d'}" stroke-width="2"/>
+               <path d="M-10,0 L-4,0 M4,0 L10,0 M0,-10 L0,-4 M0,4 L0,10" stroke="${netMode ? '#7fe0f0' : ballMode ? '#ffd34d' : '#ff4d4d'}" stroke-width="2" stroke-linecap="round"/>
              </g>
              <text x="${f1(x2)}" y="${f1(y2 - 13)}" text-anchor="middle" font-size="10" font-weight="bold" fill="#fff" stroke="#000" stroke-width=".4">${rel}°</text>`;
   }
@@ -3281,7 +3386,8 @@
     snd2: [`<path d="M9,-5 Q14,0 9,5" fill="none" stroke="#ff9ad0" stroke-width="2" stroke-linecap="round" opacity=".8"/>`, [7, -7, 9, 14]],
     fire: [`<circle r="8" fill="url(#fireball)"/>`, [-8, -8, 16, 16]],
     dragon: [`<circle r="8" fill="url(#dragFire)"/>`, [-8, -8, 16, 16]],
-    zap: [`<circle r="8" fill="url(#zap)"/>`, [-8, -8, 16, 16]]
+    zap: [`<circle r="8" fill="url(#zap)"/>`, [-8, -8, 16, 16]],
+    net: [NET_SVG, [-10, -10, 20, 20]]
   };
   function glPj(name, x, y, rot, sc = 1, a = 1) {
     const d = PJ[name], R = GLR, s = R.svg('pj|' + name, d[0], d[1], R.res * Math.max(1, sc) * 1.5);
@@ -3342,6 +3448,7 @@
         return;
       }
       case 'web': glTrail(p, 0.8, 1.6, '#fff', 0.5); glPj('web', p.x, p.y, (frameNo * 5 % 360) * Math.PI / 180); return;
+      case 'net': glTrail(p, 0.6, 1.2, '#e8f4ff', 0.4); glPj('net', p.x, p.y, frameNo * 0.15, 1.15); return;
       default: {
         const pts = p.trail.concat([{ x: p.x, y: p.y }]).map((tp, i) => [tp.x, tp.y + (i % 2 ? 3 : -3)]);
         R.poly(pts, 4.5, '#ffd000', 0.45); R.poly(pts, 2, '#fffbd0');
@@ -3528,10 +3635,22 @@
       R.rot(wob); R.sc(1.35); if (s) R.spr(s); R.pop();
       const ay = e.y - 30 + Math.sin(frameNo * 0.15) * 3; R.tri(e.x - 4, ay, e.x + 4, ay, e.x, ay + 5, '#ffe27a');
     }
+    for (const n of nets) {                        // rede fechando no ovo e voando até o dono
+      const q = netPos(n), s = R.svg('egg|' + n.e.sp, eggSvg(n.e.col), [-8, -17, 16, 18], R.res);
+      R.push(); R.tr(q.x, q.y + 8); R.sc(1.35 - q.k * 0.4); if (s) R.spr(s); R.pop();
+      glPj('net', q.x, q.y, q.k * 6, 1.9 - q.close * 0.75);
+    }
+    for (const e of stageEggs) {                   // ovo guardado ao lado de quem pegou (até chocar)
+      if (e.baby || !e.u || !e.u.alive) continue;
+      const u = e.u, x = u.x - u.face * 12, y = u.y + Math.sin(frameNo * 0.12 + e.id) * 0.8;
+      const s = R.svg('egg|' + e.sp, eggSvg(e.col), [-8, -17, 16, 18], R.res);
+      R.push(); R.tr(x, y); R.rot(Math.sin(frameNo * 0.2) * (frameNo % 90 < 20 ? 0.2 : 0.03)); R.sc(0.95); if (s) R.spr(s); R.pop();
+      glPj('net', x, y - 7, 0, 0.95, 0.75);
+    }
     // mira
     if (inBattle && act && (state === 'aim' || (state === 'ai' && ai && ['aim', 'wait', 'charge'].includes(ai.phase)))) {
-      const a = angle * Math.PI / 180, m = mouthAt(act, act.face, ballMode), x2 = m.x + Math.cos(a) * 46, y2 = m.y - Math.sin(a) * 46;
-      const ac = ballMode ? '#ffd34d' : '#ff4d4d';
+      const a = angle * Math.PI / 180, m = mouthAt(act, act.face, ballMode || netMode), x2 = m.x + Math.cos(a) * 46, y2 = m.y - Math.sin(a) * 46;
+      const ac = netMode ? '#7fe0f0' : ballMode ? '#ffd34d' : '#ff4d4d';
       R.dashed(m.x, m.y, x2, y2, 2, 3, 5, '#fff', 0.85, true);
       R.ring(x2, y2, 6, 2, ac);
       R.line(x2 - 10, y2, x2 - 4, y2, 2, ac); R.line(x2 + 4, y2, x2 + 10, y2, 2, ac); R.line(x2, y2 - 10, x2, y2 - 4, 2, ac); R.line(x2, y2 + 4, x2, y2 + 10, 2, ac);
@@ -3674,7 +3793,7 @@
       $('intro').innerHTML = '';
       let aim = '';
       if (inBattle && act && (state === 'aim' || (state === 'ai' && ai && ['aim', 'wait', 'charge'].includes(ai.phase)))) {
-        const a = angle * Math.PI / 180, m = mouthAt(act, act.face, ballMode);
+        const a = angle * Math.PI / 180, m = mouthAt(act, act.face, ballMode || netMode);
         const rel = Math.round(elevOf(act));
         aim = aimSvg(m.x, m.y, a, rel);
       }
@@ -3685,7 +3804,7 @@
 
     renderKeyed('worms', scene === 'intro' ? [] : inBattle ? renderBattleUnits(act) : units.map(u => { const p = unitParts(u, { color: '#fff', noBar: true }); return { k: u.uid, t: p.t, h: p.h }; }));
 
-    $('proj').innerHTML = projs.map(projSvg).join('') + captureSvg();
+    $('proj').innerHTML = projs.map(projSvg).join('') + captureSvg() + (ORIG ? netsSvg() : '');
 
     $('pshadow').innerHTML = lite ? '' : projs.map(p => {
       if (p.x < 0 || p.x >= W) return '';
@@ -4014,11 +4133,12 @@
   if (isTouch) $('settingsBtn').setAttribute('transform', 'translate(-664 352)');
 
   function syncButtons() {
+    if (ORIG) { const t = document.querySelector && document.querySelector('#ballBtn text'); if (t && t.textContent !== 'REDE') t.textContent = 'REDE'; }
     const b = scene === 'battle' && !panel && state !== 'evolve' && !settingsOpen, i = scene === 'intro' && !settingsOpen;
     const camp = b && kind === 'campaign';
     const au = b && teams[turnTeam] && !teams[turnTeam].ai ? activeUnit() : null;
     const show = { left: b, right: b, up: b || i, down: b || i, fire: b || i, pass: !!au, restart: b || i,
-                   ball: camp && !ORIG, move: !!(au && au.moves.length > 1), menu: b || i, sound: !settingsOpen, settings: true };
+                   ball: camp && (!ORIG || (eggs.length > 0 && !!au && state === 'aim')), move: !!(au && au.moves.length > 1), menu: b || i, sound: !settingsOpen, settings: true };
     // na fase da cidade os botões vão para a esquerda, para não cobrir a lagoa e os alvos da direita
     const introPos = { up: 'translate(-536 0)', down: 'translate(-536 0)', fire: 'translate(190 452) scale(.75) translate(-738 -436)' };
     document.querySelectorAll('.btn').forEach(el => {
@@ -4299,7 +4419,7 @@
       if (scene !== 'intro') u.moving = false;
     }
     if (panel && panel.pause) { updateCamera(); return; }          // pergunta na tela: jogo parado
-    if (scene === 'battle') { stepBattle(); stepWeather(); if (eggs.length) stepEggs(); }
+    if (scene === 'battle') { stepBattle(); stepWeather(); if (eggs.length || nets.length) stepEggs(); if (ORIG) stepGrow(); }
     else if (scene === 'intro') stepIntro();
     updateUnits();
     stepParts();
@@ -4348,7 +4468,7 @@
   MS.debug = {
     get lastBall() { return lastBall; },
     get: () => ({ scene, kind, state, stageIdx, units, teams, campaign, cap, intro, panel, angle, power, wind, ballMode, turnTeam, ai, guest, gCool, gMode, evo, projs }),
-    get pickups() { return pickups; }, BALLS, get eggs() { return eggs; }, get stageEggs() { return stageEggs; }, get campaign() { return campaign; },
+    get pickups() { return pickups; }, BALLS, get eggs() { return eggs; }, get nets() { return nets; }, toggleNet, get netMode() { return netMode; }, get stageEggs() { return stageEggs; }, get campaign() { return campaign; },
     setWeather: w => { weather = w; lightT = 5; $('sun').style.display = (w === 'rain' || w === 'storm') ? 'none' : ''; glSkyDirty = true; }, get weather() { return weather; },
     glInfo: () => ({ aiw: !!aiWorker, aiJobs: aiJobSeq, active: glActive, loading: glLoading, prog: glLoadProg, gen: GLR && GLR.gen, resK: glResK, P: glP, snaps: Object.fromEntries(Object.entries(glSnap).map(([k, v]) => [k, { ok: v.ok, vb: v.vb }])), terrOk: glTerrOk, busy: glTerrBusy, full: glFullT, box: glBox, stats: GLR && GLR.stats, lite, ms: rN ? +(rTime / rN).toFixed(2) : 0, resetMs: (rTime = 0, rN = 0) }),
     setRender: r => { if ((settings.render === 'svg') !== (r === 'svg')) toggleRender(); },

@@ -182,7 +182,56 @@
   // abelhinha da escolta (desenhada pelo jogo voando em volta da rainha e como projétil)
   MS.BEE_MINI = `<ellipse cx="0" cy="0" rx="3.6" ry="2.8" fill="#f6c428" stroke="#2a1f1a" stroke-width=".8"/><path d="M-1.4,-2.6 V2.6 M1,-2.7 V2.7" stroke="#2a2018" stroke-width="1.1"/><ellipse cx="-.6" cy="-3.6" rx="2" ry="2.6" fill="#e8f6ff" fill-opacity=".85" stroke="#2a1f1a" stroke-width=".6"/><circle cx="3.2" cy="-.6" r="1.4" fill="#ffd84a" stroke="#2a1f1a" stroke-width=".6"/><circle cx="3.6" cy="-.9" r=".55" fill="#1a1008"/>`;
 
-  const NEW = { galinha, barata, baiacu, camaleao, pombo, abelha };
+  // ---------- Sapo colorido (sapo-ponta-de-flecha): pequeno, azul-elétrico de pintas pretas, venenoso de verdade; mania: enche o papo e coaxa ----------
+  function sapo(c) {
+    const m = c.mania, sac = on(m) ? Math.abs(sin(m * PI * 4)) : 0, hop = on(m) ? Math.max(0, sin(m * PI * 2)) * 0 : 0;
+    const blue = '#2a8ae8', dark = '#14508a', st = c.step * 0.6;
+    return `<g transform="translate(0 ${f1(c.bob - hop)})">
+      <path d="M-9,-2 C-14,-2 -15,-7 -11,-8 L-6,-5 Z" fill="${blue}" stroke="${OUT}" stroke-width="1"/>
+      <ellipse cx="${f1(-8 + st)}" cy="-1.4" rx="4" ry="1.8" fill="${dark}" stroke="${OUT}" stroke-width=".9"/><ellipse cx="${f1(7 - st)}" cy="-1.4" rx="3.4" ry="1.8" fill="${dark}" stroke="${OUT}" stroke-width=".9"/>
+      <ellipse cx="-2" cy="-7" rx="9" ry="6" fill="${blue}" stroke="${OUT}" stroke-width="1.1"/>
+      <circle cx="-6" cy="-8" r="1.6" fill="#101820"/><circle cx="-1" cy="-10" r="1.2" fill="#101820"/><circle cx="2" cy="-6" r="1.3" fill="#101820"/>
+      <g transform="translate(5 -17)">
+        <ellipse cx="0" cy="0" rx="11" ry="9" fill="${blue}" stroke="${OUT}" stroke-width="1.2"/>
+        <circle cx="-6" cy="-1" r="1.5" fill="#101820"/><circle cx="-2" cy="3.5" r="1.1" fill="#101820"/>
+        <path d="M-6,-5 Q-1,-8 4,-6" fill="none" stroke="#8ac8ff" stroke-width="1.8" stroke-linecap="round" opacity=".8"/>
+        <circle cx="-2" cy="-8" r="4.6" fill="${blue}" stroke="${OUT}" stroke-width="1.1"/><circle cx="6" cy="-8.4" r="4.2" fill="${blue}" stroke="${OUT}" stroke-width="1.1"/>
+        ${eye(-1.6, -8.4, 3.2, '#101820', c, 0.3, 1.05, 0.05)}${eye(6.4, -8.8, 2.9, '#101820', c, 0.3, 1.05, 0.05)}
+        ${blush(-6, 2.5, '#ff7ab0', 2)}${blush(9, 2.5, '#ff7ab0', 1.8)}
+        ${sac > 0.05 ? `<ellipse cx="5" cy="${f1(6.5 + sac * 1.5)}" rx="${f1(3 + sac * 4)}" ry="${f1(2 + sac * 3.4)}" fill="#ffe27a" stroke="${OUT}" stroke-width=".9"/>` : ''}
+        ${c.breath > 0 || c.hurt ? `<ellipse cx="6" cy="4" rx="3.6" ry="2.2" fill="#6a1a24" stroke="${OUT}" stroke-width=".8"/>` : `<path d="M-1,3.6 Q5,7 11,3" fill="none" stroke="${OUT}" stroke-width="1" stroke-linecap="round"/>`}
+      </g>
+      ${sac > 0.6 ? `<g stroke="#fff" stroke-width="1" stroke-linecap="round" fill="none"><path d="M18,-14 q3,-2 0,-4"/><path d="M21,-13 q4,-3 0,-6"/></g>` : ''}
+      ${puff(c, 15, -13, '#a8f05a', '#e8ffd0')}
+    </g>`;
+  }
+
+  // ---------- Pica-pau: topete vermelho, bico enorme; mania: bica sem parar ("toc toc toc") ----------
+  function picapau(c) {
+    const m = c.mania, peck = on(m) ? Math.max(0, sin(m * PI * 12)) : 0;
+    const crest = sin(c.f * 0.12) * 4;
+    return `<g transform="translate(0 ${f1(c.bob)})">
+      ${birdFoot(-3, c.step * 0.6).replace(/#e08a1a/g, '#7a7a7a')}${birdFoot(3, -c.step * 0.6).replace(/#e08a1a/g, '#7a7a7a')}
+      <path d="M-9,-8 L-16,-4 L-14,-1 L-8,-4 Z" fill="#2a2a34" stroke="${OUT}" stroke-width="1" stroke-linejoin="round"/>
+      <ellipse cx="-1" cy="-9" rx="8.5" ry="6.6" fill="#2a2a34" stroke="${OUT}" stroke-width="1.1"/>
+      <ellipse cx="2" cy="-7.5" rx="5" ry="4.4" fill="#f4f0e8"/>
+      <path d="M-7,-10 l2,2 l2,-2 l2,2" fill="none" stroke="#f4f0e8" stroke-width="1"/>
+      <g transform="translate(${f1(5 + peck * 3)} ${f1(-20 + peck * 2)}) rotate(${f1(peck * 18)})">
+        <g transform="rotate(${f1(crest)} -4 -8)"><path d="M-6,-6 C-12,-12 -8,-18 -2,-16 C-4,-14 -1,-13 2,-12 C0,-10 -2,-8 -6,-6 Z" fill="#e8322a" stroke="${OUT}" stroke-width="1" stroke-linejoin="round"/></g>
+        <circle r="9.5" fill="#f4f0e8" stroke="${OUT}" stroke-width="1.2"/>
+        <path d="M-9,-2 C-8,-9 -2,-11 3,-10 C1,-7 -3,-4 -9,-2 Z" fill="#e8322a"/>
+        <path d="M7,-3 L20,0 L7,3 Z" fill="#f0b030" stroke="${OUT}" stroke-width="1" stroke-linejoin="round"/>
+        <path d="M7,0 L19,0" stroke="#b07810" stroke-width=".7"/>
+        ${eye(-0.5, -1, 3.2, '#1a1a24', c, 0.35)}${eye(5, -1.4, 2.7, '#1a1a24', c, 0.35)}
+        ${blush(-4, 4.5, '#ff9ab0', 1.8)}
+        ${c.breath > 0 || c.hurt ? `<path d="M7,1 L17,3" stroke="#6a1a24" stroke-width="1.6"/>` : ''}
+      </g>
+      ${peck > 0.7 ? `<g stroke="#fff" stroke-width="1" stroke-linecap="round" fill="none"><path d="M28,-24 l3,-2 M29,-19 l4,0 M28,-14 l3,2"/></g>` : ''}
+      ${puff(c, 24, -20, '#e8d8b0', '#fff8e0')}
+    </g>`;
+  }
+
+  const NEW = { galinha, barata, baiacu, camaleao, pombo, abelha, sapo, picapau };
   const reg = () => { if (MS.Art && MS.Art.register) { for (const k in NEW) MS.Art.register(k, NEW[k]); return true; } return false; };
   if (!reg()) document.addEventListener('DOMContentLoaded', reg);
 })();

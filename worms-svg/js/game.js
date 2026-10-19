@@ -8,7 +8,7 @@
   const GRAV = 0.2;           // gravidade base (px/frame²)
   const WALK_MAX = 120;       // distância máxima de caminhada por turno (mapas largos dão um pouco mais)
   const walkMax = () => WALK_MAX + Math.max(0, W - 800) * 0.07;
-  const GAME_VERSION = '18/10 a';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
+  const GAME_VERSION = '19/10 a';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
   const TURN_TIME = 30 * 60;  // 30 s para mirar e atirar (estourou: passa a vez)
   const WEAK = 0.35;          // abaixo dessa fração de PV o inimigo pode ser capturado
   const PLAYER_COL = '#3a9bff', WILD_COL = '#e0433a', GUEST_COL = '#ffd34d';
@@ -162,6 +162,8 @@
   let uiList = [], uiSel = 0, themeKey = 'campo';
   let focus = { x: 400, y: 250 };
   let flash = { a: 0, col: '#fff' }, skipT = 0;
+  // ângulo lembrado por unidade (lado + espécie + posição no time: continua valendo ao recomeçar a fase)
+  const aimKey = u => kind + u.team + ':' + u.sp + ':' + ((teams[u.team] && teams[u.team].units.indexOf(u)) | 0);
   const lastAngles = {};      // último ângulo usado por cada lado (vale também ao recomeçar)
 
   const activeUnit = () => { const t = teams[turnTeam]; return t ? t.units[t.cur] : undefined; };
@@ -1391,7 +1393,7 @@
       Sfx.chargeStop(); Sfx.ballCatch();
       spray(u.x, u.y - spOf(u).hitY * u.scale, 18, '#bff3ff', 3, 0.02, 34, 2, 'spark');
       showMsg(`${u.name} usou Proteção! (${u.shield} turnos)`, 80);
-      lastAngles[kind + turnTeam] = elevOf(u);
+      lastAngles[aimKey(u)] = elevOf(u);
       return;
     }
     payDelay(u, ballMode ? 480 : shotDelay(wk));
@@ -1408,7 +1410,7 @@
       muzzle(mx, my, WEAPONS[wk].style, a);
     }
     Sfx.chargeStop();
-    lastAngles[kind + turnTeam] = elevOf(u);
+    lastAngles[aimKey(u)] = elevOf(u);
     power = 0; charging = false; state = 'flying'; ai = null;
   }
 
@@ -1727,7 +1729,7 @@
       Sfx.weakEff(); syncButtons();
       return;
     }
-    const mem = lastAngles[kind + turnTeam];        // mantém o último ângulo usado
+    const mem = lastAngles[aimKey(u)];        // cada bicho lembra o próprio último ângulo
     if (t.ai) {
       state = 'ai'; ai = { phase: 'think0', t: 0 };
       angle = fromElev(u, mem !== undefined ? mem : 45); clampAim(u);

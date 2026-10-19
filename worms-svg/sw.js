@@ -1,6 +1,6 @@
 // Funciona sem internet: guarda os arquivos do jogo no aparelho.
 // Rede primeiro (para receber versões novas na hora); sem rede, usa a cópia guardada.
-const CACHE = 'monstrinhos-18-10-a';
+const CACHE = 'monstrinhos-19-10-a';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icons/icon192.png', './icons/icon512.png',
   './js/sfx.js', './js/data.js', './js/art.js', './js/art2.js', './js/animated-kanto.js', './js/gl.js', './js/ai-worker.js', './js/game.js'];
 

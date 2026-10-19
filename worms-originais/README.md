@@ -1,8 +1,9 @@
 # Monstrinhos de Artilharia — versão com monstrinhos originais (ramo `originais`)
 
-Esta versão troca os personagens de terceiros por seis monstrinhos próprios e a captura por Pokébola pelo **Ovo de Laço**.
+Esta versão troca os personagens de terceiros por bichos caricatos próprios e a captura por Pokébola pelo **Ovo de Laço**.
 
-- **Brasito** (fogo), **Gotalho** (água), **Musguinho** (planta), **Faiscolino** (elétrico), **Pedrugo** (pedra) e **Ventolina** (normal/voador), desenhados em `js/art-originais.js`. Cada um tem uma **mania** que faz de tempos em tempos quando está parado (assoprar o topete, regar uma plantinha, arrumar o chapéu, dar tapinhas na lâmpada, rolar como bola, voar contra o vento) e cara de atordoado quando apanha.
+- **Bichos (js/art-bichos.js):** **Caramelo** (vira-lata, Normal, joga um osso; mania: pulinhos de alegria com a língua de fora), **Pinscher** (Normal/Lutador, latido sônico; treme sem parar, late até dar um passo para trás e com menos de 40% de vida entra em fúria: +50% de dano), **Tatu-bola** (Pedra, rolamento que quica; vira bola, espia com um olhinho e desenrola), **Formiga** (Inseto, migalha gigante; bate as pinças) e **Rola-bosta** (Terra/Inseto, bola de terra que quica; a bola rola de volta e ele corre atrás). Parceiros iniciais: Caramelo, Pinscher e Tatu-bola.
+- Os seis primeiros monstrinhos (Brasito, Gotalho, Musguinho, Faiscolino, Pedrugo e Ventolina, em `js/art-originais.js`) continuam no código, mas fora das fases.
 - **Início:** em vez da cidade das Pokébolas, você escolhe o parceiro (Brasito, Gotalho ou Musguinho).
 - **Ovo de Laço:** um selvagem derrotado sem exagero no dano (sobra de dano até 35% da vida dele) solta um ovo; com golpe forte demais a chance cai para 30%. O ovo rola pelo terreno e pode cair na água ou quebrar numa explosão. Na sua vez, aperte **B** (ou o botão **REDE**) e lance a rede: se acertar o ovo, a rede fecha, o ovo voa até quem lançou e fica com ele. Depois de um turno o ovo choca e o filhote entra na batalha do seu lado, com metade do tamanho, da vida e da força. Ao vencer a fase a captura vale: os filhotes crescem até o tamanho normal e entram no time. Se o último selvagem deixar um ovo, você ganha uma vez extra só para lançar a rede.
 - As fases usam só os monstrinhos originais. Sem Pokébolas no campo e sem o botão BOLA.

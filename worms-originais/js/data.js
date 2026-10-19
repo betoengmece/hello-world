@@ -456,34 +456,45 @@
   };
   MS.STAGES.forEach(st => { st.pool = POOL[st.theme] || []; });
 
-  // ---------- Versão com monstrinhos originais (sem personagens de terceiros) ----------
-  // mania: cada um tem um gesto próprio quando está parado (desenhado em art-originais.js)
+  // ---------- Versão com bichos originais (sem personagens de terceiros) ----------
+  // mania: cada um tem um gesto próprio quando está parado (art-originais.js e art-bichos.js)
   Object.assign(MS.SPECIES, {
     brasito:    { name: 'Brasito',    types: ['fire'],             weapon: 'fogo',     maxhp: 100, h: 36, hitY: 12, hitR: 12, catch: 0.6, mouth: [12, -9],  mania: true, orig: true, sh: 200 },
     gotalho:    { name: 'Gotalho',    types: ['water'],            weapon: 'agua',     maxhp: 100, h: 34, hitY: 12, hitR: 12, catch: 0.6, mouth: [13, -9],  mania: true, orig: true, sh: 120 },
     musguinho:  { name: 'Musguinho',  types: ['grass'],            weapon: 'planta',   maxhp: 100, h: 38, hitY: 12, hitR: 11, catch: 0.6, mouth: [9, -12],  mania: true, orig: true, sh: 260 },
     faiscolino: { name: 'Faiscolino', types: ['electric'],         weapon: 'volt',     maxhp: 90,  h: 40, hitY: 12, hitR: 12, catch: 0.6, mouth: [12, -9],  mania: true, orig: true, sh: 300 },
     pedrugo:    { name: 'Pedrugo',    types: ['rock'],             weapon: 'pedra',    maxhp: 115, h: 26, hitY: 9,  hitR: 13, catch: 0.6, mouth: [19, -8],  mania: true, orig: true, sh: 60 },
-    ventolina:  { name: 'Ventolina',  types: ['normal', 'flying'], weapon: 'ventania', maxhp: 85,  h: 38, hitY: 15, hitR: 13, catch: 0.6, mouth: [10, -13], mania: true, orig: true, sh: 180 }
+    ventolina:  { name: 'Ventolina',  types: ['normal', 'flying'], weapon: 'ventania', maxhp: 85,  h: 38, hitY: 15, hitR: 13, catch: 0.6, mouth: [10, -13], mania: true, orig: true, sh: 180 },
+    caramelo:   { name: 'Caramelo',   types: ['normal'],             weapon: 'osso',      maxhp: 100, h: 32, hitY: 13, hitR: 13, catch: 0.6, mouth: [22, -18], mania: true, orig: true, sh: 200 },
+    pinscher:   { name: 'Pinscher',   types: ['normal', 'fighting'], weapon: 'latido',    maxhp: 80,  h: 34, hitY: 12, hitR: 10, catch: 0.6, mouth: [21, -15], mania: true, orig: true, furia: true, sh: 160 },
+    tatubola:   { name: 'Tatu-bola',  types: ['rock'],               weapon: 'rolamento', maxhp: 115, h: 22, hitY: 9,  hitR: 13, catch: 0.6, mouth: [21, -8],  mania: true, orig: true, sh: 100 },
+    formiga:    { name: 'Formiga',    types: ['bug'],                weapon: 'migalha',   maxhp: 85,  h: 40, hitY: 13, hitR: 11, catch: 0.6, mouth: [14, -17], mania: true, orig: true, sh: 120 },
+    rolabosta:  { name: 'Rola-bosta', types: ['ground', 'bug'],      weapon: 'bolaterra', maxhp: 100, h: 22, hitY: 10, hitR: 12, catch: 0.6, mouth: [14, -10], mania: true, orig: true, sh: 60 }
   });
-  MS.ORIG_STARTERS = ['brasito', 'gotalho', 'musguinho'];
-  if (MS.AIM_TIERS) { const base = MS.aimRange, tier = { pedrugo: 'mid', ventolina: 'wide', musguinho: 'basic' }; MS.aimRange = sp => (tier[sp] ? MS.AIM_TIERS[tier[sp]] : base(sp)); }
+  Object.assign(MS.WEAPONS, {
+    osso:      { label: 'Osso',            type: 'normal',   style: 'bone',  count: 1, spread: 0, speed: 1.05, grav: 0.95, boom: 34, carve: 14, dmg: 40, windMul: 0.7 },
+    latido:    { label: 'Latido',          type: 'fighting', style: 'sound', count: 1, spread: 0, speed: 1.1,  grav: 0.55, boom: 34, carve: 6,  dmg: 30, windMul: 0.8, push: 7 },
+    migalha:   { label: 'Migalha Gigante', type: 'bug',      style: 'crumb', count: 1, spread: 0, speed: 0.95, grav: 1.15, boom: 36, carve: 18, dmg: 38, windMul: 0.5 },
+    bolaterra: { label: 'Bola de Terra',   type: 'ground',   style: 'dung',  count: 1, spread: 0, speed: 1.0,  grav: 1.2,  boom: 36, carve: 20, dmg: 34, windMul: 0.3, bounce: 3 }
+  });
+  MS.ORIG_STARTERS = ['caramelo', 'pinscher', 'tatubola'];
+  if (MS.AIM_TIERS) { const base = MS.aimRange, tier = { pedrugo: 'mid', ventolina: 'wide', musguinho: 'basic', pinscher: 'wide', tatubola: 'mid', rolabosta: 'mid' }; MS.aimRange = sp => (tier[sp] ? MS.AIM_TIERS[tier[sp]] : base(sp)); }
   const G = (sp, rarity) => ({ sp, rarity });
   const ORIG_STAGES = [
-    { name: 'Campina',             theme: 'campo',    enemies: ['musguinho', 'ventolina'],              err: 12,  hpMult: 1.0,  wind: 2, guests: [G('faiscolino', 0.2)], weather: [{ type: 'sun', p: 0.3 }, { type: 'rain', p: 0.25 }] },
-    { name: 'Bosque Verde',        theme: 'floresta', enemies: ['musguinho', 'musguinho', 'ventolina'], err: 10,  hpMult: 1.0,  wind: 2, guests: [G('brasito', 0.15)], weather: [{ type: 'rain', p: 0.35 }, { type: 'sun', p: 0.25 }] },
-    { name: 'Praia',               theme: 'praia',    enemies: ['gotalho', 'gotalho', 'ventolina'],     err: 8,   hpMult: 1.0,  wind: 3, guests: [G('faiscolino', 0.12)], weather: [{ type: 'sun', p: 0.35 }, { type: 'rain', p: 0.25 }, { type: 'storm', p: 0.15 }] },
-    { name: 'Caverna',             theme: 'caverna',  enemies: ['pedrugo', 'pedrugo', 'brasito'],       err: 6,   hpMult: 1.15, wind: 1, guests: [G('gotalho', 0.15)] },
-    { name: 'Torre Assombrada',    theme: 'noite',    enemies: ['faiscolino', 'ventolina', 'faiscolino'], err: 5.5, hpMult: 1.15, wind: 2, guests: [G('pedrugo', 0.12)], weather: [{ type: 'rain', p: 0.25 }, { type: 'storm', p: 0.2 }] },
-    { name: 'Usina Abandonada',    theme: 'usina',    enemies: ['faiscolino', 'faiscolino', 'pedrugo'], err: 5,   hpMult: 1.2,  wind: 2, guests: [G('brasito', 0.1)], weather: [{ type: 'storm', p: 0.4 }, { type: 'rain', p: 0.15 }] },
-    { name: 'Cabo Azul',           theme: 'cabo',     enemies: ['gotalho', 'pedrugo', 'gotalho'],       err: 4.8, hpMult: 1.25, wind: 3, guests: [G('ventolina', 0.15)], weather: [{ type: 'rain', p: 0.35 }, { type: 'sun', p: 0.2 }] },
-    { name: 'Gruta Gelada',        theme: 'gelo',     enemies: ['gotalho', 'ventolina', 'pedrugo'],     err: 4.4, hpMult: 1.3,  wind: 2, guests: [G('musguinho', 0.12)], weather: [{ type: 'snow', p: 0.65 }] },
-    { name: 'Ilha Vulcânica',      theme: 'lava',     enemies: ['brasito', 'brasito', 'pedrugo'],       err: 4.2, hpMult: 1.35, wind: 2, guests: [G('gotalho', 0.12)], weather: [{ type: 'sun', p: 0.55 }] },
-    { name: 'Estrada da Vitória',  theme: 'vitoria',  enemies: ['brasito', 'gotalho', 'musguinho'],     err: 4,   hpMult: 1.4,  wind: 3, guests: [G('faiscolino', 0.1)], weather: [{ type: 'sun', p: 0.25 }, { type: 'storm', p: 0.2 }] },
-    { name: 'Pico do Vento',       theme: 'montanha', enemies: ['ventolina', 'pedrugo'],                err: 3.5, hpMult: 1.9,  wind: 4, boss: true, guests: [], weather: [{ type: 'storm', p: 0.35 }, { type: 'rain', p: 0.15 }] }
+    { name: 'Campina',             theme: 'campo',    enemies: ['formiga', 'rolabosta'],               err: 12,  hpMult: 1.0,  wind: 2, guests: [G('pinscher', 0.2)], weather: [{ type: 'sun', p: 0.3 }, { type: 'rain', p: 0.25 }] },
+    { name: 'Bosque Verde',        theme: 'floresta', enemies: ['formiga', 'formiga', 'rolabosta'],    err: 10,  hpMult: 1.0,  wind: 2, guests: [G('caramelo', 0.15)], weather: [{ type: 'rain', p: 0.35 }, { type: 'sun', p: 0.25 }] },
+    { name: 'Praia',               theme: 'praia',    enemies: ['rolabosta', 'tatubola', 'formiga'],   err: 8,   hpMult: 1.0,  wind: 3, guests: [G('pinscher', 0.12)], weather: [{ type: 'sun', p: 0.35 }, { type: 'rain', p: 0.25 }, { type: 'storm', p: 0.15 }] },
+    { name: 'Caverna',             theme: 'caverna',  enemies: ['tatubola', 'tatubola', 'rolabosta'],  err: 6,   hpMult: 1.15, wind: 1, guests: [G('caramelo', 0.15)] },
+    { name: 'Torre Assombrada',    theme: 'noite',    enemies: ['pinscher', 'formiga', 'pinscher'],    err: 5.5, hpMult: 1.15, wind: 2, guests: [G('tatubola', 0.12)], weather: [{ type: 'rain', p: 0.25 }, { type: 'storm', p: 0.2 }] },
+    { name: 'Usina Abandonada',    theme: 'usina',    enemies: ['pinscher', 'rolabosta', 'pinscher'],  err: 5,   hpMult: 1.2,  wind: 2, guests: [G('caramelo', 0.1)], weather: [{ type: 'storm', p: 0.4 }, { type: 'rain', p: 0.15 }] },
+    { name: 'Cabo Azul',           theme: 'cabo',     enemies: ['caramelo', 'tatubola', 'formiga'],    err: 4.8, hpMult: 1.25, wind: 3, guests: [G('rolabosta', 0.15)], weather: [{ type: 'rain', p: 0.35 }, { type: 'sun', p: 0.2 }] },
+    { name: 'Gruta Gelada',        theme: 'gelo',     enemies: ['tatubola', 'formiga', 'caramelo'],    err: 4.4, hpMult: 1.3,  wind: 2, guests: [G('pinscher', 0.12)], weather: [{ type: 'snow', p: 0.65 }] },
+    { name: 'Ilha Vulcânica',      theme: 'lava',     enemies: ['rolabosta', 'rolabosta', 'pinscher'], err: 4.2, hpMult: 1.35, wind: 2, guests: [G('formiga', 0.12)], weather: [{ type: 'sun', p: 0.55 }] },
+    { name: 'Estrada da Vitória',  theme: 'vitoria',  enemies: ['caramelo', 'pinscher', 'tatubola'],   err: 4,   hpMult: 1.4,  wind: 3, guests: [G('formiga', 0.1)], weather: [{ type: 'sun', p: 0.25 }, { type: 'storm', p: 0.2 }] },
+    { name: 'Pico do Vento',       theme: 'montanha', enemies: ['pinscher', 'caramelo'],               err: 3.5, hpMult: 1.9,  wind: 4, boss: true, guests: [], weather: [{ type: 'storm', p: 0.35 }, { type: 'rain', p: 0.15 }] }
   ];
-  const ORIG_POOL = { campo: ['musguinho', 'ventolina'], floresta: ['musguinho', 'ventolina'], praia: ['gotalho', 'ventolina'], caverna: ['pedrugo', 'brasito'],
-    noite: ['faiscolino', 'ventolina'], usina: ['faiscolino', 'pedrugo'], cabo: ['gotalho', 'pedrugo'], gelo: ['gotalho', 'ventolina'], lava: ['brasito', 'pedrugo'], vitoria: ['brasito', 'gotalho', 'musguinho', 'faiscolino'], montanha: [] };
+  const ORIG_POOL = { campo: ['formiga', 'rolabosta'], floresta: ['formiga', 'rolabosta'], praia: ['rolabosta', 'tatubola'], caverna: ['tatubola', 'rolabosta'],
+    noite: ['pinscher', 'formiga'], usina: ['pinscher', 'rolabosta'], cabo: ['caramelo', 'tatubola'], gelo: ['tatubola', 'formiga'], lava: ['rolabosta', 'pinscher'], vitoria: ['caramelo', 'pinscher', 'tatubola', 'formiga'], montanha: [] };
   ORIG_STAGES.forEach(st => { st.pool = ORIG_POOL[st.theme] || []; });
   if (!MS.KEEP_POKEMON) { MS.STAGES.length = 0; MS.STAGES.push(...ORIG_STAGES); MS.ORIGINAIS = true; }   // KEEP_POKEMON: testes da versão antiga
 })();

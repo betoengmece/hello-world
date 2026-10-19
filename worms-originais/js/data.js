@@ -469,32 +469,45 @@
     pinscher:   { name: 'Pinscher',   types: ['normal', 'fighting'], weapon: 'latido',    maxhp: 80,  h: 40, hitY: 15, hitR: 11, catch: 0.6, mouth: [15, -13], mania: true, orig: true, furia: true, sh: 160 },
     tatubola:   { name: 'Tatu-bola',  types: ['rock'],               weapon: 'rolamento', maxhp: 115, h: 30, hitY: 11, hitR: 12, catch: 0.6, mouth: [20, -13],  mania: true, orig: true, sh: 100 },
     formiga:    { name: 'Formiga',    types: ['bug'],                weapon: 'migalha',   maxhp: 85,  h: 44, hitY: 16, hitR: 11, catch: 0.6, mouth: [17, -12], mania: true, orig: true, sh: 120 },
+    galinha:    { name: 'Galinha',    types: ['normal', 'flying'],   weapon: 'ovobomba',  maxhp: 90,  h: 36, hitY: 14, hitR: 12, catch: 0.6, mouth: [18, -21], mania: true, orig: true, sh: 40 },
+    barata:     { name: 'Barata',     types: ['bug'],                weapon: 'voobarata', maxhp: 75,  h: 34, hitY: 12, hitR: 11, catch: 0.6, mouth: [16, -11], mania: true, orig: true, tenaz: true, sh: 200 },
+    baiacu:     { name: 'Baiacu',     types: ['water', 'poison'],    weapon: 'espinhos',  maxhp: 95,  h: 26, hitY: 12, hitR: 11, catch: 0.6, mouth: [17, -12], mania: true, orig: true, infla: true, sh: 180 },
+    camaleao:   { name: 'Camaleão',   types: ['grass'],              weapon: 'lingua',    maxhp: 90,  h: 34, hitY: 12, hitR: 11, catch: 0.6, mouth: [19, -14], mania: true, orig: true, camuflagem: true, sh: 120 },
+    pombo:      { name: 'Pombo',      types: ['normal', 'flying'],   weapon: 'presente',  maxhp: 85,  h: 32, hitY: 13, hitR: 11, catch: 0.6, mouth: [17, -19], mania: true, orig: true, sh: 260 },
+    abelha:     { name: 'Abelha Rainha', types: ['bug', 'flying'],  weapon: 'enxame',    maxhp: 90,  h: 44, hitY: 17, hitR: 12, catch: 0.6, mouth: [16, -22], mania: true, orig: true, escolta: 3, sh: 300 },
     rolabosta:  { name: 'Rola-bosta', types: ['ground', 'bug'],      weapon: 'bolaterra', maxhp: 100, h: 34, hitY: 12, hitR: 12, catch: 0.6, mouth: [18, -12], mania: true, orig: true, sh: 60 }
   });
   Object.assign(MS.WEAPONS, {
     osso:      { label: 'Osso',            type: 'normal',   style: 'bone',  count: 1, spread: 0, speed: 1.05, grav: 0.95, boom: 34, carve: 14, dmg: 40, windMul: 0.7 },
     latido:    { label: 'Latido',          type: 'fighting', style: 'sound', count: 1, spread: 0, speed: 1.1,  grav: 0.55, boom: 34, carve: 6,  dmg: 30, windMul: 0.8, push: 7 },
     migalha:   { label: 'Migalha Gigante', type: 'bug',      style: 'crumb', count: 1, spread: 0, speed: 0.95, grav: 1.15, boom: 36, carve: 18, dmg: 38, windMul: 0.5 },
+    ovobomba:  { label: 'Ovo-bomba',       type: 'normal',   style: 'egg',    count: 1, spread: 0, speed: 1.0,  grav: 1.1,  boom: 42, carve: 22, dmg: 42, bounce: 1 },
+    voobarata: { label: 'Voo na Cara',     type: 'bug',      style: 'roach',  count: 1, spread: 0, speed: 1.35, grav: 0.45, boom: 24, carve: 6,  dmg: 32, windMul: 0.6 },
+    espinhos:  { label: 'Espinhos',        type: 'poison',   style: 'spike',  count: 3, spread: 7, speed: 1.1,  grav: 0.8,  boom: 18, carve: 4,  dmg: 17, st: { type: 'poison', p: 0.3 } },
+    lingua:    { label: 'Língua Puxadora', type: 'grass',    style: 'tongue', count: 1, spread: 0, speed: 1.25, grav: 0.7,  boom: 22, carve: 0,  dmg: 24, pull: 80, pullDist: 55, pullOwner: true },
+    presente:  { label: 'Presente do Céu', type: 'normal',   style: 'poop',   count: 1, spread: 0, speed: 1.0,  grav: 1.0,  boom: 20, carve: 6,  dmg: 16, split: { n: 4, wk: 'caquinha' } },
+    caquinha:  { label: 'Caquinha',        type: 'normal',   style: 'poop',   count: 1, spread: 0, speed: 1.0,  grav: 1.1,  boom: 20, carve: 6,  dmg: 16, size: 0.8 },
+    enxame:    { label: 'Enxame',          type: 'bug',      style: 'bee',    count: 3, spread: 9, speed: 1.05, grav: 0.6,  boom: 22, carve: 4,  dmg: 18, windMul: 0.6, homing: 0.05 },
     bolaterra: { label: 'Bola de Terra',   type: 'ground',   style: 'dung',  count: 1, spread: 0, speed: 1.0,  grav: 1.2,  boom: 36, carve: 20, dmg: 34, windMul: 0.3, bounce: 3 }
   });
   MS.ORIG_STARTERS = ['caramelo', 'pinscher', 'tatubola'];
-  if (MS.AIM_TIERS) { const base = MS.aimRange, tier = { pedrugo: 'mid', ventolina: 'wide', musguinho: 'basic', pinscher: 'wide', tatubola: 'mid', rolabosta: 'mid' }; MS.aimRange = sp => (tier[sp] ? MS.AIM_TIERS[tier[sp]] : base(sp)); }
+  if (MS.AIM_TIERS) { const base = MS.aimRange, tier = { abelha: 'wide', pedrugo: 'mid', ventolina: 'wide', musguinho: 'basic', pinscher: 'wide', tatubola: 'mid', rolabosta: 'mid', barata: 'wide', baiacu: 'mid', pombo: 'wide' }; MS.aimRange = sp => (tier[sp] ? MS.AIM_TIERS[tier[sp]] : base(sp)); }
   const G = (sp, rarity) => ({ sp, rarity });
   const ORIG_STAGES = [
-    { name: 'Campina',             theme: 'campo',    enemies: ['formiga', 'rolabosta'],               err: 12,  hpMult: 1.0,  wind: 2, guests: [G('pinscher', 0.2)], weather: [{ type: 'sun', p: 0.3 }, { type: 'rain', p: 0.25 }] },
-    { name: 'Bosque Verde',        theme: 'floresta', enemies: ['formiga', 'formiga', 'rolabosta'],    err: 10,  hpMult: 1.0,  wind: 2, guests: [G('caramelo', 0.15)], weather: [{ type: 'rain', p: 0.35 }, { type: 'sun', p: 0.25 }] },
-    { name: 'Praia',               theme: 'praia',    enemies: ['rolabosta', 'tatubola', 'formiga'],   err: 8,   hpMult: 1.0,  wind: 3, guests: [G('pinscher', 0.12)], weather: [{ type: 'sun', p: 0.35 }, { type: 'rain', p: 0.25 }, { type: 'storm', p: 0.15 }] },
-    { name: 'Caverna',             theme: 'caverna',  enemies: ['tatubola', 'tatubola', 'rolabosta'],  err: 6,   hpMult: 1.15, wind: 1, guests: [G('caramelo', 0.15)] },
-    { name: 'Torre Assombrada',    theme: 'noite',    enemies: ['pinscher', 'formiga', 'pinscher'],    err: 5.5, hpMult: 1.15, wind: 2, guests: [G('tatubola', 0.12)], weather: [{ type: 'rain', p: 0.25 }, { type: 'storm', p: 0.2 }] },
-    { name: 'Usina Abandonada',    theme: 'usina',    enemies: ['pinscher', 'rolabosta', 'pinscher'],  err: 5,   hpMult: 1.2,  wind: 2, guests: [G('caramelo', 0.1)], weather: [{ type: 'storm', p: 0.4 }, { type: 'rain', p: 0.15 }] },
-    { name: 'Cabo Azul',           theme: 'cabo',     enemies: ['caramelo', 'tatubola', 'formiga'],    err: 4.8, hpMult: 1.25, wind: 3, guests: [G('rolabosta', 0.15)], weather: [{ type: 'rain', p: 0.35 }, { type: 'sun', p: 0.2 }] },
-    { name: 'Gruta Gelada',        theme: 'gelo',     enemies: ['tatubola', 'formiga', 'caramelo'],    err: 4.4, hpMult: 1.3,  wind: 2, guests: [G('pinscher', 0.12)], weather: [{ type: 'snow', p: 0.65 }] },
-    { name: 'Ilha Vulcânica',      theme: 'lava',     enemies: ['rolabosta', 'rolabosta', 'pinscher'], err: 4.2, hpMult: 1.35, wind: 2, guests: [G('formiga', 0.12)], weather: [{ type: 'sun', p: 0.55 }] },
-    { name: 'Estrada da Vitória',  theme: 'vitoria',  enemies: ['caramelo', 'pinscher', 'tatubola'],   err: 4,   hpMult: 1.4,  wind: 3, guests: [G('formiga', 0.1)], weather: [{ type: 'sun', p: 0.25 }, { type: 'storm', p: 0.2 }] },
-    { name: 'Pico do Vento',       theme: 'montanha', enemies: ['pinscher', 'caramelo'],               err: 3.5, hpMult: 1.9,  wind: 4, boss: true, guests: [], weather: [{ type: 'storm', p: 0.35 }, { type: 'rain', p: 0.15 }] }
+    { name: 'Campina',             theme: 'campo',    enemies: ['formiga', 'galinha'],                 err: 12,  hpMult: 1.0,  wind: 2, guests: [G('pombo', 0.2), G('abelha', 0.12)], weather: [{ type: 'sun', p: 0.3 }, { type: 'rain', p: 0.25 }] },
+    { name: 'Bosque Verde',        theme: 'floresta', enemies: ['formiga', 'camaleao', 'abelha'],      err: 10,  hpMult: 1.0,  wind: 2, guests: [G('caramelo', 0.15)], weather: [{ type: 'rain', p: 0.35 }, { type: 'sun', p: 0.25 }] },
+    { name: 'Praia',               theme: 'praia',    enemies: ['baiacu', 'baiacu', 'pombo'],          err: 8,   hpMult: 1.0,  wind: 3, guests: [G('galinha', 0.12)], weather: [{ type: 'sun', p: 0.35 }, { type: 'rain', p: 0.25 }, { type: 'storm', p: 0.15 }] },
+    { name: 'Caverna',             theme: 'caverna',  enemies: ['tatubola', 'barata', 'rolabosta'],    err: 6,   hpMult: 1.15, wind: 1, guests: [G('camaleao', 0.15)] },
+    { name: 'Torre Assombrada',    theme: 'noite',    enemies: ['barata', 'pinscher', 'barata'],       err: 5.5, hpMult: 1.15, wind: 2, guests: [G('pombo', 0.12)], weather: [{ type: 'rain', p: 0.25 }, { type: 'storm', p: 0.2 }] },
+    { name: 'Usina Abandonada',    theme: 'usina',    enemies: ['pombo', 'barata', 'pinscher'],        err: 5,   hpMult: 1.2,  wind: 2, guests: [G('caramelo', 0.1)], weather: [{ type: 'storm', p: 0.4 }, { type: 'rain', p: 0.15 }] },
+    { name: 'Cabo Azul',           theme: 'cabo',     enemies: ['baiacu', 'galinha', 'tatubola'],      err: 4.8, hpMult: 1.25, wind: 3, guests: [G('rolabosta', 0.15)], weather: [{ type: 'rain', p: 0.35 }, { type: 'sun', p: 0.2 }] },
+    { name: 'Gruta Gelada',        theme: 'gelo',     enemies: ['camaleao', 'baiacu', 'caramelo'],     err: 4.4, hpMult: 1.3,  wind: 2, guests: [G('pinscher', 0.12)], weather: [{ type: 'snow', p: 0.65 }] },
+    { name: 'Ilha Vulcânica',      theme: 'lava',     enemies: ['rolabosta', 'barata', 'galinha'],     err: 4.2, hpMult: 1.35, wind: 2, guests: [G('formiga', 0.12)], weather: [{ type: 'sun', p: 0.55 }] },
+    { name: 'Estrada da Vitória',  theme: 'vitoria',  enemies: ['caramelo', 'abelha', 'pombo'],        err: 4,   hpMult: 1.4,  wind: 3, guests: [G('baiacu', 0.1)], weather: [{ type: 'sun', p: 0.25 }, { type: 'storm', p: 0.2 }] },
+    { name: 'Pico do Vento',       theme: 'montanha', enemies: ['pinscher', 'galinha'],                err: 3.5, hpMult: 1.9,  wind: 4, boss: true, guests: [], weather: [{ type: 'storm', p: 0.35 }, { type: 'rain', p: 0.15 }] }
   ];
-  const ORIG_POOL = { campo: ['formiga', 'rolabosta'], floresta: ['formiga', 'rolabosta'], praia: ['rolabosta', 'tatubola'], caverna: ['tatubola', 'rolabosta'],
-    noite: ['pinscher', 'formiga'], usina: ['pinscher', 'rolabosta'], cabo: ['caramelo', 'tatubola'], gelo: ['tatubola', 'formiga'], lava: ['rolabosta', 'pinscher'], vitoria: ['caramelo', 'pinscher', 'tatubola', 'formiga'], montanha: [] };
+  const ORIG_POOL = { campo: ['formiga', 'galinha', 'pombo'], floresta: ['formiga', 'camaleao', 'rolabosta', 'abelha'], praia: ['baiacu', 'pombo'], caverna: ['tatubola', 'barata'],
+    noite: ['barata', 'pinscher'], usina: ['pombo', 'barata', 'pinscher'], cabo: ['baiacu', 'galinha', 'tatubola'], gelo: ['camaleao', 'baiacu'], lava: ['rolabosta', 'barata'], vitoria: ['caramelo', 'camaleao', 'pombo', 'galinha'], montanha: [] };
   ORIG_STAGES.forEach(st => { st.pool = ORIG_POOL[st.theme] || []; });
   if (!MS.KEEP_POKEMON) { MS.STAGES.length = 0; MS.STAGES.push(...ORIG_STAGES); MS.ORIGINAIS = true; }   // KEEP_POKEMON: testes da versão antiga
 })();

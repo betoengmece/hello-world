@@ -8,7 +8,7 @@
   const GRAV = 0.2;           // gravidade base (px/frame²)
   const WALK_MAX = 120;       // distância máxima de caminhada por turno (mapas largos dão um pouco mais)
   const walkMax = () => WALK_MAX + Math.max(0, W - 800) * 0.07;
-  const GAME_VERSION = '18/10 bichos-2';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
+  const GAME_VERSION = '18/10 bichos-4';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
   const TURN_TIME = 30 * 60;  // 30 s para mirar e atirar (estourou: passa a vez)
   const WEAK = 0.35;          // abaixo dessa fração de PV o inimigo pode ser capturado
   const PLAYER_COL = '#3a9bff', WILD_COL = '#e0433a', GUEST_COL = '#ffd34d';
@@ -99,11 +99,23 @@
   // versão original: monstrinhos próprios e captura por Ovo de Laço (sem Pokébolas)
   const ORIG = !!MS.ORIGINAIS;
   const ORIG_COL = { brasito: '#e0583a', gotalho: '#4aa8e8', musguinho: '#4fae6a', faiscolino: '#7a6ac8', pedrugo: '#9a8f7c', ventolina: '#a9a0ec',
-    caramelo: '#d38a3a', pinscher: '#2a2228', tatubola: '#8c7a62', formiga: '#c8382a', rolabosta: '#2e4a3a' };
+    caramelo: '#d38a3a', pinscher: '#2a2228', tatubola: '#8c7a62', formiga: '#c8382a', rolabosta: '#2e4a3a',
+    galinha: '#e8322a', barata: '#7a3e1c', baiacu: '#e8a83a', camaleao: '#5cbf4a', pombo: '#7a8496', abelha: '#f2c230' };
+  // escolta da abelha rainha: 3 abelhinhas voando em volta (somem enquanto o Enxame está no ar)
+  const beesOut = u => projs.some(p => p.ownerUnit === u && p.wp.style === 'bee');
+  function escortPos(u, i) {
+    const S = spOf(u), a = frameNo * 0.07 + i * 2.094 + u.uid;
+    return { x: Math.cos(a) * (15 + S.hitR * 0.3) * u.scale, y: (-S.hitY - 8 + Math.sin(a * 1.6) * 6) * u.scale, front: Math.sin(a) > 0, dir: -Math.sin(a) >= 0 ? 1 : -1 };
+  }
   const eggCol = sp => ORIG_COL[sp] || '#e0583a';
   const BONE_SVG = `<path d="M-6,-1.6 L6,-1.6 A2.6,2.6 0 1,1 8,-3.4 A2.6,2.6 0 1,1 8,3.4 A2.6,2.6 0 1,1 6,1.6 L-6,1.6 A2.6,2.6 0 1,1 -8,3.4 A2.6,2.6 0 1,1 -8,-3.4 A2.6,2.6 0 1,1 -6,-1.6 Z" fill="#fff6e0" stroke="#2a1f1a" stroke-width="1"/>`;
   const CRUMB_SVG = `<path d="M-8,1 C-9,-4 -4,-7 1,-6.5 C6,-7 9,-3 8,2 C6,5 -5,5 -8,1 Z" fill="#e8c070" stroke="#2a1f1a" stroke-width="1" stroke-linejoin="round"/><circle cx="-3" cy="-2" r=".9" fill="#b8883a"/><circle cx="3" cy="-3.5" r=".8" fill="#b8883a"/><circle cx="4" cy="1" r=".9" fill="#b8883a"/>`;
   const DUNG_SVG = `<circle r="7" fill="#7a5230" stroke="#2a1f1a" stroke-width="1.1"/><path d="M-4,-3 q2,-1.5 3.5,.8 M1.5,3 q2,-.8 3,1.4 M-2,4 q.8,-1.4 2,-.8" fill="none" stroke="#5a3a20" stroke-width="1" stroke-linecap="round"/>`;
+  const EGG_P = `<ellipse cx="0" cy="0" rx="5" ry="6.2" fill="#fff6e0" stroke="#2a1f1a" stroke-width="1"/><ellipse cx="-1.8" cy="-2.4" rx="1.1" ry="1.8" fill="#fff" opacity=".9"/>`;
+  const ROACH_P = `<ellipse cx="0" cy="0" rx="7" ry="4" fill="#7a3e1c" stroke="#2a1f1a" stroke-width="1"/><path d="M-2,-3 C-8,-9 -12,-6 -9,-2 Z" fill="#c8a07a" fill-opacity=".8" stroke="#2a1f1a" stroke-width=".7"/><circle cx="6" cy="0" r="3.2" fill="#8a4a24" stroke="#2a1f1a" stroke-width=".8"/><circle cx="7" cy="-.8" r="1.1" fill="#fff"/><path d="M8,-2 Q12,-6 15,-5 M8,1 Q12,-2 15,0" fill="none" stroke="#2a1f1a" stroke-width=".8"/>`;
+  const SPIKE_P = `<path d="M-7,-1.4 L7,0 L-7,1.4 Z" fill="#f6e6b0" stroke="#2a1f1a" stroke-width=".8" stroke-linejoin="round"/>`;
+  const TONGUE_P = `<circle r="4.6" fill="#ff6a8a" stroke="#2a1f1a" stroke-width="1"/><ellipse cx="-1.4" cy="-1.6" rx="1.4" ry="1" fill="#ffb0c0"/>`;
+  const POOP_P = `<path d="M-4.6,2 C-6,-1 -3,-4 0,-5 C1,-3 4,-3 4.6,0 C5.4,3 2,4.6 0,4.4 C-2,4.6 -4,4 -4.6,2 Z" fill="#f0ece4" stroke="#6a6a6a" stroke-width=".9"/><path d="M-2,0 q2,1.2 4,0" stroke="#9a9a9a" stroke-width=".8" fill="none"/>`;
   const NET_SVG = `<g stroke="#e8f4ff" stroke-width=".9" fill="rgba(232,244,255,.18)"><circle r="8"/><circle r="4.4" fill="none"/><path d="M-8,0H8M0,-8V8M-5.7,-5.7L5.7,5.7M5.7,-5.7L-5.7,5.7" fill="none"/></g><g fill="#c98a2a"><circle cx="8" cy="0" r="1.3"/><circle cx="-8" cy="0" r="1.3"/><circle cx="0" cy="8" r="1.3"/><circle cx="0" cy="-8" r="1.3"/></g>`;
   const eggSvg = col => `<ellipse cx="0" cy="-7.5" rx="6.2" ry="7.6" fill="#fff6e0" stroke="#3a2a33" stroke-width="1.1"/>
     <path d="M-5.4,-5 l2.4,-2 l2.2,2.2 l2.4,-2.2 l2.2,2.2 l2,-1.8" fill="none" stroke="${col}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
@@ -306,7 +318,7 @@
     return `translate(400 250) scale(${z.toFixed(3)}) translate(${f1(-cx)} ${f1(-cy)})`;
   }
 
-  const FX_FILL = { bone: '#fff3d6', crumb: '#f0c878', dung: '#8a6038', fire: 'url(#boom)', leaf: 'url(#leafBoom)', water: 'url(#splash)', thunder: 'url(#zap)',
+  const FX_FILL = { bee: '#ffd34d', egg: '#fff6e0', roach: '#c8a07a', spike: '#f6e6b0', tongue: '#ff8aa0', poop: '#e8e4dc', bone: '#fff3d6', crumb: '#f0c878', dung: '#8a6038', fire: 'url(#boom)', leaf: 'url(#leafBoom)', water: 'url(#splash)', thunder: 'url(#zap)',
                     normal: 'url(#hitBoom)', gust: 'url(#gustBoom)', web: 'url(#webBoom)', dragon: 'url(#dragBoom)', rock: 'url(#rockBoom)', poison: '#b46bd0', ice: '#bfeaf6', ghost: '#8a6ac0', punch: '#fff0c8', psy: '#ff8ad0', sound: 'rgba(191,233,255,.7)', powder: 'rgba(226,210,255,.7)' };
 
   // ---------- Geração do mundo ----------
@@ -1316,9 +1328,10 @@
       const c = centerOf(u), d = Math.hypot(c.x - x, c.y - y);
       if (d >= wp.boom) continue;
       const k = 1 - d / wp.boom, mult = typeMult(wp.type, spOf(u).types);
-      const dmg = shieldDmg(u, Math.round(wp.dmg * k * mult * wxMul(wp.type) * (p.crit ? 1.6 : 1) * ((p.ownerUnit && p.ownerUnit.dmgMul) || 1) * (p.ownerUnit && spOf(p.ownerUnit).furia && p.ownerUnit.hp / p.ownerUnit.maxhp < 0.4 ? 1.5 : 1)));
+      const dmg = shieldDmg(u, Math.round((u.puffed ? 0.5 : 1) * wp.dmg * k * mult * wxMul(wp.type) * (p.crit ? 1.6 : 1) * ((p.ownerUnit && p.ownerUnit.dmgMul) || 1) * (p.ownerUnit && spOf(p.ownerUnit).furia && p.ownerUnit.hp / p.ownerUnit.maxhp < 0.4 ? 1.5 : 1)));
       if (dmg > 0) {
         u.hp -= dmg; u.hurt = 24; anyHurt = true;
+        if (spOf(u).infla && !u.puffed) { u.puffed = true; u.hrMul = 1.35; floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 40, t: 6, text: 'Inflou! (metade do dano)', col: '#ffe27a', size: 12 }); }
         if (p.crit && k > 0.2) floaters.push({ x: u.x + 16, y: u.y - spOf(u).h * u.scale - 4, t: 4, text: 'Crítico!', col: '#ff5a5a', size: 12 });
         if (wp.drain && p.ownerUnit && p.ownerUnit.alive && u !== p.ownerUnit) { const h = Math.round(dmg * wp.drain); p.ownerUnit.hp = Math.min(p.ownerUnit.maxhp, p.ownerUnit.hp + h); if (h > 0) floaters.push({ x: p.ownerUnit.x, y: p.ownerUnit.y - spOf(p.ownerUnit).h * p.ownerUnit.scale - 18, t: 0, text: '+' + h, col: '#7be07b' }); }
         if (p.ownerUnit && p.ownerUnit.team === 0 && u.team > 0) p.ownerUnit.dealt += dmg;
@@ -1413,7 +1426,8 @@
     for (const u of units) {
       if (!u.alive || u.hidden || u === p.ownerUnit) continue;
       const d = Math.abs(u.x - x); if (d > wp.pull || d < 6 || Math.abs(u.y - y) > 110) continue;
-      const dir = Math.sign(x - u.x), n = Math.round(Math.min(d - 6, wp.pullDist * (1 - 0.4 * d / wp.pull)));
+      const tx = wp.pullOwner && p.ownerUnit ? p.ownerUnit.x : x;                  // língua: puxa para perto de quem atacou
+      const dir = Math.sign(tx - u.x), n = Math.round(Math.min(Math.max(0, Math.abs(tx - u.x) - 16), wp.pullDist * (1 - 0.4 * d / wp.pull)));
       for (let i = 0; i < n; i++) { const ny = u.flying ? u.y : stepTo(u, u.x + dir); if (ny === null) break; u.x += dir; if (!u.flying) u.y = ny; }
       floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 34, t: 6, text: 'Puxado!', col: '#dff6ff', size: 12 });
     }
@@ -1540,6 +1554,7 @@
       launch(wk, mx, my, a, sp, 'unit', u);
       u.breath = 18; Sfx.shoot(WEAPONS[wk].style);
       muzzle(mx, my, WEAPONS[wk].style, a);
+      if (spOf(u).camuflagem) { u.invis = 3; floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 30, t: 0, text: 'Camuflado!', col: '#a8e07a', size: 13 }); }
     }
     Sfx.chargeStop();
     lastAngles[kind + turnTeam] = elevOf(u);
@@ -1547,7 +1562,7 @@
   }
 
   // ---------- Efeitos do tiro ----------
-  const STYLE_COL = { rock: '#c8b898', fire: '#ffb020', leaf: '#7be07b', water: '#9fe0ff', thunder: '#fff27a', normal: '#fff6c8', gust: '#ffffff', web: '#ffffff', dragon: '#9a6aff', poison: '#c783e4', ice: '#bfeaf6', ghost: '#9a7ac8', punch: '#fff0c8', psy: '#ff8ad0', sound: '#bfe9ff', powder: '#e8d8ff', bone: '#fff6e0', crumb: '#f0d090', dung: '#9a7048' };
+  const STYLE_COL = { rock: '#c8b898', fire: '#ffb020', leaf: '#7be07b', water: '#9fe0ff', thunder: '#fff27a', normal: '#fff6c8', gust: '#ffffff', web: '#ffffff', dragon: '#9a6aff', poison: '#c783e4', ice: '#bfeaf6', ghost: '#9a7ac8', punch: '#fff0c8', psy: '#ff8ad0', sound: '#bfe9ff', powder: '#e8d8ff', bone: '#fff6e0', crumb: '#f0d090', dung: '#9a7048', egg: '#fff6e0', roach: '#c8a07a', spike: '#f6e6b0', tongue: '#ff8aa0', poop: '#e8e4dc', bee: '#ffd34d' };
 
   function muzzle(x, y, style, a) {
     const col = STYLE_COL[style] || '#fff';
@@ -1857,6 +1872,8 @@
     if (u.shield > 0 && --u.shield === 0) floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 30, t: 0, text: 'Barreira acabou', col: '#bff3ff', size: 12 });
     ai = null; charging = false; power = 0; ballMode = false; netMode = false;
     if (ORIG && stageEggs.length) hatchCarried();
+    if (u.puffed) { u.puffed = false; u.hrMul = 1; }
+    for (const v of units) if (v.invis > 0) v.invis--;
     // vento muda a cada turno, em qualquer direção (força máxima depende da fase)
     const wmax = kind === 'campaign' ? STAGES[stageIdx].wind : 3;
     windA = rnd(0, Math.PI * 2); windS = Math.random() < 0.15 ? rnd(0, wmax * 0.2) : rnd(wmax * 0.15, wmax * 1.15);
@@ -1930,6 +1947,11 @@
     for (const u of units) {
       if (!u.alive) continue;
       const drowned = u.y > WATER - 6;
+      if (u.hp <= 0 && !drowned && spOf(u).tenaz && !u.tenazUsed) {          // barata: sobrevive uma vez com 1 de vida
+        u.hp = 1; u.tenazUsed = true; u.hop = 1;
+        floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 26, t: 0, text: 'Sobreviveu! (1 PV)', col: '#ffe27a', size: 14 });
+        continue;
+      }
       if (u.hp <= 0 || drowned) {
         u.alive = false; u.hp = 0;
         if (drowned) {
@@ -2120,7 +2142,7 @@
   function scoreHit(wp, shooter, lx, ly) {
     let sc = 0;
     for (const v of units) {
-      if (!v.alive || v.hidden) continue;
+      if (!v.alive || v.hidden || (v.invis > 0 && v.team !== shooter.team)) continue;
       const c = centerOf(v), d = Math.hypot(c.x - lx, c.y - ly);
       if (d >= wp.boom) continue;
       const dmg = wp.dmg * (1 - d / wp.boom) * typeMult(wp.type, spOf(v).types) * wxMul(wp.type);
@@ -2135,7 +2157,7 @@
   // a IA testa ângulos e forças; como gerador, pausa entre ângulos para o jogo não travar (stepAI pensa ~6 ms por quadro)
   function* planWeaponGen(u, wk) {
     const S = spOf(u), wp = WEAPONS[wk];
-    const foes = units.filter(v => v.alive && !v.hidden && v.team !== u.team && v.team !== 2);
+    const foes = units.filter(v => v.alive && !v.hidden && v.team !== u.team && v.team !== 2 && !(v.invis > 0));
     let best = null, bestS = -1e9, near = null, nearD = 1e9;
     const tg = shotTargets(wp, u);
     const heavy = wp.count >= 3 || u.moves.length > 1, aStep = (heavy ? 4 : 3) + (lite ? 2 : 0), pStep = (heavy ? 6 : 5) + (lite ? 3 : 0);
@@ -2203,7 +2225,7 @@
     const list = [];
     u.moves.forEach((wk, i) => { const w = WEAPONS[wk]; if (!(w.none || w.teleport || w.protect)) list.push([wk, i]); });
     if (!list.length) { job.done = true; job.value = finishPlan(u, null, 0); return job; }
-    const foes = units.filter(v => v.alive && !v.hidden && v.team !== u.team && v.team !== 2).map(v => ({ x: v.x, y: v.y }));
+    const foes = units.filter(v => v.alive && !v.hidden && v.team !== u.team && v.team !== 2 && !(v.invis > 0)).map(v => ({ x: v.x, y: v.y }));
     const heavyAny = u.moves.length > 1;
     job.want = list.length;
     wkr.onmessage = e => {
@@ -2225,7 +2247,7 @@
         const [lo, hi] = aimWindow(u, face), m = mouthAt(u, face, false);
         for (let e2 = Math.max(-30, lo); e2 <= Math.min(180, hi) + 0.01; e2 += aStep) cands.push({ ang: face > 0 ? e2 : 180 - e2, face, x0: m.x, y0: m.y });
       }
-      const scoreU = units.filter(v => v.alive && !v.hidden).map(v => { const c = centerOf(v); return { x: c.x, y: c.y, team: v.team, hp: v.hp, mul: typeMult(wp.type, spOf(v).types) * wxMul(wp.type) }; });
+      const scoreU = units.filter(v => v.alive && !v.hidden && !(v.invis > 0 && v.team !== u.team)).map(v => { const c = centerOf(v); return { x: c.x, y: c.y, team: v.team, hp: v.hp, mul: typeMult(wp.type, spOf(v).types) * wxMul(wp.type) }; });
       const msg = { id: job.id, wp: { speed: wp.speed, grav: wp.grav, windMul: wp.windMul, dig: wp.dig, phase: wp.phase, count: wp.count, spread: wp.spread || 0, boom: wp.boom, dmg: wp.dmg },
         tg: shotTargets(wp, u), cands, scoreU, foes, team: u.team, pStep, wind, windY, GRAV, WATER };
       if (first) { msg.mask = mask.slice().buffer; msg.W = W; msg.H = H; first = false; wkr.postMessage(msg, [msg.mask]); }
@@ -2238,7 +2260,7 @@
 
   function nearestFoe(u) {
     let best = null, bd = 1e9;
-    for (const v of units) if (v.alive && !v.hidden && v.team !== u.team && v.team !== 2) { const d = Math.abs(v.x - u.x); if (d < bd) { bd = d; best = v; } }
+    for (const v of units) if (v.alive && !v.hidden && v.team !== u.team && v.team !== 2 && !(v.invis > 0)) { const d = Math.abs(v.x - u.x); if (d < bd) { bd = d; best = v; } }
     return best;
   }
 
@@ -2386,7 +2408,7 @@
     const flash = u.hurt > 0 && (u.hurt % 6 < 3);
     const col = opt.color || sideColor(u);
     const hop = u.hop ? -Math.abs(Math.sin(u.hop * 0.18)) * 16 : 0;
-    const ctx = { f: af, blink: lite ? false : blink(u), breath: u.breath, bob, step, x: u.x, charge: !!opt.charge, flap: !!u.flying, mania: maniaOf(u), hurt: u.hurt > 0 };
+    const ctx = { f: af, blink: lite ? false : blink(u), breath: u.breath, bob, step, x: u.x, charge: !!opt.charge, flap: !!u.flying, mania: maniaOf(u), hurt: u.hurt > 0, puffed: !!u.puffed };
     const ly = -(S.h * u.scale + 12);
     let label = '';
     if (!opt.noLabel && u.capScale > 0.5) {
@@ -2410,8 +2432,9 @@
     const shield = u.shield > 0 && u.capScale > 0.5 ? `<circle cx="0" cy="${f1(-S.hitY * u.scale)}" r="${f1(S.hitR * u.scale * 1.75 + 4)}" fill="#8fe0ff" fill-opacity=".13" stroke="#bff3ff" stroke-width="1.8" stroke-opacity="${(0.55 + 0.3 * Math.sin(af * 0.12)).toFixed(2)}"/>` : '';
     return { t: `translate(${f1(u.x)} ${f1(u.y + hop - lift + bobT)})`, h: `
       ${lift ? `<g transform="translate(0 ${f1(lift)})">${shadow}</g>` : shadow}${shield}
-      <g transform="${tilt}scale(${f1(u.face * sc)} ${f1(sc)})"${flash ? ' opacity=".45"' : ''}><g${shF(u.sp, u.sh)}>${Art.draw(u.sp, ctx)}</g></g>
+      <g transform="${tilt}scale(${f1(u.face * sc)} ${f1(sc)})"${u.invis > 0 ? ' opacity=".3"' : flash ? ' opacity=".45"' : ''}><g${shF(u.sp, u.sh)}>${Art.draw(u.sp, ctx)}</g></g>
       ${u.sh && u.capScale > 0.5 ? glint(af, -S.hitR * u.scale * 0.8, -S.hitY * u.scale - 6, 1.2, u.blinkOff) + glint(af, S.hitR * u.scale * 0.9, -S.hitY * u.scale + 8, 0.9, u.blinkOff + 2) + glint(af, 0, -S.h * u.scale * 0.8, 1, u.blinkOff + 4) : ''}
+      ${spOf(u).escolta && u.capScale > 0.5 && !beesOut(u) && MS.BEE_MINI ? Array.from({ length: spOf(u).escolta }, (_, i) => { const q = escortPos(u, i); return `<g transform="translate(${f1(q.x)} ${f1(q.y)}) scale(${f1(q.dir * 1.25 * u.scale)} ${f1(1.25 * u.scale)})">${MS.BEE_MINI}</g>`; }).join('') : ''}
       ${statusIcon(u)}${web}${label}` };
   }
   const unitSvg = (u, opt) => { const p = unitParts(u, opt); return `<g transform="${p.t}">${p.h}</g>`; };
@@ -2871,6 +2894,12 @@
       case 'bone': return `<g transform="translate(${f1(p.x)} ${f1(p.y)}) rotate(${(frameNo * 17) % 360}) scale(1.1)">${BONE_SVG}</g>`;
       case 'crumb': return `<g transform="translate(${f1(p.x)} ${f1(p.y)}) rotate(${(frameNo * 7) % 360}) scale(1.15)">${CRUMB_SVG}</g>`;
       case 'dung': return `<g transform="translate(${f1(p.x)} ${f1(p.y)}) rotate(${(frameNo * 11) % 360}) scale(1.1)">${DUNG_SVG}</g>`;
+      case 'egg': return `<g transform="translate(${f1(p.x)} ${f1(p.y)}) rotate(${(frameNo * 14) % 360}) scale(1.1)">${EGG_P}</g>`;
+      case 'roach': return `<g transform="translate(${f1(p.x)} ${f1(p.y)}) rotate(${f1(Math.atan2(p.vy, p.vx) * 57.3)}) scale(1.1)">${ROACH_P}</g>`;
+      case 'spike': return `<g transform="translate(${f1(p.x)} ${f1(p.y)}) rotate(${f1(Math.atan2(p.vy, p.vx) * 57.3)}) scale(1.1)">${SPIKE_P}</g>`;
+      case 'tongue': { const o = p.ownerUnit, m = o && o.alive ? mouthAt(o, o.face, false) : null; return (m ? `<line x1="${f1(m.x)}" y1="${f1(m.y)}" x2="${f1(p.x)}" y2="${f1(p.y)}" stroke="#ff6a8a" stroke-width="2.6" stroke-linecap="round"/>` : '') + `<g transform="translate(${f1(p.x)} ${f1(p.y)}) scale(1.1)">${TONGUE_P}</g>`; }
+      case 'poop': return `<g transform="translate(${f1(p.x)} ${f1(p.y)}) rotate(${(frameNo * 6) % 360}) scale(${((p.wp.size || 1) * 1.15).toFixed(2)})">${POOP_P}</g>`;
+      case 'bee': return `<g transform="translate(${f1(p.x)} ${f1(p.y + Math.sin(frameNo * 0.5 + p.spin) * 1.5)}) scale(${p.vx < 0 ? -1.5 : 1.5} 1.5)">${MS.BEE_MINI || ''}</g>`;
       case 'web':
         p.trail.forEach((tp, i) => {
           const k = (i + 1) / p.trail.length;
@@ -3281,12 +3310,12 @@
     return (artBoxes[sp] = box);
   }
   // pose do Pokémon como imagem: parado (12 quadros, vai e volta), andando (6), atacando (4) e piscando
-  function glBodyKey(u, res, q, mode) { return `u|${u.sp}|${u.sh ? 1 : 0}|${mode}${q}|${u.flying ? 1 : 0}|${res}`; }
+  function glBodyKey(u, res, q, mode) { return `u|${u.sp}|${u.sh ? 1 : 0}|${mode}${q}|${u.flying ? 1 : 0}${u.puffed ? 'p' : ''}|${res}`; }
   function glBodySpr(u, res, q, mode) {
     const box = artBox(u.sp);
     return GLR.svg(glBodyKey(u, res, q, mode), () => {
       const walk = mode === 'w', ctx = { f: q * 8, blink: mode === 'k', breath: mode === 'b' ? 10 : 0, bob: 0,
-        step: walk ? Math.sin(q * Math.PI / 3) * 1.6 : 0, x: 0, charge: false, flap: !!u.flying, mania: mode === 'm' ? (q + 0.5) / 8 : null, hurt: mode === 'h' };
+        step: walk ? Math.sin(q * Math.PI / 3) * 1.6 : 0, x: 0, charge: false, flap: !!u.flying, mania: mode === 'm' ? (q + 0.5) / 8 : null, hurt: mode === 'h', puffed: !!u.puffed };
       return `<g${shF(u.sp, u.sh)}>${Art.draw(u.sp, ctx)}</g>`;
     }, box, res);
   }
@@ -3331,7 +3360,11 @@
       R.circle(0, cy, r, '#8fe0ff', 0.13); R.ring(0, cy, r, 1.8, '#bff3ff', 0.55 + 0.3 * Math.sin(af * 0.12));
     }
     const body = glBody(u);
-    if (body) { R.push(); if (u.tilt && !u.flying) R.rot(u.tilt); R.sc(u.face * sc, sc); R.spr(body, flash ? 0.45 : 1); R.pop(); }
+    if (body) { R.push(); if (u.tilt && !u.flying) R.rot(u.tilt); R.sc(u.face * sc, sc); R.spr(body, u.invis > 0 ? 0.3 : flash ? 0.45 : 1); R.pop(); }
+    if (spOf(u).escolta && u.capScale > 0.5 && !beesOut(u)) {
+      const bs = R.svg('pj|bee', PJ.bee[0], PJ.bee[1], R.res * 2);
+      if (bs) for (let i = 0; i < spOf(u).escolta; i++) { const q = escortPos(u, i); R.push(); R.tr(q.x, q.y + Math.sin(frameNo * 0.6 + i) * 0.8); R.sc(q.dir * 1.25 * u.scale, 1.25 * u.scale); R.spr(bs); R.pop(); }
+    }
     if (u.sh && u.capScale > 0.5) {
       for (const [x, y, s, ph] of [[-S.hitR * u.scale * 0.8, -S.hitY * u.scale - 6, 1.2, u.blinkOff], [S.hitR * u.scale * 0.9, -S.hitY * u.scale + 8, 0.9, u.blinkOff + 2], [0, -S.h * u.scale * 0.8, 1, u.blinkOff + 4]]) {
         const k = Math.max(0, Math.sin(af * 0.09 + ph)); if (k >= 0.05) R.star(x, y, s * k, k);
@@ -3397,7 +3430,13 @@
     net: [NET_SVG, [-10, -10, 20, 20]],
     bone: [BONE_SVG, [-10, -5, 20, 10]],
     crumb: [CRUMB_SVG, [-9, -8, 18, 15]],
-    dung: [DUNG_SVG, [-8, -8, 16, 16]]
+    dung: [DUNG_SVG, [-8, -8, 16, 16]],
+    egg: [EGG_P, [-6.5, -7.5, 13, 15]],
+    roach: [ROACH_P, [-10, -10, 26, 16]],
+    spike: [SPIKE_P, [-8, -2.5, 16, 5]],
+    tongue: [TONGUE_P, [-6, -6, 12, 12]],
+    poop: [POOP_P, [-6, -6, 12, 12]],
+    bee: [MS.BEE_MINI || '<circle r="3" fill="#f6c428"/>', [-5, -7, 11, 10]]
   };
   function glPj(name, x, y, rot, sc = 1, a = 1) {
     const d = PJ[name], R = GLR, s = R.svg('pj|' + name, d[0], d[1], R.res * Math.max(1, sc) * 1.5);
@@ -3462,6 +3501,12 @@
       case 'bone': glTrail(p, 1, 1.6, '#fff6e0', 0.35); glPj('bone', p.x, p.y, frameNo * 0.3, 1.1); return;
       case 'crumb': glTrail(p, 1, 2, '#f0d090', 0.35); glPj('crumb', p.x, p.y, frameNo * 0.12, 1.15); return;
       case 'dung': glTrail(p, 1.2, 2, '#8a6038', 0.35); glPj('dung', p.x, p.y, frameNo * 0.2, 1.1); return;
+      case 'egg': glTrail(p, 1, 1.4, '#fff6e0', 0.3); glPj('egg', p.x, p.y, frameNo * 0.25, 1.1); return;
+      case 'roach': glPj('roach', p.x, p.y, deg + Math.sin(frameNo * 0.6) * 0.15, 1.1); return;
+      case 'spike': glPj('spike', p.x, p.y, deg, 1.1); return;
+      case 'tongue': { const o = p.ownerUnit; if (o && o.alive) { const m = mouthAt(o, o.face, false); R.line(m.x, m.y, p.x, p.y, 2.6, '#ff6a8a', 0.95); } glPj('tongue', p.x, p.y, 0, 1.1); return; }
+      case 'poop': glPj('poop', p.x, p.y, frameNo * 0.1, (p.wp.size || 1) * 1.15); return;
+      case 'bee': glTrail(p, 0.5, 0.8, '#fff6c0', 0.35); R.push(); R.tr(p.x, p.y); if (p.vx < 0) R.sc(-1, 1); glPj('bee', 0, Math.sin(frameNo * 0.5 + p.spin) * 1.5, 0, 1.5); R.pop(); return;
       default: {
         const pts = p.trail.concat([{ x: p.x, y: p.y }]).map((tp, i) => [tp.x, tp.y + (i % 2 ? 3 : -3)]);
         R.poly(pts, 4.5, '#ffd000', 0.45); R.poly(pts, 2, '#fffbd0');
@@ -3973,7 +4018,7 @@
     let s = `<rect width="800" height="500" fill="#0b1630" opacity=".55"/>
       <text x="400" y="78" text-anchor="middle" font-size="34" font-weight="900" fill="#fff" stroke="#173a78" stroke-width="6" paint-order="stroke">Escolha seu parceiro</text>
       <text x="400" y="108" text-anchor="middle" font-size="14" fill="#bfe3ff">Os outros você ganha nas fases: derrote com um golpe fraco e pegue o ovo!</text>`;
-    const NOTE = { brasito: 'Esquentadinho. Assopra o próprio topete.', gotalho: 'Calmo e cuidadoso. Rega toda plantinha que vê.', musguinho: 'Tímido. O chapéu sempre cai nos olhos.',
+    const NOTE = { abelha: 'Rainha da colmeia. Manda as abelhinhas atacarem.', galinha: 'Nervosa. Cacareja e bica sem parar.', barata: 'Sobrevive a tudo. Uma vez por fase.', baiacu: 'Infla quando apanha. Aí leva metade.', camaleao: 'Muda de cor. Some depois de atacar.', pombo: 'Rei da praça. Ataca lá do alto.', brasito: 'Esquentadinho. Assopra o próprio topete.', gotalho: 'Calmo e cuidadoso. Rega toda plantinha que vê.', musguinho: 'Tímido. O chapéu sempre cai nos olhos.',
       caramelo: 'A alegria em pessoa. Nunca para de abanar o rabo.', pinscher: 'Pequeno e brabo. Com pouca vida, entra em fúria.', tatubola: 'Medroso e cascudo. Vira bola quando se assusta.' };
     list.forEach((sp, i) => {
       const x = 130 + i * 190, S = SPECIES[sp], sel = uiSel === i;

@@ -80,6 +80,7 @@
     corte:     { label: 'Corte Duplo',     type: 'bug',      style: 'gust',    count: 2, spread: 6, speed: 1.15, grav: 0.55, boom: 22, carve: 6,  dmg: 29, push: 3 },
     batida:    { label: 'Batida',          type: 'normal',   style: 'normal',  count: 1, spread: 0, speed: 1.0,  grav: 1.0, boom: 22, carve: 4,  dmg: 20 },
     splash:    { label: 'Splash', none: true },
+    rede:      { label: 'Rede',            type: 'normal',   style: 'net',     count: 1, spread: 0, speed: 1.0,  grav: 1.0, boom: 0,  carve: 0,  dmg: 0 },
     ball:      { label: 'Pokébola',        type: 'normal',   style: 'ball',    count: 1, spread: 0, speed: 1.0,  grav: 1.0, boom: 0,  carve: 0,  dmg: 0 }
   };
 

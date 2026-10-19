@@ -203,6 +203,15 @@
       step()  { tone({ type: 'triangle', f: r(150, 200), t: 0.04, vol: 0.035 }); },
       click() { tone({ f: 900, t: 0.04, vol: 0.06 }); },
       select() { tone({ f: 780, t: 0.07, vol: 0.1 }); tone({ f: 1040, t: 0.09, vol: 0.1, delay: 0.05 }); },
+      // gato engasgando: três trancos ("hck… hck… hck") e o "blé" da bola de pelo saindo
+      hack() {
+        for (let i = 0; i < 3; i++) {
+          noise({ t: 0.16, vol: 0.32, ftype: 'bandpass', f: 900 + i * 120, f2: 500, q: 2.2, delay: i * 0.34 });
+          tone({ type: 'sawtooth', f: 260 + i * 30, f2: 150, t: 0.14, vol: 0.06, delay: i * 0.34 + 0.01 });
+        }
+        noise({ t: 0.22, vol: 0.28, ftype: 'lowpass', f: 1400, f2: 300, q: 1.2, delay: 1.12 });
+        tone({ type: 'triangle', f: 420, f2: 180, t: 0.25, vol: 0.14, delay: 1.12 });
+      },
       // zumbido chato do pernilongo (vai e volta de tom)
       buzz(t = 1.1) {
         for (let i = 0; i < 6; i++) tone({ type: 'sawtooth', f: 560 + (i % 2) * 90, f2: 620 - (i % 2) * 80, t: t / 6 + 0.02, vol: 0.05, delay: i * t / 6 });

@@ -8,7 +8,7 @@
   const GRAV = 0.2;           // gravidade base (px/frame²)
   const WALK_MAX = 120;       // distância máxima de caminhada por turno (mapas largos dão um pouco mais)
   const walkMax = () => WALK_MAX + Math.max(0, W - 800) * 0.07;
-  const GAME_VERSION = '19/10 bichos-9';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
+  const GAME_VERSION = '19/10 bichos-10';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
   const TURN_TIME = 30 * 60;  // 30 s para mirar e atirar (estourou: passa a vez)
   const WEAK = 0.35;          // abaixo dessa fração de PV o inimigo pode ser capturado
   const PLAYER_COL = '#3a9bff', WILD_COL = '#e0433a', GUEST_COL = '#ffd34d';
@@ -100,7 +100,7 @@
   const ORIG = !!MS.ORIGINAIS;
   const ORIG_COL = { brasito: '#e0583a', gotalho: '#4aa8e8', musguinho: '#4fae6a', faiscolino: '#7a6ac8', pedrugo: '#9a8f7c', ventolina: '#a9a0ec',
     caramelo: '#d38a3a', pinscher: '#2a2228', tatubola: '#8c7a62', formiga: '#c8382a', rolabosta: '#2e4a3a',
-    galinha: '#e8322a', barata: '#7a3e1c', baiacu: '#e8a83a', camaleao: '#5cbf4a', pombo: '#7a8496', abelha: '#f2c230', sapo: '#2a8ae8', picapau: '#e8322a', pernilongo: '#9a9eaa' };
+    galinha: '#e8322a', barata: '#7a3e1c', baiacu: '#e8a83a', camaleao: '#5cbf4a', pombo: '#7a8496', abelha: '#f2c230', sapo: '#2a8ae8', picapau: '#e8322a', pernilongo: '#9a9eaa', gato: '#e8dccb' };
   // escolta da abelha rainha: 3 abelhinhas voando em volta (somem enquanto o Enxame está no ar)
   const beesOut = u => projs.some(p => p.ownerUnit === u && p.wp.style === 'bee');
   function escortPos(u, i) {
@@ -117,6 +117,7 @@
   const TONGUE_P = `<circle r="4.6" fill="#ff6a8a" stroke="#2a1f1a" stroke-width="1"/><ellipse cx="-1.4" cy="-1.6" rx="1.4" ry="1" fill="#ffb0c0"/>`;
   const POOP_P = `<path d="M-4.6,2 C-6,-1 -3,-4 0,-5 C1,-3 4,-3 4.6,0 C5.4,3 2,4.6 0,4.4 C-2,4.6 -4,4 -4.6,2 Z" fill="#f0ece4" stroke="#6a6a6a" stroke-width=".9"/><path d="M-2,0 q2,1.2 4,0" stroke="#9a9a9a" stroke-width=".8" fill="none"/>`;
   const SLIME_P = `<path d="M-5.6,2 C-7,-2 -4,-6 0,-6 C4,-6 7,-2 5.6,2 C4.6,5 -4.6,5 -5.6,2 Z" fill="#8ae84a" stroke="#2a4a14" stroke-width="1"/><circle cx="-1.6" cy="-2.4" r="1.4" fill="#e8ffd0"/><circle cx="2.6" cy="1" r=".9" fill="#5ab82a"/>`;
+  const HAIR_P = MS.HAIRBALL ? MS.HAIRBALL(5) : '<circle r="5" fill="#b88a5a"/>';
   const BEAK_P = `<path d="M-6,-3.4 L9,0 L-6,3.4 Z" fill="#f0b030" stroke="#2a1f1a" stroke-width="1" stroke-linejoin="round"/><path d="M-6,0 L8,0" stroke="#b07810" stroke-width=".8"/><path d="M-3,-2.4 L-1,2.4 M1,-1.8 L3,1.8" stroke="#b07810" stroke-width=".7"/>`;
   const MARK_P = `<path d="M-6,1 C-7,-4 -3,-6 1,-5.6 C5,-6 7,-2 6,2 C4,4.4 -4,4.4 -6,1 Z" fill="#e8b860" stroke="#2a1f1a" stroke-width="1" stroke-linejoin="round"/><path d="M-4,-1 C-2,-3 2,-3 4,-1 C2,1.6 -2,1.6 -4,-1 Z" fill="#fff0c8"/>`;
   const NET_SVG = `<g stroke="#e8f4ff" stroke-width=".9" fill="rgba(232,244,255,.18)"><circle r="8"/><circle r="4.4" fill="none"/><path d="M-8,0H8M0,-8V8M-5.7,-5.7L5.7,5.7M5.7,-5.7L-5.7,5.7" fill="none"/></g><g fill="#c98a2a"><circle cx="8" cy="0" r="1.3"/><circle cx="-8" cy="0" r="1.3"/><circle cx="0" cy="8" r="1.3"/><circle cx="0" cy="-8" r="1.3"/></g>`;
@@ -256,6 +257,7 @@
     } else if (state === 'flying' && (bolts.length || beams.length)) {
       const b = bolts[0] || beams[0]; tx = b.x !== undefined ? b.x : (b.u.x + b.tx) / 2; ty = b.ty !== undefined ? Math.min(b.u.y, b.ty) - 20 : 250; tz = big ? 1.3 : 1.15; k = 0.1;
     } else if (state === 'settle') { tx = focus.x; ty = focus.y; tz = big ? 1.8 : 1.25; }
+    else if (state === 'gag') { const u = activeUnit(); if (u) { tx = u.x; ty = u.y - 30; tz = big ? GL_ZOOM : 1.35; k = 0.08; } }
     else if (state === 'guest' && guest) { tx = guest.x; ty = guest.y - 40; tz = big ? 1.8 : 1.45; }
     else if ((state === 'aim' || state === 'ai') && charging && scene === 'battle') {
       const u = activeUnit(); if (u) { tx = u.x; ty = u.y - 30; tz = big ? GL_ZOOM : 1.15; k = 0.04; }
@@ -325,7 +327,7 @@
     return `translate(400 250) scale(${z.toFixed(3)}) translate(${f1(-cx)} ${f1(-cy)})`;
   }
 
-  const FX_FILL = { slime: '#a8f05a', beak: '#f0d090', bee: '#ffd34d', egg: '#fff6e0', roach: '#c8a07a', spike: '#f6e6b0', tongue: '#ff8aa0', poop: '#e8e4dc', bone: '#fff3d6', crumb: '#f0c878', dung: '#8a6038', fire: 'url(#boom)', leaf: 'url(#leafBoom)', water: 'url(#splash)', thunder: 'url(#zap)',
+  const FX_FILL = { hair: '#d8b890', slime: '#a8f05a', beak: '#f0d090', bee: '#ffd34d', egg: '#fff6e0', roach: '#c8a07a', spike: '#f6e6b0', tongue: '#ff8aa0', poop: '#e8e4dc', bone: '#fff3d6', crumb: '#f0c878', dung: '#8a6038', fire: 'url(#boom)', leaf: 'url(#leafBoom)', water: 'url(#splash)', thunder: 'url(#zap)',
                     normal: 'url(#hitBoom)', gust: 'url(#gustBoom)', web: 'url(#webBoom)', dragon: 'url(#dragBoom)', rock: 'url(#rockBoom)', poison: '#b46bd0', ice: '#bfeaf6', ghost: '#8a6ac0', punch: '#fff0c8', psy: '#ff8ad0', sound: 'rgba(191,233,255,.7)', powder: 'rgba(226,210,255,.7)' };
 
   // ---------- Geração do mundo ----------
@@ -532,8 +534,22 @@
 
     // faixa de fundo: prédios (cidade), dunas (praia), pedras pontudas (caverna) ou pinheiros
     let tl = '', win = '';
-    if (key === 'cidade') { const s = skyline(); tl = s.d; win = s.win; }
-    else if (key === 'praia' || key === 'cabo' || key === 'vitoria' || key === 'usina') {
+    const tk = THEMES[key].tl2;
+    if (key === 'cidade' || tk === 'city') { const s = skyline(); tl = s.d; win = s.win; }
+    else if (tk === 'fence') {
+      tl = `M-60,${H} L-60,272 L${W + 60},272 L${W + 60},277 L-60,277 Z M-60,293 L${W + 60},293 L${W + 60},298 L-60,298 Z`;
+      for (let x = -50; x < W + 60; x += 13) tl += ` M${x},${H} L${x},262 L${x + 4.5},255 L${x + 9},262 L${x + 9},${H} Z`;
+    } else if (tk === 'shelf') {
+      tl = `M-60,${H} L-60,266 L${W + 60},266 L${W + 60},${H} Z`;
+      for (let x = -40; x < W + 60;) {
+        const k = Math.random(), w = k < 0.4 ? rnd(16, 24) : k < 0.7 ? rnd(8, 11) : rnd(20, 30), h = k < 0.4 ? rnd(22, 36) : k < 0.7 ? rnd(34, 46) : rnd(12, 18);
+        if (k < 0.4) tl += ` M${f1(x)},266 L${f1(x)},${f1(266 - h)} L${f1(x + 2)},${f1(266 - h - 4)} L${f1(x + w - 2)},${f1(266 - h - 4)} L${f1(x + w)},${f1(266 - h)} L${f1(x + w)},266 Z`;   // pote
+        else if (k < 0.7) tl += ` M${f1(x)},266 L${f1(x)},${f1(266 - h * 0.6)} L${f1(x + w * 0.3)},${f1(266 - h * 0.75)} L${f1(x + w * 0.3)},${f1(266 - h)} L${f1(x + w * 0.7)},${f1(266 - h)} L${f1(x + w * 0.7)},${f1(266 - h * 0.75)} L${f1(x + w)},${f1(266 - h * 0.6)} L${f1(x + w)},266 Z`;   // garrafa
+        else tl += ` M${f1(x)},266 L${f1(x + 2)},${f1(266 - h)} L${f1(x + w - 2)},${f1(266 - h)} L${f1(x + w)},266 Z`;   // tigela
+        x += w + rnd(4, 18);
+      }
+    }
+    else if (key === 'praia' || key === 'areia' || key === 'cabo' || key === 'vitoria' || key === 'usina') {
       const pts = []; for (let x = -20; x <= W + 40; x += 70) pts.push({ x, y: rnd(268, 290) });
       tl = hillPath(pts);
     } else {
@@ -691,6 +707,7 @@
       const k = u.growT / 100, ease = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
       const full = SPECIES[u.sp].scale || 1;
       u.scale = u.growFrom + (full - u.growFrom) * ease;
+      if (u.growT === 50 && u.baby) { u.baby = false; u._glW = null; spray(u.x, u.y - 14, 26, '#ffffff', 3.2, 0.02, 36, 2.2, 'spark'); spray(u.x, u.y - 14, 14, '#ffe27a', 2.4, 0.02, 40, 1.8, 'spark'); }
       if (u.growT % 8 === 0) spray(u.x + rnd(-10, 10), u.y - 10 - rnd(0, 20), 3, '#ffe27a', 1.6, -0.02, 30, 1.6, 'spark');
       if (u.growT === 100) { floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 26, t: 0, text: `${u.name} cresceu e entrou no time!`, col: '#8fe070', size: 14 }); Sfx.evolveDone(); }
       else if (u.growT === 1) Sfx.evolve();
@@ -814,7 +831,7 @@
   let mapOverride = null;
 
   function pickEnemies(st, ww) {
-    const base = st.enemies.slice(), out = base.map(sp => ({ sp, mul: 1 }));
+    const base = st.enemies.slice(), out = base.map((sp, i) => ({ sp, mul: 1, boss: ORIG && st.boss && i === 0 }));
     let extra = 0;
     if (!st.boss && st.pool && st.pool.length) extra = Math.floor(rnd(0, 1 + (ww - 800) / 450 + (ww === 800 ? 0.15 : 0)));
     if (mapOverride && mapOverride.extra !== undefined) extra = mapOverride.extra;
@@ -847,6 +864,7 @@
     foes.forEach((e, i) => {
       const u = mkUnit(e.sp, lay.ex[i], 1, avgP >= lay.ex[i] ? 1 : -1, st.hpMult * mercy * e.mul, MS.rollMoves(e.sp, wildBonus(si)));
       u.sh = rollShiny(); if (u.sh) shinyName = u.name;
+      if (e.boss) { u.scale *= 1.3; u.boss = true; u.name = `${u.name} Chefão`; }      // chefão do mundo: maior
       units.push(u); teams[1].units.push(u);
     });
     teams[1].cur = teams[1].units.length - 1;
@@ -860,7 +878,7 @@
     turnTeam = 0; state = 'aim'; panX = null;
     startTurn();
     const au = activeUnit(); if (au) { cam.x = clamp(au.x, VW / 2, Math.max(VW / 2, W - VW / 2)); }
-    showMsg(`Fase ${si + 1}: ${st.name}` + (weather ? ` · ${WEATHER[weather].name} (${WEATHER[weather].note})` : '') + (W > VW ? ` · mapa largo` : ''), 170);
+    showMsg(`Fase ${si + 1}: ${st.world ? st.world + ' · ' : ''}${st.name}` + (weather ? ` · ${WEATHER[weather].name} (${WEATHER[weather].note})` : '') + (W > VW ? ` · mapa largo` : ''), 170);
     if (shinyName) { setTimeout(() => Sfx.shiny(), 400); showMsg(`✨ ${shinyName} SHINY selvagem! Fase ${si + 1}: ${st.name}`, 200); }
     syncButtons();
   }
@@ -1529,6 +1547,15 @@
     }
   }
 
+  let gagSt = 'aim', gagGo = false;
+  function stepGag() {
+    if (state !== 'gag') return;
+    const u = activeUnit();
+    if (u && u.alive && ++u.gag < GAG_T) return;
+    if (u) u.gag = 0;
+    state = gagSt; gagGo = true; if (u && u.alive) fire(); gagGo = false;
+    if (state === 'gag' || state === gagSt && !(u && u.alive)) state = 'settle';
+  }
   function fire() {
     if (state !== 'aim' && state !== 'ai') return;
     if (glActive && glLoading) return;
@@ -1538,6 +1565,11 @@
     u.lastPow = power;
     if (!ballMode && !teams[turnTeam].ai) lastBall = false;      // tiro normal: deixa de repetir a Pokébola
     const wk = curW(u);
+    if (ORIG && S.engasga && WEAPONS[wk].hair && !ballMode && !(netMode && !teams[turnTeam].ai) && !gagGo) {
+      gagSt = state; state = 'gag'; u.gag = 1; charging = false; Sfx.chargeStop(); if (Sfx.hack) Sfx.hack();
+      showMsg(`${u.name} está engasgando...`, 70);
+      return;
+    }
     if (!ballMode && WEAPONS[wk].none) {
       payDelay(u, shotDelay(wk));
       u.hop = 1; splashU = u; state = 'skip'; skipT = 80; walkBudget = 0; charging = false; power = 0; ai = null;
@@ -1584,7 +1616,7 @@
   }
 
   // ---------- Efeitos do tiro ----------
-  const STYLE_COL = { rock: '#c8b898', fire: '#ffb020', leaf: '#7be07b', water: '#9fe0ff', thunder: '#fff27a', normal: '#fff6c8', gust: '#ffffff', web: '#ffffff', dragon: '#9a6aff', poison: '#c783e4', ice: '#bfeaf6', ghost: '#9a7ac8', punch: '#fff0c8', psy: '#ff8ad0', sound: '#bfe9ff', powder: '#e8d8ff', bone: '#fff6e0', crumb: '#f0d090', dung: '#9a7048', egg: '#fff6e0', roach: '#c8a07a', spike: '#f6e6b0', tongue: '#ff8aa0', poop: '#e8e4dc', bee: '#ffd34d', slime: '#a8f05a', beak: '#f0d090' };
+  const STYLE_COL = { rock: '#c8b898', fire: '#ffb020', leaf: '#7be07b', water: '#9fe0ff', thunder: '#fff27a', normal: '#fff6c8', gust: '#ffffff', web: '#ffffff', dragon: '#9a6aff', poison: '#c783e4', ice: '#bfeaf6', ghost: '#9a7ac8', punch: '#fff0c8', psy: '#ff8ad0', sound: '#bfe9ff', powder: '#e8d8ff', bone: '#fff6e0', crumb: '#f0d090', dung: '#9a7048', egg: '#fff6e0', roach: '#c8a07a', spike: '#f6e6b0', tongue: '#ff8aa0', poop: '#e8e4dc', bee: '#ffd34d', slime: '#a8f05a', beak: '#f0d090', hair: '#d8b890' };
 
   function muzzle(x, y, style, a) {
     const col = STYLE_COL[style] || '#fff';
@@ -2430,7 +2462,8 @@
   }
   function burstDecor(d) {
     const y = d.base - 10;
-    if (['rock', 'stalag', 'tomb', 'volrock', 'pillar', 'ember'].includes(d.type)) spray(d.x, y, 8, '#8c8f94', 3, 0.15, 60, 2.6, 'chunk');
+    if (MS.DECOR_HARD && MS.DECOR_HARD[d.type]) spray(d.x, y, 9, MS.DECOR_HARD[d.type], 3, 0.15, 60, 2.4, 'chunk');
+    else if (['rock', 'stalag', 'tomb', 'volrock', 'pillar', 'ember'].includes(d.type)) spray(d.x, y, 8, '#8c8f94', 3, 0.15, 60, 2.6, 'chunk');
     else if (d.type === 'icespike' || d.type === 'snowpine') spray(d.x, y, 10, '#dff4ff', 3, 0.1, 50, 2.2, 'spark');
     else if (d.type === 'pylon') spray(d.x, y, 10, '#fff27a', 3, 0.05, 40, 1.6, 'spark');
     else if (d.type === 'crystal') spray(d.x, y, 10, d.col, 3, 0.1, 50, 2.2, 'spark');
@@ -2450,7 +2483,11 @@
   // ---------- Desenho ----------
   const blink = u => ((frameNo + u.blinkOff) % 230) < 7;
   // mania dos monstrinhos originais: de tempos em tempos (parado) faz o seu gesto; devolve o progresso 0..1 ou null
+  // filhote desenhado como bebê até a metade do crescimento
+  const artSp = u => (u.baby && Art.hasBaby && Art.hasBaby(u.sp)) ? 'bb_' + u.sp : u.sp;
+  const GAG_T = 72;      // engasgo do gato antes de cuspir a bola de pelo (quadros)
   const maniaOf = u => {
+    if (u.gag > 0) return Math.min(0.83, u.gag / GAG_T * 0.84);
     const S = spOf(u); if (!S.mania || u.moving || u.breath > 0 || u.hurt > 0 || u.capScale < 1 || scene === 'intro') return null;
     const t = (frameNo + u.uid * 97) % 600; return t < 90 ? t / 90 : null;
   };
@@ -2490,7 +2527,7 @@
     const shield = u.shield > 0 && u.capScale > 0.5 ? `<circle cx="0" cy="${f1(-S.hitY * u.scale)}" r="${f1(S.hitR * u.scale * 1.75 + 4)}" fill="#8fe0ff" fill-opacity=".13" stroke="#bff3ff" stroke-width="1.8" stroke-opacity="${(0.55 + 0.3 * Math.sin(af * 0.12)).toFixed(2)}"/>` : '';
     return { t: `translate(${f1(u.x)} ${f1(u.y + hop - lift + bobT)})`, h: `
       ${lift ? `<g transform="translate(0 ${f1(lift)})">${shadow}</g>` : shadow}${shield}
-      <g transform="${tilt}scale(${f1(u.face * sc)} ${f1(sc)})"${u.invis > 0 ? ' opacity=".3"' : flash ? ' opacity=".45"' : ''}><g${shF(u.sp, u.sh)}>${Art.draw(u.sp, ctx)}</g></g>
+      <g transform="${tilt}scale(${f1(u.face * sc)} ${f1(sc)})"${u.invis > 0 ? ' opacity=".3"' : flash ? ' opacity=".45"' : ''}><g${shF(u.sp, u.sh)}>${Art.draw(artSp(u), ctx)}</g></g>
       ${u.sh && u.capScale > 0.5 ? glint(af, -S.hitR * u.scale * 0.8, -S.hitY * u.scale - 6, 1.2, u.blinkOff) + glint(af, S.hitR * u.scale * 0.9, -S.hitY * u.scale + 8, 0.9, u.blinkOff + 2) + glint(af, 0, -S.h * u.scale * 0.8, 1, u.blinkOff + 4) : ''}
       ${spOf(u).escolta && u.capScale > 0.5 && !beesOut(u) && MS.BEE_MINI ? Array.from({ length: spOf(u).escolta }, (_, i) => { const q = escortPos(u, i); return `<g transform="translate(${f1(q.x)} ${f1(q.y)}) scale(${f1(q.dir * 1.25 * u.scale)} ${f1(1.25 * u.scale)})">${MS.BEE_MINI}</g>`; }).join('') : ''}
       ${u.status === 'sujo' && u.capScale > 0.5 ? `<g transform="translate(${2 * u.face} ${f1(-S.h * u.scale * 0.92)}) scale(1.5)">${POOP_P}</g>` : ''}
@@ -2959,6 +2996,7 @@
       case 'tongue': { const o = p.ownerUnit, m = o && o.alive ? mouthAt(o, o.face, false) : null; return (m ? `<line x1="${f1(m.x)}" y1="${f1(m.y)}" x2="${f1(p.x)}" y2="${f1(p.y)}" stroke="#ff6a8a" stroke-width="2.6" stroke-linecap="round"/>` : '') + `<g transform="translate(${f1(p.x)} ${f1(p.y)}) scale(1.1)">${TONGUE_P}</g>`; }
       case 'marker': return `<g transform="translate(${f1(p.x)} ${f1(p.y)}) rotate(${(frameNo * 11) % 360}) scale(1.2)">${MARK_P}</g>`;
       case 'slime': return `<g transform="translate(${f1(p.x)} ${f1(p.y)}) scale(1.2)">${SLIME_P}</g>`;
+      case 'hair': return `<g transform="translate(${f1(p.x)} ${f1(p.y)}) rotate(${(frameNo * 9) % 360}) scale(1.1)">${HAIR_P}</g>`;
       case 'beak': return `<g transform="translate(${f1(p.x)} ${f1(p.y)}) rotate(${f1(Math.atan2(p.vy, p.vx) * 57.3)}) scale(1.2)">${BEAK_P}</g>`;
       case 'poop': return `<g transform="translate(${f1(p.x)} ${f1(p.y)}) rotate(${(frameNo * 6) % 360}) scale(${((p.wp.size || 1) * 1.15).toFixed(2)})">${POOP_P}</g>`;
       case 'bee': return `<g transform="translate(${f1(p.x)} ${f1(p.y + Math.sin(frameNo * 0.5 + p.spin) * 1.5)}) scale(${p.vx < 0 ? -1.5 : 1.5} 1.5)">${MS.BEE_MINI || ''}</g>`;
@@ -3380,26 +3418,27 @@
     return (artBoxes[sp] = box);
   }
   // pose do Pokémon como imagem: parado (12 quadros, vai e volta), andando (6), atacando (4) e piscando
-  function glBodyKey(u, res, q, mode) { return `u|${u.sp}|${u.sh ? 1 : 0}|${mode}${q}|${u.flying ? 1 : 0}${u.puffed ? 'p' : ''}|${res}`; }
+  function glBodyKey(u, res, q, mode) { return `u|${artSp(u)}|${u.sh ? 1 : 0}|${mode}${q}|${u.flying ? 1 : 0}${u.puffed ? 'p' : ''}|${res}`; }
   function glBodySpr(u, res, q, mode) {
-    const box = artBox(u.sp);
+    const box = artBox(artSp(u));
     return GLR.svg(glBodyKey(u, res, q, mode), () => {
       const walk = mode === 'w', ctx = { f: q * 8, blink: mode === 'k', breath: mode === 'b' ? 10 : 0, bob: 0,
-        step: walk ? Math.sin(q * Math.PI / 3) * 1.6 : 0, x: 0, charge: false, flap: !!u.flying, mania: mode === 'm' ? (q + 0.5) / 8 : null, hurt: mode === 'h', puffed: !!u.puffed };
-      return `<g${shF(u.sp, u.sh)}>${Art.draw(u.sp, ctx)}</g>`;
+        step: walk ? Math.sin(q * Math.PI / 3) * 1.6 : 0, x: 0, charge: false, flap: !!u.flying, mania: mode === 'm' ? (q + 0.5) / 8 : mode === 'g' ? q / 16 * 0.84 : null, hurt: mode === 'h', puffed: !!u.puffed };
+      return `<g${shF(u.sp, u.sh)}>${Art.draw(artSp(u), ctx)}</g>`;
     }, box, res);
   }
   function glBodyRes(u) {
-    const box = artBox(u.sp);
+    const box = artBox(artSp(u));
     return Math.max(0.5, Math.round(Math.min(GLR.res * u.scale, 340 / Math.max(box[2], box[3])) * 4) / 4);   // no máximo ~340 px por pose
   }
   function glBody(u) {
-    const R = GLR, box = artBox(u.sp);
+    const R = GLR, box = artBox(artSp(u));
     const res = glBodyRes(u);
     let q, mode;
     if (u.moving) { const ph = ((u.walkT * 0.5) % 6.2832 + 6.2832) % 6.2832; q = Math.round(ph / 1.0472) % 6; mode = 'w'; }
     else if (u.breath > 0) { q = (frameNo >> 3) % 4; mode = 'b'; }
     else if (u.hurt > 0 && spOf(u).orig) { q = 0; mode = 'h'; }
+    else if (u.gag > 0) { q = Math.min(15, Math.floor(u.gag / GAG_T * 16)); mode = 'g'; }
     else if (maniaOf(u) !== null) { q = Math.min(7, Math.floor(maniaOf(u) * 8)); mode = 'm'; }
     else if (!lite && blink(u)) { q = 0; mode = 'k'; }
     else { const t = ((frameNo + u.uid * 29) >> (lite ? 4 : 3)) % 14; q = t < 8 ? t : 14 - t; mode = 'i'; }   // 8 quadros, vai e volta
@@ -3510,6 +3549,7 @@
     marker: [MARK_P, [-8, -8, 16, 14]],
     slime: [SLIME_P, [-7.5, -7.5, 15, 13]],
     beak: [BEAK_P, [-7.5, -5, 18, 10]],
+    hair: [HAIR_P, [-8, -8, 16, 16]],
     bee: [MS.BEE_MINI || '<circle r="3" fill="#f6c428"/>', [-5, -7, 11, 10]]
   };
   function glPj(name, x, y, rot, sc = 1, a = 1) {
@@ -3581,6 +3621,7 @@
       case 'tongue': { const o = p.ownerUnit; if (o && o.alive) { const m = mouthAt(o, o.face, false); R.line(m.x, m.y, p.x, p.y, 2.6, '#ff6a8a', 0.95); } glPj('tongue', p.x, p.y, 0, 1.1); return; }
       case 'marker': glPj('marker', p.x, p.y, frameNo * 0.2, 1.2); return;
       case 'slime': glTrail(p, 1, 2, '#8ae84a', 0.45); glPj('slime', p.x, p.y, 0, 1.2 + Math.sin(frameNo * 0.4) * 0.08); return;
+      case 'hair': glTrail(p, 1, 1.4, '#d8b890', 0.3); glPj('hair', p.x, p.y, frameNo * 0.16, 1.1); return;
       case 'beak': glTrail(p, 1, 1.6, '#f0d090', 0.35); glPj('beak', p.x, p.y, deg, 1.2); return;
       case 'poop': glPj('poop', p.x, p.y, frameNo * 0.1, (p.wp.size || 1) * 1.15); return;
       case 'bee': glTrail(p, 0.5, 0.8, '#fff6c0', 0.35); R.push(); R.tr(p.x, p.y); if (p.vx < 0) R.sc(-1, 1); glPj('bee', 0, Math.sin(frameNo * 0.5 + p.spin) * 1.5, 0, 1.5); R.pop(); return;
@@ -4060,20 +4101,24 @@
 
   function stagesSvg() {
     const sv = loadSave() || { stage: 0, done: false };
-    const cols = 4, cw = 168, ch = 68, gx = 12, gy_ = 10, x0 = Math.round((VW - (cols * cw + (cols - 1) * gx)) / 2), y0 = 84;
+    const worlds = ORIG && STAGES[0].world, lw = worlds ? 92 : 0;     // versão dos bichos: uma linha por mundo, com o nome à esquerda
+    const cols = worlds ? 3 : 4, cw = 168, ch = worlds ? 58 : 68, gx = 12, gy_ = worlds ? 8 : 10, x0 = Math.round((VW - (cols * cw + (cols - 1) * gx) + lw) / 2), y0 = 84;
+    const WCOL = { Quintal: '#8fe070', Cozinha: '#ff9ac0', Praia: '#ffd34d', Cidade: '#9ab8ff' };
     let s = `<rect width="800" height="500" fill="#0b1630" opacity=".62"/>
       <text x="400" y="40" text-anchor="middle" font-size="26" font-weight="800" fill="#fff">Escolher fase</text>
       <text x="400" y="62" text-anchor="middle" font-size="12" fill="#cfe">Toque numa fase para ver o que dá para capturar, e em Jogar para entrar. O mapa muda a cada partida. ✨ Shiny: 1 em 1000.</text>`;
     STAGES.forEach((st, i) => {
       const col = i % cols, row = Math.floor(i / cols), x = x0 + col * (cw + gx), y = y0 + row * (ch + gy_);
+      if (worlds && col === 0) s += `<text x="${x - 12}" y="${y + ch / 2 + 2}" text-anchor="end" font-size="15" font-weight="900" fill="${WCOL[st.world] || '#fff'}">${st.world}</text>
+        <text x="${x - 12}" y="${y + ch / 2 + 16}" text-anchor="end" font-size="9" fill="#cfe" opacity=".8">mundo ${row + 1}</text>`;
       const locked = i > sv.stage, cleared = sv.done || i < sv.stage, cur = i === sv.stage && !sv.done;
       const sel = i === uiSel;
       uiList.push({ x, y, w: cw, h: ch, fn: () => { if (kbd && !locked) playStage(i); }, disabled: false });
       s += `<g opacity="${locked ? 0.42 : 1}"><rect x="${x}" y="${y}" width="${cw}" height="${ch}" rx="12" fill="${sel && !locked ? '#ffb347' : '#1b2a44'}" fill-opacity="${sel && !locked ? 0.96 : 0.92}"
           stroke="${sel ? '#ffb347' : cur ? '#8fe070' : '#fff'}" stroke-opacity="${sel || cur ? 1 : 0.55}" stroke-width="${sel || cur ? 3 : 1.6}"/>
-        <text x="${x + 16}" y="${y + 40}" font-size="30" font-weight="900" fill="${sel && !locked ? '#241400' : '#ffd34d'}">${i + 1}</text>
-        <text x="${x + 44}" y="${y + 29}" font-size="12.5" font-weight="bold" fill="${sel && !locked ? '#241400' : '#fff'}">${st.name}</text>
-        <text x="${x + 44}" y="${y + 47}" font-size="10" fill="${sel && !locked ? '#3a2400' : '#bfe3ff'}">${locked ? 'bloqueada' : cleared ? '✔ concluída' : 'fase atual'}${st.boss ? ' · CHEFE' : ''}</text>
+        <text x="${x + 16}" y="${y + ch / 2 + 11}" font-size="30" font-weight="900" fill="${sel && !locked ? '#241400' : '#ffd34d'}">${i + 1}</text>
+        <text x="${x + 44}" y="${y + ch / 2 - 5}" font-size="12.5" font-weight="bold" fill="${sel && !locked ? '#241400' : '#fff'}">${st.name}</text>
+        <text x="${x + 44}" y="${y + ch / 2 + 13}" font-size="10" fill="${sel && !locked ? '#3a2400' : '#bfe3ff'}">${locked ? 'bloqueada' : cleared ? '✔ concluída' : 'fase atual'}${st.boss ? ' · CHEFE' : ''}</text>
         ${locked ? `<text x="${x + cw - 12}" y="${y + 24}" text-anchor="end" font-size="15">🔒</text>` : ''}</g>`;
     });
     // detalhes da fase em foco
@@ -4081,14 +4126,15 @@
     const names = a => Array.from(new Set(a)).map(e => SPECIES[e].name).join(', ');
     const wx = (F.weather || []).map(w => WEATHER[w.type].name).join(' / ') || 'sem clima (ambiente fechado)';
     const iy = y0 + Math.ceil(STAGES.length / cols) * (ch + gy_) + 4;
-    s += `<rect x="${x0}" y="${iy}" width="${cols * cw + (cols - 1) * gx}" height="92" rx="12" fill="#0d1b2a" fill-opacity=".85" stroke="#fff" stroke-opacity=".35"/>`;
+    s += `<rect x="${x0 - lw}" y="${iy}" width="${cols * cw + (cols - 1) * gx + lw}" height="${worlds ? 90 : 92}" rx="12" fill="#0d1b2a" fill-opacity=".85" stroke="#fff" stroke-opacity=".35"/>`;
     if (fl) s += `<text x="400" y="${iy + 52}" text-anchor="middle" font-size="14" fill="#fff" opacity=".85">🔒 Vença a fase ${fi} para liberar.</text>`;
-    else s += `<text x="${x0 + 16}" y="${iy + 22}" font-size="14" font-weight="bold" fill="#ffd34d">${fi + 1}. ${F.name}</text>
-      <text x="${x0 + 16}" y="${iy + 42}" font-size="11.5" fill="#fff">Selvagens: <tspan fill="#ffb3a8">${names(F.enemies)}</tspan>${(F.pool || []).filter(e => !F.enemies.includes(e)).length ? `<tspan fill="#ffd0c8" font-size="10"> · às vezes: ${names((F.pool || []).filter(e => !F.enemies.includes(e)))}</tspan>` : ''}</text>
-      <text x="${x0 + 16}" y="${iy + 60}" font-size="11.5" fill="#fff">Visitantes: <tspan fill="#ffe27a">${names((F.guests || []).map(g => g.sp)) || '—'}</tspan></text>
-      <text x="${x0 + 16}" y="${iy + 78}" font-size="11.5" fill="#fff">Clima: <tspan fill="#9fe0ff">${wx}</tspan></text>`;
-    s += uiBtn(170, 436, 210, 42, '◀ Voltar', () => { menuPage = 'main'; uiSel = 1; }, { fs: 17 });
-    s += uiBtn(420, 436, 210, 42, 'Jogar ▶', () => { if (fi <= sv.stage) playStage(fi); }, { fs: 17, disabled: fl });
+    else s += `<text x="${x0 - lw + 16}" y="${iy + 22}" font-size="14" font-weight="bold" fill="#ffd34d">${fi + 1}. ${F.world ? F.world + ' · ' : ''}${F.name}${F.boss ? ' (chefão)' : ''}</text>
+      <text x="${x0 - lw + 16}" y="${iy + 42}" font-size="11.5" fill="#fff">Selvagens: <tspan fill="#ffb3a8">${names(F.enemies)}</tspan>${(F.pool || []).filter(e => !F.enemies.includes(e)).length ? `<tspan fill="#ffd0c8" font-size="10"> · às vezes: ${names((F.pool || []).filter(e => !F.enemies.includes(e)))}</tspan>` : ''}</text>
+      <text x="${x0 - lw + 16}" y="${iy + 60}" font-size="11.5" fill="#fff">Visitantes: <tspan fill="#ffe27a">${names((F.guests || []).map(g => g.sp)) || '—'}</tspan></text>
+      <text x="${x0 - lw + 16}" y="${iy + 78}" font-size="11.5" fill="#fff">Clima: <tspan fill="#9fe0ff">${wx}</tspan></text>`;
+    const by = worlds ? 452 : 436;
+    s += uiBtn(170, by, 210, 42, '◀ Voltar', () => { menuPage = 'main'; uiSel = 1; }, { fs: 17 });
+    s += uiBtn(420, by, 210, 42, 'Jogar ▶', () => { if (fi <= sv.stage) playStage(fi); }, { fs: 17, disabled: fl });
     return s;
   }
 
@@ -4099,7 +4145,7 @@
     let s = `<rect width="800" height="500" fill="#0b1630" opacity=".55"/>
       <text x="400" y="78" text-anchor="middle" font-size="34" font-weight="900" fill="#fff" stroke="#173a78" stroke-width="6" paint-order="stroke">Escolha seu parceiro</text>
       <text x="400" y="108" text-anchor="middle" font-size="14" fill="#bfe3ff">Os outros você ganha nas fases: derrote com um golpe fraco e pegue o ovo!</text>`;
-    const NOTE = { pernilongo: 'Chato demais. Foge quando o tiro chega perto.', sapo: 'Pequeno e venenoso. As cores avisam: perigo!', picapau: 'Bica tudo. Abre túneis com o bico.', abelha: 'Rainha da colmeia. Manda as abelhinhas atacarem.', galinha: 'Nervosa. Cacareja e bica sem parar.', barata: 'Sobrevive a tudo. Uma vez por fase.', baiacu: 'Infla quando apanha. Aí leva metade.', camaleao: 'Muda de cor. Some depois de atacar.', pombo: 'Rei da praça. Chama a turma com pão.', brasito: 'Esquentadinho. Assopra o próprio topete.', gotalho: 'Calmo e cuidadoso. Rega toda plantinha que vê.', musguinho: 'Tímido. O chapéu sempre cai nos olhos.',
+    const NOTE = { gato: 'Persa enjoado: engasga e cospe bola de pelo.', pernilongo: 'Chato demais. Foge quando o tiro chega perto.', sapo: 'Pequeno e venenoso. As cores avisam: perigo!', picapau: 'Bica tudo. Abre túneis com o bico.', abelha: 'Rainha da colmeia. Manda as abelhinhas atacarem.', galinha: 'Nervosa. Cacareja e bica sem parar.', barata: 'Sobrevive a tudo. Uma vez por fase.', baiacu: 'Infla quando apanha. Aí leva metade.', camaleao: 'Muda de cor. Some depois de atacar.', pombo: 'Rei da praça. Chama a turma com pão.', brasito: 'Esquentadinho. Assopra o próprio topete.', gotalho: 'Calmo e cuidadoso. Rega toda plantinha que vê.', musguinho: 'Tímido. O chapéu sempre cai nos olhos.',
       caramelo: 'A alegria em pessoa. Nunca para de abanar o rabo.', pinscher: 'Pequeno e brabo. Com pouca vida, entra em fúria.', tatubola: 'Medroso e cascudo. Vira bola quando se assusta.' };
     list.forEach((sp, i) => {
       const x = 130 + i * 190, S = SPECIES[sp], sel = uiSel === i;
@@ -4535,6 +4581,7 @@
     if (state === 'aim' && !teams[turnTeam].ai) clampAim(activeUnit());      // andar muda a inclinação e a faixa de mira
     if (state === 'aim' && !teams[turnTeam].ai && --turnT <= 0) { if (charging) fire(); else passTurn(); }
     if (state === 'ai') stepAI();
+    stepGag();
     if (state === 'skip' && splashU) splashU.hop++;
     if (state === 'skip' && --skipT <= 0) { if (splashU) { splashU.hop = 0; splashU = null; } state = 'settle'; }
     if (state === 'guest') stepGuest();
@@ -4620,7 +4667,7 @@
     toggleSettings, settings, sync: () => syncButtons(), plan: u => { ai = { phase: 'plan', t: 0 }; planShot(u); },
     forceGuest: sp => { gCool = 0; STAGES[stageIdx].guests = [{ sp, rarity: 1 }]; },
     skipEvolve, stageClear,
-    initMenu, initIntro, playStage, cycleMove, maybeChangeWeather, rollWeather, initStage, newCampaign, beginStage, fire, toggleBall, pickTarget,
+    initMenu, openStages, initIntro, playStage, cycleMove, maybeChangeWeather, rollWeather, initStage, newCampaign, beginStage, fire, toggleBall, pickTarget,
     setZoom: z => { settings.zoom = z; },
     setQuality: q => { settings.quality = q; settings.autoLite = false; applySettings(); }, get lite() { return lite; }, pollPad,
     setAngle: a => { angle = a; const u = activeUnit(); if (u && scene === 'battle') u.face = Math.cos(a * Math.PI / 180) >= 0 ? 1 : -1; }, aimWindow: u => aimWindow(u || activeUnit()), setPower: p => { power = p; }, passTurn, turnOrder,

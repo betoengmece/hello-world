@@ -8,7 +8,7 @@
   const GRAV = 0.2;           // gravidade base (px/frame²)
   const WALK_MAX = 120;       // distância máxima de caminhada por turno (mapas largos dão um pouco mais)
   const walkMax = () => WALK_MAX + Math.max(0, W - 800) * 0.07;
-  const GAME_VERSION = '19/10 bichos-10';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
+  const GAME_VERSION = '19/10 bichos-11';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
   const TURN_TIME = 30 * 60;  // 30 s para mirar e atirar (estourou: passa a vez)
   const WEAK = 0.35;          // abaixo dessa fração de PV o inimigo pode ser capturado
   const PLAYER_COL = '#3a9bff', WILD_COL = '#e0433a', GUEST_COL = '#ffd34d';
@@ -225,7 +225,7 @@
     return { x: u.x + dx * c - dy * sn, y: u.y + dx * sn + dy * c };
   }
   // atraso: golpes fortes custam mais; andar e demorar também (quem tiver menos atraso joga antes)
-  const shotDelay = wk => { const w = WEAPONS[wk]; return w.none ? 400 : Math.round(520 + Math.min(420, (w.dmg || 10) * (w.count || 1) * 3.4)); };
+  const shotDelay = wk => { const w = WEAPONS[wk]; return w.dl ? w.dl : w.none ? 400 : Math.round(520 + Math.min(420, (w.dmg || 10) * (w.count || 1) * 3.4)); };
   const extraDelay = () => Math.round((1 - Math.max(0, walkBudget) / walkMax()) * 120 + Math.max(0, TURN_TIME - turnT) / 60 * 5);
   // time menor paga menos atraso por ação: os dois lados atacam no mesmo ritmo (1 contra 3 não fica injusto)
   function teamMul(u) {
@@ -714,6 +714,7 @@
     }
   }
   function resetCommon() {
+    resetItems();
     fx = []; projs = []; parts = []; floaters = []; graves = []; eggs = []; stageEggs = []; nets = []; netMode = false; lastNet = false;
     power = 0; charging = false; ballMode = false; lastBall = false; pickups = []; weather = null; bolt = null; ai = null; cap = null; panel = null; pendingPanel = null;
     keys = {}; wxPrev = null; wxK = 1;
@@ -1353,7 +1354,7 @@
       const c = centerOf(u), d = Math.hypot(c.x - x, c.y - y);
       if (d >= wp.boom) continue;
       const k = 1 - d / wp.boom, mult = typeMult(wp.type, spOf(u).types);
-      const dmg = shieldDmg(u, Math.round((u.puffed ? 0.5 : 1) * wp.dmg * k * mult * wxMul(wp.type) * (p.crit ? 1.6 : 1) * ((p.ownerUnit && p.ownerUnit.dmgMul) || 1) * (p.ownerUnit && spOf(p.ownerUnit).furia && p.ownerUnit.hp / p.ownerUnit.maxhp < 0.4 ? 1.5 : 1)));
+      const dmg = shieldDmg(u, Math.round((u.puffed ? 0.5 : 1) * wp.dmg * k * mult * wxMul(wp.type) * (p.crit ? 1.6 : 1) * (p.boost || 1) * ((p.ownerUnit && p.ownerUnit.dmgMul) || 1) * (p.ownerUnit && spOf(p.ownerUnit).furia && p.ownerUnit.hp / p.ownerUnit.maxhp < 0.4 ? 1.5 : 1)));
       if (dmg > 0) {
         u.hp -= dmg; u.hurt = 24; anyHurt = true;
         if (spOf(u).infla && !u.puffed) { u.puffed = true; u.hrMul = 1.35; floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 40, t: 6, text: 'Inflou! (metade do dano)', col: '#ffe27a', size: 12 }); }
@@ -1548,6 +1549,50 @@
   }
 
   let gagSt = 'aim', gagGo = false;
+  // ---------- Itens (versão dos bichos) ----------
+  // escolhidos antes do tiro; cada um custa atraso extra. Tiro Duplo: dois tiros seguidos, mais caro que dois tiros separados
+  const ITEMS = {
+    duplo: { name: 'Tiro Duplo', btn: '2X', cost: 220, note: 'dois tiros seguidos' },
+    forca: { name: 'Força+', btn: 'F+', cost: 180, note: '+30% de dano' },
+    cura:  { name: 'Cura', btn: 'CURA', cost: 260, note: 'recupera 35 de vida' }
+  };
+  let items = [{}, {}], itemSel = null, dual = null, dualGo = false;
+  function resetItems() { items = [{ duplo: 2, forca: 1, cura: 1 }, { duplo: 1, cura: 1 }]; itemSel = null; dual = null; }
+  function itemBtnText() { const t = document.querySelector && document.querySelector('#itemBtn text'); if (t) t.textContent = itemSel ? ITEMS[itemSel].btn : 'ITEM'; }
+  function cycleItem() {
+    if (!ORIG || scene !== 'battle' || state !== 'aim' || teams[turnTeam].ai || charging) return;
+    const inv = items[turnTeam] || {}, list = [null, ...Object.keys(ITEMS).filter(k => inv[k] > 0)];
+    if (list.length < 2) { showMsg('Sem itens nesta fase.', 70); Sfx.ballFail(); return; }
+    itemSel = list[(list.indexOf(itemSel) + 1) % list.length]; Sfx.select();
+    showMsg(itemSel ? `${ITEMS[itemSel].name}: ${ITEMS[itemSel].note} (+atraso) · resta ${inv[itemSel]}` : 'Sem item neste tiro', 110);
+    itemBtnText();
+  }
+  // gasta o item escolhido no tiro (a CPU decide sozinha); devolve o multiplicador de dano
+  function useItem(u) {
+    const t = teams[turnTeam], inv = items[turnTeam] || {};
+    let k = t.ai ? null : itemSel;
+    if (t.ai) {
+      if (inv.cura > 0 && u.hp < u.maxhp * 0.4 && Math.random() < 0.7) k = 'cura';
+      else if (inv.duplo > 0 && Math.random() < 0.3) k = 'duplo';
+    }
+    itemSel = null; itemBtnText();
+    if (!k || !(inv[k] > 0)) return 1;
+    inv[k]--; u.delay += Math.round(ITEMS[k].cost * teamMul(u));
+    const fy = u.y - spOf(u).h * u.scale - 30;
+    if (k === 'cura') { const h = Math.min(35, u.maxhp - u.hp); u.hp += h; floaters.push({ x: u.x, y: fy, t: 0, text: `Cura +${h}`, col: '#8fe070', size: 14 }); spray(u.x, u.y - 14, 14, '#8fe070', 2, -0.03, 40, 1.8, 'spark'); Sfx.ballCatch(); }
+    if (k === 'forca') { floaters.push({ x: u.x, y: fy, t: 0, text: 'Força+!', col: '#ff9a4a', size: 14 }); return 1.3; }
+    if (k === 'duplo') { dual = { u, ang: angle, pow: power, st: state }; floaters.push({ x: u.x, y: fy, t: 0, text: 'Tiro Duplo!', col: '#ffe27a', size: 14 }); }
+    return 1;
+  }
+  // depois do primeiro tiro do Tiro Duplo acabar, sai o segundo com a mesma mira e força
+  function dualNext() {
+    const d = dual; dual = null;
+    if (!d || !d.u.alive || d.u.hidden || activeUnit() !== d.u) return false;
+    angle = d.ang; power = d.pow; state = d.st; dualGo = true; fire(); dualGo = false;
+    if (state === d.st) { state = 'settle'; return false; }
+    showMsg('Segundo tiro!', 50);
+    return true;
+  }
   function stepGag() {
     if (state !== 'gag') return;
     const u = activeUnit();
@@ -1565,7 +1610,7 @@
     u.lastPow = power;
     if (!ballMode && !teams[turnTeam].ai) lastBall = false;      // tiro normal: deixa de repetir a Pokébola
     const wk = curW(u);
-    if (ORIG && S.engasga && WEAPONS[wk].hair && !ballMode && !(netMode && !teams[turnTeam].ai) && !gagGo) {
+    if (ORIG && S.engasga && WEAPONS[wk].hair && !ballMode && !(netMode && !teams[turnTeam].ai) && !gagGo && !dualGo) {
       gagSt = state; state = 'gag'; u.gag = 1; charging = false; Sfx.chargeStop(); if (Sfx.hack) Sfx.hack();
       showMsg(`${u.name} está engasgando...`, 70);
       return;
@@ -1604,8 +1649,10 @@
       campaign[BALLS[ballType].key]--; ballMode = false; Sfx.ballThrow();
       if (!teams[turnTeam].ai) { lastBall = true; lastBallType = ballType; }
     } else {
+      const boost = ORIG && !dualGo ? useItem(u) : 1, n0 = projs.length;
       const { x: mx, y: my } = mouthAt(u, u.face, false);
       launch(wk, mx, my, a, sp, 'unit', u);
+      if (boost !== 1) for (let i = n0; i < projs.length; i++) projs[i].boost = boost;
       u.breath = 18; Sfx.shoot(WEAPONS[wk].style); if (WEAPONS[wk].buzz && Sfx.buzz) Sfx.buzz();
       muzzle(mx, my, WEAPONS[wk].style, a);
       if (spOf(u).camuflagem) { u.invis = 3; floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 30, t: 0, text: 'Camuflado!', col: '#a8e07a', size: 13 }); }
@@ -1775,7 +1822,10 @@
       if (isBall) { ballResolve(p, target, outcome); continue; }
       explode(p.x, Math.min(p.y, H), p);
     }
-    if (!projs.length && !bolts.length && !beams.length && !flyers.length && state === 'flying') { state = 'settle'; camHold = 60; camWide = false; }
+    if (!projs.length && !bolts.length && !beams.length && !flyers.length && state === 'flying') {
+      if (dual && dualNext()) return;
+      state = 'settle'; camHold = 60; camWide = false;
+    }
   }
 
   // pernilongo: quando um tiro inimigo chega perto, sai voando para um lado sorteado (sem cair da beirada)
@@ -1815,7 +1865,7 @@
     p.sp = true;
     for (let i = 0; i < sp.n; i++) {
       const off = (i - (sp.n - 1) / 2);
-      projs.push({ wk: sp.wk, wp: wp2, owner: p.owner, ownerUnit: p.ownerUnit, x: p.x + off * 9, y: p.y - 4, vx: p.vx * 0.85 + off * 0.5, vy: 0.4 + Math.abs(off) * 0.05, trail: [], spin: rnd(0, 6), age: 20, bn: 0, crit: false, sp: true });
+      projs.push({ wk: sp.wk, wp: wp2, owner: p.owner, ownerUnit: p.ownerUnit, x: p.x + off * 9, y: p.y - 4, vx: p.vx * 0.85 + off * 0.5, vy: 0.4 + Math.abs(off) * 0.05, trail: [], spin: rnd(0, 6), age: 20, bn: 0, crit: false, sp: true, boost: p.boost });
     }
     spray(p.x, p.y, 8, '#d8c8b0', 2.2, 0.1, 24, 2, 'chunk'); Sfx.boom('gust');
   }
@@ -2019,7 +2069,8 @@
     const u = activeUnit(); if (!u || u.moves.length < 2) return;
     ballMode = false;
     u.mi = (u.mi + 1) % u.moves.length; Sfx.select();
-    showMsg(`${WEAPONS[curW(u)].label}!`, 70);
+    const tw = WEAPONS[curW(u)];
+    showMsg(tw.tier ? `Golpe ${tw.tier}: ${tw.label} · ${tw.tier === 1 ? 'fraco, pouco atraso' : 'forte, mais atraso'}` : `${tw.label}!`, 90);
   }
 
   function switchUnit() {
@@ -2283,10 +2334,13 @@
       const wk = u.moves[i];
       if (WEAPONS[wk].none || WEAPONS[wk].teleport || WEAPONS[wk].protect) continue;
       const pl = yield* planWeaponGen(u, wk);
-      if (!bestPlan || pl.score > bestPlan.score || (pl.score === bestPlan.score && pl.near < bestPlan.near)) { bestPlan = pl; bestMi = i; }
+      pl.v = planV(pl, wk);
+      if (!bestPlan || pl.v > bestPlan.v || (pl.v === bestPlan.v && pl.near < bestPlan.near)) { bestPlan = pl; bestMi = i; }
     }
     return finishPlan(u, bestPlan, bestMi);
   }
+  // valor de um plano: dano esperado por atraso (golpe forte só compensa se render bem mais)
+  const planV = (pl, wk) => pl.score * (WEAPONS[wk].aiVal || 1) * (ORIG ? 600 / shotDelay(wk) : 1);
   function finishPlan(u, bestPlan, bestMi) {
     u.mi = bestMi;
     const pick1 = bestPlan ? bestPlan.pick : { ang: fromElev(u, 45), pw: 60, face: u.face };
@@ -2325,7 +2379,7 @@
       void wk;
       if (job.got.length < job.want) return;
       let bestPlan = null, bestMi = 0;
-      for (const { i: mi, pl } of job.got) if (!bestPlan || pl.score > bestPlan.score || (pl.score === bestPlan.score && pl.near < bestPlan.near)) { bestPlan = pl; bestMi = mi; }
+      for (const { i: mi, pl } of job.got) { pl.v = planV(pl, u.moves[mi]); if (!bestPlan || pl.v > bestPlan.v || (pl.v === bestPlan.v && pl.near < bestPlan.near)) { bestPlan = pl; bestMi = mi; } }
       job.result = { bestPlan, bestMi }; job.done = true;
     };
     let first = true;
@@ -4324,7 +4378,7 @@
     const camp = b && kind === 'campaign';
     const au = b && teams[turnTeam] && !teams[turnTeam].ai ? activeUnit() : null;
     const show = { left: b, right: b, up: b || i, down: b || i, fire: b || i, pass: !!au, restart: b || i,
-                   ball: camp && (!ORIG || (eggs.length > 0 && !!au && state === 'aim')), move: !!(au && au.moves.length > 1), menu: b || i, sound: !settingsOpen, settings: true };
+                   ball: camp && (!ORIG || (eggs.length > 0 && !!au && state === 'aim')), item: ORIG && camp && !!au && state === 'aim', move: !!(au && au.moves.length > 1), menu: b || i, sound: !settingsOpen, settings: true };
     // na fase da cidade os botões vão para a esquerda, para não cobrir a lagoa e os alvos da direita
     const introPos = { up: 'translate(-536 0)', down: 'translate(-536 0)', fire: 'translate(190 452) scale(.75) translate(-738 -436)' };
     document.querySelectorAll('.btn').forEach(el => {
@@ -4388,6 +4442,7 @@
       else if (act === 'restart') restart();
       else if (act === 'ball') toggleBall();
       else if (act === 'move') cycleMove();
+      else if (act === 'item') cycleItem();
       else if (act === 'menu') { Sfx.click(); initMenu(); }
       else if (act === 'sound') toggleSound();
       else if (act === 'settings') toggleSettings();
@@ -4510,6 +4565,7 @@
     if (e.key === 'p' || e.key === 'P') { passTurn(); return; }
     if (e.key === 'b' || e.key === 'B') toggleBall();
     else if (e.key === 'g' || e.key === 'G') cycleMove();
+    else if (e.key === 'i' || e.key === 'I') cycleItem();
     else if (e.key === 'q' || e.key === 'Q') keys.panL = true;
     else if (e.key === 'e' || e.key === 'E') keys.panR = true;
     else if (e.key === 'c' || e.key === 'C') panX = null;
@@ -4527,7 +4583,7 @@
   // X segura e solta para atirar (e confirma nos menus) · direcional/analógico esquerdo anda e mira · ▢ Pokébola · △ troca de golpe
   // L1/R1 (ou analógico direito) olham o mapa · L2 recentraliza · R2 passa a vez · Create reinicia · Options ajustes · O volta
   const PAD_KEYS = { 0: { key: ' ', code: 'Space' }, 2: { key: 'b' }, 3: { key: 'g' }, 4: { key: 'q', hold: true }, 5: { key: 'e', hold: true },
-                     6: { key: 'c' }, 7: { key: 'p' }, 8: { key: 'r' }, 9: { key: 'o' },
+                     6: { key: 'c' }, 7: { key: 'p' }, 8: { key: 'r' }, 9: { key: 'o' }, 10: { key: 'i' }, 11: { key: 'i' },
                      12: { key: 'ArrowUp', hold: true }, 13: { key: 'ArrowDown', hold: true }, 14: { key: 'ArrowLeft', hold: true }, 15: { key: 'ArrowRight', hold: true } };
   // Fire TV (navegador Silk): o X e os direcionais/analógicos ficam presos no ponteiro e os botões chegam com outra numeração
   // (O = 0, △ = 1, ▢ = 3, L1 = 4, R1 = 5, Create = 8, Options = 9). Então: O atira, L1/R1 andam, △/▢ miram, Create troca de golpe.

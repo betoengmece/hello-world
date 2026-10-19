@@ -500,6 +500,39 @@
     zumbido:   { label: 'Zumbido',         type: 'bug',      style: 'sound',  count: 1, spread: 0, speed: 1.0,  grav: 0.5,  boom: 32, carve: 0,  dmg: 9,  windMul: 1.2, buzz: true },
     bolaterra: { label: 'Bola de Terra',   type: 'ground',   style: 'dung',  count: 1, spread: 0, speed: 1.0,  grav: 1.2,  boom: 36, carve: 20, dmg: 34, windMul: 0.3, bounce: 3 }
   });
+  // ---------- Dois golpes por bicho (estilo GunBound) ----------
+  // golpe 1: fraco e rápido (pouco atraso); golpe 2: o golpe especial da espécie, forte e com mais atraso
+  Object.assign(MS.WEAPONS, {
+    ossinho:   { label: 'Ossinho',         type: 'normal',   style: 'bone',   count: 1, spread: 0, speed: 1.1,  grav: 0.95, boom: 26, carve: 8,  dmg: 22, windMul: 0.7 },
+    rosnado:   { label: 'Rosnado',         type: 'fighting', style: 'sound',  count: 1, spread: 0, speed: 1.1,  grav: 0.55, boom: 26, carve: 3,  dmg: 18, windMul: 0.8 },
+    pedrinha:  { label: 'Pedrinha',        type: 'rock',     style: 'rock',   count: 1, spread: 0, speed: 1.05, grav: 1.1,  boom: 24, carve: 8,  dmg: 22, windMul: 0.4, size: 0.7 },
+    farelo:    { label: 'Farelo',          type: 'bug',      style: 'crumb',  count: 1, spread: 0, speed: 1.0,  grav: 1.05, boom: 26, carve: 8,  dmg: 21, windMul: 0.6 },
+    bolinha:   { label: 'Bolinha de Cocô', type: 'ground',   style: 'dung',   count: 1, spread: 0, speed: 1.0,  grav: 1.15, boom: 26, carve: 10, dmg: 20, windMul: 0.3, bounce: 1 },
+    milho:     { label: 'Grão de Milho',   type: 'normal',   style: 'crumb',  count: 2, spread: 5, speed: 1.1,  grav: 1.0,  boom: 18, carve: 4,  dmg: 11, windMul: 0.6 },
+    minibarata:{ label: 'Barata Filhote',  type: 'bug',      style: 'roach',  count: 1, spread: 0, speed: 1.3,  grav: 0.5,  boom: 20, carve: 4,  dmg: 20, windMul: 0.6 },
+    espinho:   { label: 'Espinho',         type: 'poison',   style: 'spike',  count: 1, spread: 0, speed: 1.15, grav: 0.8,  boom: 16, carve: 3,  dmg: 20, st: { type: 'poison', p: 0.12 } },
+    lambida:   { label: 'Lambida',         type: 'grass',    style: 'tongue', count: 1, spread: 0, speed: 1.25, grav: 0.7,  boom: 20, carve: 0,  dmg: 20 },
+    farelopao: { label: 'Farelo de Pão',   type: 'normal',   style: 'crumb',  count: 1, spread: 0, speed: 1.0,  grav: 1.0,  boom: 24, carve: 6,  dmg: 20, windMul: 0.6 },
+    ferroada:  { label: 'Ferroada',        type: 'bug',      style: 'bee',    count: 1, spread: 0, speed: 1.1,  grav: 0.6,  boom: 18, carve: 3,  dmg: 21, windMul: 0.6, homing: 0.03 },
+    cuspe:     { label: 'Cuspe',           type: 'poison',   style: 'slime',  count: 1, spread: 0, speed: 1.05, grav: 1.0,  boom: 24, carve: 4,  dmg: 18, st: { type: 'poison', p: 0.25 } },
+    bicadinha: { label: 'Bicadinha',       type: 'normal',   style: 'beak',   count: 1, spread: 0, speed: 1.1,  grav: 1.0,  boom: 24, carve: 10, dmg: 22, windMul: 0.3 },
+    picada:    { label: 'Picada',          type: 'bug',      style: 'spike',  count: 1, spread: 0, speed: 1.2,  grav: 0.7,  boom: 22, carve: 3,  dmg: 26, st: { type: 'poison', p: 0.45 } },
+    tufo:      { label: 'Tufo de Pelo',    type: 'normal',   style: 'hair',   count: 1, spread: 0, speed: 1.05, grav: 1.0,  boom: 26, carve: 8,  dmg: 22 }
+  });
+  // [golpe 1 (fraco), golpe 2 (forte)]
+  const DUO = { caramelo: ['ossinho', 'osso'], pinscher: ['rosnado', 'latido'], tatubola: ['pedrinha', 'rolamento'], formiga: ['farelo', 'migalha'],
+    rolabosta: ['bolinha', 'bolaterra'], galinha: ['milho', 'ovobomba'], barata: ['minibarata', 'voobarata'], baiacu: ['espinho', 'espinhos'],
+    camaleao: ['lambida', 'lingua'], pombo: ['farelopao', 'paoisca'], abelha: ['ferroada', 'enxame'], sapo: ['cuspe', 'gosma'],
+    picapau: ['bicadinha', 'bicada'], pernilongo: ['zumbido', 'picada'], gato: ['tufo', 'bolapelo'] };
+  for (const sp in DUO) {
+    const S = MS.SPECIES[sp]; if (!S) continue;
+    const [w1, w2] = DUO[sp];
+    S.weapon = w1; S.extra = [w2];
+    MS.WEAPONS[w1].dl = 470; MS.WEAPONS[w1].tier = 1;       // atraso do golpe fraco
+    MS.WEAPONS[w2].dl = 720; MS.WEAPONS[w2].tier = 2;       // atraso do golpe forte
+  }
+  MS.WEAPONS.paoisca.aiVal = 2.6;     // a IA conta o cocô do pombo que vem depois
+  MS.WEAPONS.lingua.aiVal = 1.3;
   MS.ORIG_STARTERS = ['caramelo', 'pinscher', 'tatubola'];
   if (MS.AIM_TIERS) { const base = MS.aimRange, tier = { gato: 'mid', pernilongo: 'wide', abelha: 'wide', pedrugo: 'mid', ventolina: 'wide', musguinho: 'basic', pinscher: 'wide', tatubola: 'mid', rolabosta: 'mid', barata: 'wide', baiacu: 'mid', pombo: 'wide' }; MS.aimRange = sp => (tier[sp] ? MS.AIM_TIERS[tier[sp]] : base(sp)); }
   const G = (sp, rarity) => ({ sp, rarity });

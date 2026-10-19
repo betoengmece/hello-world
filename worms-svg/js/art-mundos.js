@@ -54,6 +54,30 @@
       <path d="M-14,0 L-14,-12 L12,-20 L14,-12 L14,0 Z" fill="#ffd23a" stroke="${O}" stroke-width="1.1" stroke-linejoin="round"/>
       <path d="M-14,-12 L14,-12" stroke="${O}" stroke-width="1"/><path d="M-14,-12 L12,-20 L14,-12 Z" fill="#ffe27a" stroke="${O}" stroke-width="1" stroke-linejoin="round"/>
       <circle cx="-7" cy="-6" r="2.4" fill="#e8a81a"/><circle cx="3" cy="-4" r="1.6" fill="#e8a81a"/><circle cx="8" cy="-8" r="2" fill="#e8a81a"/><circle cx="2" cy="-15" r="1.2" fill="#f0b830"/>`,
+    pote: () => `<ellipse cx="0" cy="0" rx="13" ry="2.2" fill="#000" opacity=".2"/>
+      <path d="M-10,-24 Q-12,-24 -12,-20 L-12,-4 Q-12,0 -8,0 L8,0 Q12,0 12,-4 L12,-20 Q12,-24 10,-24 Z" fill="#e8f4fa" fill-opacity=".55" stroke="${O}" stroke-width="1.1"/>
+      <circle cx="-5" cy="-6" r="4.4" fill="#d8a060" stroke="#8a5a2e" stroke-width=".8"/><circle cx="4" cy="-5" r="4.4" fill="#d8a060" stroke="#8a5a2e" stroke-width=".8"/><circle cx="0" cy="-13" r="4.4" fill="#c88a4a" stroke="#8a5a2e" stroke-width=".8"/><circle cx="7" cy="-14" r="3.6" fill="#d8a060" stroke="#8a5a2e" stroke-width=".8"/>
+      <circle cx="-5" cy="-7" r=".9" fill="#4a2a14"/><circle cx="-3" cy="-5" r=".8" fill="#4a2a14"/><circle cx="4" cy="-6" r=".9" fill="#4a2a14"/><circle cx="1" cy="-14" r=".8" fill="#4a2a14"/>
+      <rect x="-9" y="-29" width="18" height="6" rx="2" fill="#c8945a" stroke="${O}" stroke-width="1"/><path d="M-8,-27 h16" stroke="#a8743e" stroke-width=".8"/>
+      <path d="M-9,-21 L-9,-5" stroke="#fff" stroke-width="2" opacity=".7" stroke-linecap="round"/>`,
+    pratos: () => `<ellipse cx="0" cy="0" rx="16" ry="2.2" fill="#000" opacity=".2"/>
+      ${[0, 1, 2, 3, 4].map(i => `<path d="M-14,${-2 - i * 4} Q0,${2 - i * 4} 14,${-2 - i * 4} L12,${-5 - i * 4} L-12,${-5 - i * 4} Z" fill="#fbfbf8" stroke="${O}" stroke-width=".9" stroke-linejoin="round"/><path d="M-13,${-3.4 - i * 4} Q0,${0.4 - i * 4} 13,${-3.4 - i * 4}" fill="none" stroke="#4a8ad0" stroke-width="1"/>`).join('')}
+      <ellipse cx="0" cy="-22" rx="12" ry="2.4" fill="#f0f0ea" stroke="${O}" stroke-width=".9"/>`,
+    bule: () => `<ellipse cx="0" cy="0" rx="15" ry="2.2" fill="#000" opacity=".2"/>
+      <path d="M8,-12 C14,-14 16,-20 20,-22 L21,-20 C18,-17 16,-10 9,-6 Z" fill="#5aa0c8" stroke="${O}" stroke-width="1" stroke-linejoin="round"/>
+      <path d="M-9,-14 C-16,-14 -16,-4 -9,-5" fill="none" stroke="${O}" stroke-width="3.4"/><path d="M-9,-14 C-16,-14 -16,-4 -9,-5" fill="none" stroke="#5aa0c8" stroke-width="2"/>
+      <path d="M-11,-2 Q-13,-16 0,-18 Q13,-16 11,-2 Q0,1 -11,-2 Z" fill="#5aa0c8" stroke="${O}" stroke-width="1.1"/>
+      <path d="M-7,-18 Q0,-24 7,-18 Z" fill="#4a88b0" stroke="${O}" stroke-width="1"/><circle cx="0" cy="-23" r="2" fill="#ffd23a" stroke="${O}" stroke-width=".8"/>
+      <path d="M-8,-9 Q0,-5 8,-9" fill="none" stroke="#fff" stroke-width="1.6" stroke-dasharray="2 2.4"/>
+      <path d="M-7,-14 Q-8,-8 -6,-4" fill="none" stroke="#fff" stroke-width="1.6" opacity=".55" stroke-linecap="round"/>
+      <path d="M21,-24 q-2,-4 1,-7 q2,-3 0,-6" fill="none" stroke="#fff" stroke-width="1.3" opacity=".8" stroke-linecap="round"/>`,
+    fruteira: () => `<ellipse cx="0" cy="0" rx="16" ry="2.2" fill="#000" opacity=".2"/>
+      <path d="M-7,-12 C-12,-24 -2,-28 4,-26 C-2,-24 -4,-18 -2,-12 Z" fill="#ffd84a" stroke="${O}" stroke-width=".9"/>
+      <circle cx="5" cy="-15" r="5" fill="#e8322a" stroke="${O}" stroke-width=".9"/><path d="M5,-20 q1,-3 3,-3" stroke="#6a3a1e" stroke-width="1" fill="none"/>
+      <g fill="#8a4ac8" stroke="${O}" stroke-width=".6"><circle cx="-8" cy="-14" r="2.4"/><circle cx="-11" cy="-15" r="2.4"/><circle cx="-9.5" cy="-17.6" r="2.4"/><circle cx="-12.6" cy="-18" r="2.2"/></g>
+      <circle cx="11" cy="-13" r="4" fill="#ff9a2a" stroke="${O}" stroke-width=".9"/>
+      <path d="M-15,-12 L15,-12 Q13,-1 0,-1 Q-13,-1 -15,-12 Z" fill="#d8a060" stroke="${O}" stroke-width="1.1" stroke-linejoin="round"/>
+      <path d="M-12,-9 L12,-9 M-10,-5 L10,-5" stroke="#a8743e" stroke-width="1"/><rect x="-5" y="-1.4" width="10" height="1.6" fill="#a8743e"/>`,
     // ----- Praia -----
     guardasol: d => `<ellipse cx="0" cy="0" rx="14" ry="2" fill="#000" opacity=".18"/>
       <path d="M0,0 L1,-34" stroke="#f4f0e6" stroke-width="2" stroke-linecap="round"/><path d="M0,0 L1,-34" stroke="${O}" stroke-width=".5" opacity=".5"/>

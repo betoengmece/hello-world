@@ -8,7 +8,7 @@
   const GRAV = 0.2;           // gravidade base (px/frame²)
   const WALK_MAX = 120;       // distância máxima de caminhada por turno (mapas largos dão um pouco mais)
   const walkMax = () => WALK_MAX + Math.max(0, W - 800) * 0.07;
-  const GAME_VERSION = '19/10 bichos-11';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
+  const GAME_VERSION = '19/10 bichos-12';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
   const TURN_TIME = 30 * 60;  // 30 s para mirar e atirar (estourou: passa a vez)
   const WEAK = 0.35;          // abaixo dessa fração de PV o inimigo pode ser capturado
   const PLAYER_COL = '#3a9bff', WILD_COL = '#e0433a', GUEST_COL = '#ffd34d';
@@ -359,6 +359,8 @@
     setStop('seaFS0', t.sea[2]); setStop('seaFS1', t.sea[3]);
     $('strata1').setAttribute('fill', t.s1); $('strata2').setAttribute('fill', t.s2);
     $('treeline').setAttribute('fill', t.tl);
+    if ($('tlWin')) $('tlWin').setAttribute('fill', t.win || '#ffe9a0');
+    if ($('tlDeco')) { $('tlDeco').setAttribute('stroke', t.deco || '#ffffff'); $('tlDeco').setAttribute('stroke-opacity', t.decoA || 0.4); }
     $('edgeGrass').setAttribute('stroke', t.g[0]); $('tbackGrass').setAttribute('stroke', t.g[0]);
     $('edgeGrassHi').setAttribute('stroke', t.g[1]); $('tufts').setAttribute('stroke', t.g[2]);
     $('fore').setAttribute('fill', t.fore);
@@ -505,7 +507,7 @@
       else if (arch === 'slope') h += sl * (x / W - 0.5) * 120;
       else if (arch === 'mesas') h -= 60 * (Math.exp(-(((x - m1) / (W * 0.1)) ** 4)) + Math.exp(-(((x - m2) / (W * 0.1)) ** 4)));
       top[x] = clamp(h, 150, solidGround ? 440 : 392);
-      tuft[x] = rnd(4, 9);
+      tuft[x] = T.noTuft ? 0 : rnd(4, 9);
     }
     // ilhas flutuantes: o terreno se parte em blocos com vãos; por baixo, rocha pendurada sobre a água
     for (const [a, b] of (solidGround ? [[0, W - 1]] : islandSpans())) {
@@ -529,16 +531,45 @@
     const far = [], near = [];
     for (let x = -20; x <= W + 40; x += 60) far.push({ x, y: rnd(150, 215) });
     for (let x = -20; x <= W + 40; x += 45) near.push({ x, y: rnd(212, 262) });
-    $('mtFarPath').setAttribute('d', hillPath(far));
-    $('mtNearPath').setAttribute('d', hillPath(near));
+    $('mtFarPath').setAttribute('d', T.noHills ? '' : hillPath(far));
+    $('mtNearPath').setAttribute('d', T.noHills ? '' : hillPath(near));
 
     // faixa de fundo: prédios (cidade), dunas (praia), pedras pontudas (caverna) ou pinheiros
-    let tl = '', win = '';
+    let tl = '', win = '', deco = '';
     const tk = THEMES[key].tl2;
     if (key === 'cidade' || tk === 'city') { const s = skyline(); tl = s.d; win = s.win; }
     else if (tk === 'fence') {
       tl = `M-60,${H} L-60,272 L${W + 60},272 L${W + 60},277 L-60,277 Z M-60,293 L${W + 60},293 L${W + 60},298 L-60,298 Z`;
       for (let x = -50; x < W + 60; x += 13) tl += ` M${x},${H} L${x},262 L${x + 4.5},255 L${x + 9},262 L${x + 9},${H} Z`;
+    } else if (tk === 'kitchen') {
+      // parede de azulejo tipo tijolinho
+      for (let y = 0, r = 0; y < 300; y += 15, r++) {
+        deco += `M-60,${y}H${W + 60}`;
+        for (let x = (r % 2) * 15 - 60; x < W + 60; x += 30) deco += `M${x},${y}v15`;
+      }
+      // armários de cima (portas com puxador) e, de vez em quando, uma janela
+      for (let x = -30; x < W + 60;) {
+        const w = Math.round(rnd(120, 175));
+        if (Math.random() < 0.28) {
+          const wx = x + 14, ww = w - 28;
+          tl += ` M${wx - 7},40 h${ww + 14} v124 h-${ww + 14} Z M${wx - 12},164 h${ww + 24} v7 h-${ww + 24} Z`;
+          win += `M${wx},47 h${f1(ww / 2 - 3)} v110 h-${f1(ww / 2 - 3)} Z M${f1(wx + ww / 2 + 3)},47 h${f1(ww / 2 - 3)} v110 h-${f1(ww / 2 - 3)} Z`;
+        } else {
+          tl += ` M${x},14 h${w} v100 h-${w} Z M${x - 4},10 h${w + 8} v6 h-${w + 8} Z`;
+          win += `M${f1(x + w / 2 - 0.8)},18 v92 h1.6 v-92 Z M${f1(x + w / 2 - 10)},92 h4 v14 h-4 Z M${f1(x + w / 2 + 6)},92 h4 v14 h-4 Z`;
+        }
+        x += w + 18;
+      }
+      // bancada do fundo com potes, garrafas e tigelas
+      tl += ` M-60,${H} L-60,252 L${W + 60},252 L${W + 60},${H} Z`;
+      win += `M-60,252 H${W + 60} v3 H-60 Z`;
+      for (let x = -40; x < W + 60;) {
+        const k = Math.random(), w = k < 0.4 ? rnd(16, 24) : k < 0.7 ? rnd(8, 11) : rnd(20, 30), h = k < 0.4 ? rnd(22, 36) : k < 0.7 ? rnd(34, 46) : rnd(12, 18), b = 252;
+        if (k < 0.4) tl += ` M${f1(x)},${b} L${f1(x)},${f1(b - h)} L${f1(x + 2)},${f1(b - h - 4)} L${f1(x + w - 2)},${f1(b - h - 4)} L${f1(x + w)},${f1(b - h)} L${f1(x + w)},${b} Z`;
+        else if (k < 0.7) tl += ` M${f1(x)},${b} L${f1(x)},${f1(b - h * 0.6)} L${f1(x + w * 0.3)},${f1(b - h * 0.75)} L${f1(x + w * 0.3)},${f1(b - h)} L${f1(x + w * 0.7)},${f1(b - h)} L${f1(x + w * 0.7)},${f1(b - h * 0.75)} L${f1(x + w)},${f1(b - h * 0.6)} L${f1(x + w)},${b} Z`;
+        else tl += ` M${f1(x)},${b} L${f1(x + 2)},${f1(b - h)} L${f1(x + w - 2)},${f1(b - h)} L${f1(x + w)},${b} Z`;
+        x += w + rnd(10, 40);
+      }
     } else if (tk === 'shelf') {
       tl = `M-60,${H} L-60,266 L${W + 60},266 L${W + 60},${H} Z`;
       for (let x = -40; x < W + 60;) {
@@ -563,6 +594,7 @@
     }
     $('treeline').setAttribute('d', tl);
     $('tlWin').setAttribute('d', win);
+    if ($('tlDeco')) $('tlDeco').setAttribute('d', deco);
 
     // touceiras de capim em primeiro plano, nos cantos
     const clump = (cx, b, n, hmax) => {
@@ -574,8 +606,8 @@
       }
       return d;
     };
-    let fd = clump(-14, 520, 16, 72) + clump(814 + (W - 800) * 1.3, 520, 16, 72);
-    for (let cx = 560; cx < W * 1.3 - 600; cx += rnd(520, 900)) fd += clump(cx, 520, 9, 56);
+    let fd = T.noTuft ? '' : clump(-14, 520, 16, 72) + clump(814 + (W - 800) * 1.3, 520, 16, 72);
+    if (!T.noTuft) for (let cx = 560; cx < W * 1.3 - 600; cx += rnd(520, 900)) fd += clump(cx, 520, 9, 56);
     $('fore').setAttribute('d', fd);
     $('introBack').innerHTML = '';
     decor = []; dirty = true;
@@ -587,13 +619,14 @@
     decor = [];
     const list = THEMES[themeKey].decor;
     if (!list.length) return;
-    const nDec = Math.round(11 * W / 800);
+    const TD = THEMES[themeKey], nDec = Math.round((TD.decorN || 11) * W / 800), sr = TD.decorS || [0.8, 1.15];
     for (let tries = 0; decor.length < nDec && tries < 300 * W / 800; tries++) {
       const x = Math.round(rnd(15, W - 15));
       if (avoid.some(a => Math.abs(a - x) < 28)) continue;
       if (heights[x] >= WATER - 30 || Math.abs(surf(x - 7) - surf(x + 7)) > 12) continue;   // nada de árvore na beira da ilha
-      if (decor.some(d => Math.abs(d.x - x) < 26)) continue;
-      decor.push({ x, base: heights[x], type: pick(list), s: rnd(0.8, 1.15),
+      if (decor.some(d => Math.abs(d.x - x) < 26 * sr[1])) continue;
+      if (TD.decorS && avoid.some(a => Math.abs(a - x) < 46)) continue;
+      decor.push({ x, base: heights[x], type: pick(list), s: rnd(sr[0], sr[1]),
                    col: pick(['#ff6b8a', '#ffd84d', '#ffffff', '#b98cff', '#7ae8ff', '#ff9be8']) });
     }
     dirty = true; glFullT = true;
@@ -715,6 +748,7 @@
   }
   function resetCommon() {
     resetItems();
+    kos = []; party = 0; hitStop = 0;
     fx = []; projs = []; parts = []; floaters = []; graves = []; eggs = []; stageEggs = []; nets = []; netMode = false; lastNet = false;
     power = 0; charging = false; ballMode = false; lastBall = false; pickups = []; weather = null; bolt = null; ai = null; cap = null; panel = null; pendingPanel = null;
     keys = {}; wxPrev = null; wxK = 1;
@@ -947,7 +981,18 @@
   function stageClear() {
     state = 'over'; guest = null; units = units.filter(u => u.team !== 2);
     let grow = false;
-    if (ORIG) { grow = stageEggs.some(e => e.baby && e.baby.alive); hatchEggs(); }
+    let nStars = 0;
+    if (ORIG) {
+      grow = stageEggs.some(e => e.baby && e.baby.alive);
+      const mine = teams[0] ? teams[0].units.filter(u => !u.baby) : [];
+      const lost = mine.filter(u => !u.alive).length, alive = mine.filter(u => u.alive);
+      const hpk = alive.reduce((a, u) => a + u.hp, 0) / Math.max(1, alive.reduce((a, u) => a + u.maxhp, 0));
+      nStars = lost === 0 ? (hpk >= 0.5 ? 3 : 2) : 1;
+      putStars(stageIdx, nStars);
+      for (const u of teams[0].units) if (u.alive) { u.cheer = 1 + Math.floor(Math.random() * 10); u.face = 1; }
+      party = 150;
+      hatchEggs();
+    }
     const last = stageIdx >= STAGES.length - 1;
     Sfx.win();
     const xp = awardXp();
@@ -959,8 +1004,8 @@
     pendingPanel = { t: grow ? 150 : 70, evos: xp.evos, panel: {
       title: last ? '🏆 Você é o Campeão!' : 'Fase concluída!',
       sub: last ? `Você terminou a campanha com ${campaign.roster.length} ${ORIG ? 'monstrinhos' : 'Pokémon'}. Dá para rejogar qualquer fase pelo menu.` : `${STAGES[stageIdx].name} superada.`,
-      lines: xp.lines, caught: stageCaught.slice(), buttons } };
-    showMsg(last ? 'Campeão!' : 'Fase concluída!', 70);
+      lines: xp.lines, caught: stageCaught.slice(), buttons, stars: nStars, f0: 0 } };
+    showMsg(last ? 'Campeão!' : ORIG ? `Vitória! ${starStr(nStars)}` : 'Fase concluída!', 90);
   }
 
   // ---------- Cena de evolução ----------
@@ -1348,6 +1393,11 @@
     if (wp.boom >= 40 || style === 'thunder') { flash.a = Math.min(0.5, wp.boom / 100); flash.col = { fire: '#ffd9a0', dragon: '#c8b0ff', thunder: '#fffbb0', rock: '#e8dcc0' }[style] || '#ffffff'; }
     carve(x, y, wp.carve);
     fx.push({ x, y, t: 0, max: 36, r: wp.boom, fill: FX_FILL[style], style });
+    if (ORIG) {                                                     // poeira subindo do chão quando a explosão encosta nele
+      const gy0 = surf(x, y - 6);
+      if (gy0 - y < 26 && gy0 < WATER) { const dc = (THEMES[themeKey].dirt || ['#c8b898'])[0]; for (let i = 0; i < 10; i++) addPart({ x: x + rnd(-6, 6), y: gy0 - 2, vx: rnd(-3.2, 3.2), vy: rnd(-1.3, -0.2), g: 0.015, life: 46, max: 46, r: rnd(3, 6.5), col: dc, kind: 'smoke' }); }
+      if (wp.dmg >= 30) cam.shake = Math.max(cam.shake, wp.boom / 4.5);
+    }
     burst(x, y, style);
     for (const u of units) {
       if (!u.alive || u.hidden) continue;
@@ -1357,11 +1407,19 @@
       const dmg = shieldDmg(u, Math.round((u.puffed ? 0.5 : 1) * wp.dmg * k * mult * wxMul(wp.type) * (p.crit ? 1.6 : 1) * (p.boost || 1) * ((p.ownerUnit && p.ownerUnit.dmgMul) || 1) * (p.ownerUnit && spOf(p.ownerUnit).furia && p.ownerUnit.hp / p.ownerUnit.maxhp < 0.4 ? 1.5 : 1)));
       if (dmg > 0) {
         u.hp -= dmg; u.hurt = 24; anyHurt = true;
+        if (ORIG) {
+          u.sq = 1; hitStop = Math.max(hitStop, Math.min(8, 2 + Math.round(dmg / 8)));
+          if (dmg >= 26 && k > 0.35) floaters.push({ x: u.x + rnd(-16, 16), y: u.y - spOf(u).h * u.scale - 52, t: 0, text: pick(POW), col: '#ffd34d', size: Math.min(25, 16 + dmg / 7), pop: 1, comic: true, rot: rnd(-0.28, 0.28) });
+          if (!wp.push && !u.flying && !(u.lift > 0)) {                 // empurrãozinho para longe da explosão (nunca para fora da beirada)
+            const dir = (u.x - x) >= 0 ? 1 : -1, n = Math.min(9, Math.round(dmg / 6 * k));
+            for (let i = 0; i < n; i++) { if (ledgeAhead(u, dir)) break; const ny = stepTo(u, u.x + dir); if (ny === null) break; u.x += dir; u.y = ny; }
+          }
+        }
         if (spOf(u).infla && !u.puffed) { u.puffed = true; u.hrMul = 1.35; floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 40, t: 6, text: 'Inflou! (metade do dano)', col: '#ffe27a', size: 12 }); }
         if (p.crit && k > 0.2) floaters.push({ x: u.x + 16, y: u.y - spOf(u).h * u.scale - 4, t: 4, text: 'Crítico!', col: '#ff5a5a', size: 12 });
         if (wp.drain && p.ownerUnit && p.ownerUnit.alive && u !== p.ownerUnit) { const h = Math.round(dmg * wp.drain); p.ownerUnit.hp = Math.min(p.ownerUnit.maxhp, p.ownerUnit.hp + h); if (h > 0) floaters.push({ x: p.ownerUnit.x, y: p.ownerUnit.y - spOf(p.ownerUnit).h * p.ownerUnit.scale - 18, t: 0, text: '+' + h, col: '#7be07b' }); }
         if (p.ownerUnit && p.ownerUnit.team === 0 && u.team > 0) p.ownerUnit.dealt += dmg;
-        floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 18, t: 0, text: '-' + dmg, col: sideColor(u) });
+        floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 18, t: 0, text: '-' + dmg, col: sideColor(u), size: ORIG ? Math.min(24, 13 + dmg / 5) : 15, pop: ORIG ? 1 : 0 });
         if (mult > 1 && k > 0.2) { sup = true; floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 34, t: 6, text: 'Super efetivo!', col: '#ff9a1a', size: 12 }); }
         else if (mult < 1 && k > 0.2) { weak = true; floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 34, t: 6, text: 'Pouco efetivo...', col: '#b8c0cc', size: 12 }); }
       }
@@ -1549,6 +1607,24 @@
   }
 
   let gagSt = 'aim', gagGo = false;
+  // ---------- Sensação de impacto ----------
+  let hitStop = 0, kos = [], party = 0;
+  const POW = ['POW!', 'TUM!', 'PAF!', 'BAM!', 'CABUM!', 'PLAFT!'];
+  // achata e estica o bicho quando apanha (mola que vai parando)
+  const sqXY = u => { const k = u.sq || 0; if (k <= 0) return [1, 1]; const w = Math.cos((1 - k) * 15) * k; return [1 + 0.28 * w, 1 - 0.24 * w]; };
+  // estrelas por fase (1 a 3): guardadas à parte do save
+  const STARS_KEY = SAVE_KEY + '_estrelas';
+  function getStars() { try { const a = JSON.parse(localStorage.getItem(STARS_KEY)); return Array.isArray(a) ? a : []; } catch (_) { return []; } }
+  function putStars(si, n) { try { const a = getStars(); a[si] = Math.max(a[si] || 0, n); localStorage.setItem(STARS_KEY, JSON.stringify(a)); } catch (_) {} }
+  const popK = t => t < 4 ? 0.4 + 1.1 * t / 4 : t < 10 ? 1.5 - 0.5 * (t - 4) / 6 : 1;
+  const floatO = f => f.comic ? { size: f.size || 24, fill: '#ffd34d', stroke: '#6a2a00', sw: 2.4 } : { size: f.size || 15, fill: f.col, stroke: f.col === '#ffffff' || f.col === '#fff' ? '#000' : '#fff', sw: f.pop ? 1.4 : 0.8 };
+  // bicho nocauteado: cai de lado com olhos em X, estrelinhas girando na cabeça e some numa nuvem
+  function koPose(k) {
+    const u = k.u, t = k.t, S = spOf(u), fall = Math.min(1, t / 16);
+    return { fall, hop: t < 16 ? -Math.sin(t / 16 * Math.PI) * 14 : 0, a: t > 78 ? Math.max(0, 1 - (t - 78) / 10) : 1,
+      hx: u.x - u.face * S.h * 0.75 * u.scale * fall, hy: u.y - 12 - S.hitR * u.scale * 0.6 };
+  }
+  const starStr = n => '★'.repeat(n) + '☆'.repeat(3 - n);
   // ---------- Itens (versão dos bichos) ----------
   // escolhidos antes do tiro; cada um custa atraso extra. Tiro Duplo: dois tiros seguidos, mais caro que dois tiros separados
   const ITEMS = {
@@ -2098,7 +2174,8 @@
         if (drowned) {
           for (let k = 0; k < 16; k++) addPart({ x: u.x, y: WATER, vx: rnd(-2, 2), vy: rnd(-4, -1.5), g: 0.15, life: 45, max: 45, r: rnd(1.5, 2.5), col: '#bfe9ff', kind: 'drop' });
           Sfx.splash();
-        } else { smoke(u.x, u.y - 14, 8); spray(u.x, u.y - 14, 10, '#ffffff', 2.5, 0.02, 30, 2, 'spark'); if (ORIG && u.team >= 1 && scene === 'battle') dropEgg(u); }
+        } else if (ORIG) { kos.push({ u, t: 0 }); spray(u.x, u.y - 14, 10, '#ffffff', 2.5, 0.02, 30, 2, 'spark'); if (u.team >= 1 && scene === 'battle') dropEgg(u); }
+        else { smoke(u.x, u.y - 14, 8); spray(u.x, u.y - 14, 10, '#ffffff', 2.5, 0.02, 30, 2, 'spark'); }
         Sfx.death();
         showMsg(`${u.name} ${drowned ? 'afogou!' : 'desmaiou!'}`, 100);
       }
@@ -2581,7 +2658,7 @@
     const shield = u.shield > 0 && u.capScale > 0.5 ? `<circle cx="0" cy="${f1(-S.hitY * u.scale)}" r="${f1(S.hitR * u.scale * 1.75 + 4)}" fill="#8fe0ff" fill-opacity=".13" stroke="#bff3ff" stroke-width="1.8" stroke-opacity="${(0.55 + 0.3 * Math.sin(af * 0.12)).toFixed(2)}"/>` : '';
     return { t: `translate(${f1(u.x)} ${f1(u.y + hop - lift + bobT)})`, h: `
       ${lift ? `<g transform="translate(0 ${f1(lift)})">${shadow}</g>` : shadow}${shield}
-      <g transform="${tilt}scale(${f1(u.face * sc)} ${f1(sc)})"${u.invis > 0 ? ' opacity=".3"' : flash ? ' opacity=".45"' : ''}><g${shF(u.sp, u.sh)}>${Art.draw(artSp(u), ctx)}</g></g>
+      <g transform="${tilt}scale(${f1(u.face * sc * sqXY(u)[0])} ${f1(sc * sqXY(u)[1])})"${u.invis > 0 ? ' opacity=".3"' : flash ? ' opacity=".45"' : ''}><g${shF(u.sp, u.sh)}>${Art.draw(artSp(u), ctx)}</g></g>
       ${u.sh && u.capScale > 0.5 ? glint(af, -S.hitR * u.scale * 0.8, -S.hitY * u.scale - 6, 1.2, u.blinkOff) + glint(af, S.hitR * u.scale * 0.9, -S.hitY * u.scale + 8, 0.9, u.blinkOff + 2) + glint(af, 0, -S.h * u.scale * 0.8, 1, u.blinkOff + 4) : ''}
       ${spOf(u).escolta && u.capScale > 0.5 && !beesOut(u) && MS.BEE_MINI ? Array.from({ length: spOf(u).escolta }, (_, i) => { const q = escortPos(u, i); return `<g transform="translate(${f1(q.x)} ${f1(q.y)}) scale(${f1(q.dir * 1.25 * u.scale)} ${f1(1.25 * u.scale)})">${MS.BEE_MINI}</g>`; }).join('') : ''}
       ${u.status === 'sujo' && u.capScale > 0.5 ? `<g transform="translate(${2 * u.face} ${f1(-S.h * u.scale * 0.92)}) scale(1.5)">${POOP_P}</g>` : ''}
@@ -3123,6 +3200,12 @@
         h += `<path transform="translate(0 ${f1(-(spOf(u).h * u.scale + 34) + Math.sin(aF() * 0.15) * 3)})" d="M-6,0 L6,0 L0,8 Z" fill="${teams[u.team].color}" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/>`;
       items.push({ k: u.uid, t: p.t, h });
     }
+    for (const k of kos) {
+      const u = k.u, q = koPose(k);
+      let h = `<g transform="rotate(${f1(-u.face * q.fall * 83)}) scale(${f1(u.face * u.scale)} ${f1(u.scale)})" opacity="${q.a.toFixed(2)}"><g${shF(u.sp, u.sh)}>${Art.draw(artSp(u), { f: 0, blink: false, breath: 0, bob: 0, step: 0, x: 0, mania: null, hurt: true })}</g></g>`;
+      if (k.t > 10 && k.t < 84) for (let i = 0; i < 3; i++) { const a = frameNo * 0.13 + i * 2.09; h += `<text x="${f1(q.hx - u.x + Math.cos(a) * 11)}" y="${f1(q.hy - u.y - 10 + Math.sin(a) * 4)}" text-anchor="middle" font-size="11" fill="#ffd34d" stroke="#6a4a00" stroke-width=".8">★</text>`; }
+      items.push({ k: 'ko' + u.uid, t: `translate(${f1(u.x)} ${f1(u.y + q.hop)})`, h });
+    }
     return items;
   }
 
@@ -3422,7 +3505,7 @@
   function glDrawTerrain() {
     const t = THEMES[themeKey], y1 = parseFloat($('dirt').getAttribute('y1')) || 160;
     GLR.drawTerrain({ d0: t.dirt[0], d1: t.dirt[1], d2: t.dirt[2], s1: t.s1, s2: t.s2, g0: t.g[0], g1: t.g[1], g2: t.g[2],
-      dy: [y1, 500], ph: terrPh, px: glP, lights: lite ? [] : glLights() });
+      dy: [y1, 500], ph: terrPh, px: glP, tx: { wood: 1, sand: 2, blocks: 3 }[t.tex] || 0, lights: lite ? [] : glLights() });
     // árvores, pedras e flores (desenho SVG de cada uma vira imagem)
     const R = GLR;
     for (const d of decor) {
@@ -3523,7 +3606,7 @@
       R.circle(0, cy, r, '#8fe0ff', 0.13); R.ring(0, cy, r, 1.8, '#bff3ff', 0.55 + 0.3 * Math.sin(af * 0.12));
     }
     const body = glBody(u);
-    if (body) { R.push(); if (u.tilt && !u.flying) R.rot(u.tilt); R.sc(u.face * sc, sc); R.spr(body, u.invis > 0 ? 0.3 : flash ? 0.45 : 1); R.pop(); }
+    if (body) { const [qx, qy] = sqXY(u); R.push(); if (u.tilt && !u.flying) R.rot(u.tilt); R.sc(u.face * sc * qx, sc * qy); R.spr(body, u.invis > 0 ? 0.3 : flash ? 0.45 : 1); R.pop(); }
     if (spOf(u).escolta && u.capScale > 0.5 && !beesOut(u)) {
       const bs = R.svg('pj|bee', PJ.bee[0], PJ.bee[1], R.res * 2);
       if (bs) for (let i = 0; i < spOf(u).escolta; i++) { const q = escortPos(u, i); R.push(); R.tr(q.x, q.y + Math.sin(frameNo * 0.6 + i) * 0.8); R.sc(q.dir * 1.25 * u.scale, 1.25 * u.scale); R.spr(bs); R.pop(); }
@@ -3898,6 +3981,11 @@
         arrow: u === act && (state === 'aim' || state === 'ai') && !teams[turnTeam].ai ? teams[u.team].color : null
       });
     }
+    for (const k of kos) {
+      const u = k.u, q = koPose(k), s = glBodySpr(u, glBodyRes(u), 0, 'h');
+      if (s) { R.push(); R.tr(u.x, u.y + q.hop); R.rot(-u.face * q.fall * 1.45); R.sc(u.face * u.scale, u.scale); R.spr(s, q.a); R.pop(); }
+      if (k.t > 10 && k.t < 84) for (let i = 0; i < 3; i++) { const a = frameNo * 0.13 + i * 2.09; R.text('★', q.hx + Math.cos(a) * 11, q.hy - 10 + Math.sin(a) * 4, { size: 11, fill: '#ffd34d', stroke: '#6a4a00', sw: 0.8 }, q.a); }
+    }
     // sombra dos tiros, tiros, captura
     if (!lite) for (const p of projs) {
       if (p.x < 0 || p.x >= W) continue;
@@ -3972,7 +4060,11 @@
       R.add(false);
     }
     glWater(true);
-    for (const f of floaters) R.text(f.text, f.x, f.y - f.t * 0.5, { size: f.size || 15, fill: f.col, stroke: f.col === '#ffffff' || f.col === '#fff' ? '#000' : '#fff', sw: 0.8 }, clamp(1 - f.t / 60, 0, 1));
+    for (const f of floaters) {
+      const a = clamp(1 - f.t / 60, 0, 1);
+      if (!f.pop) { R.text(f.text, f.x, f.y - f.t * 0.5, floatO(f), a); continue; }
+      R.push(); R.tr(f.x, f.y - f.t * 0.35); if (f.rot) R.rot(f.rot); R.sc(popK(f.t)); R.text(f.text, 0, 0, floatO(f), a); R.pop();
+    }
     // primeiro plano
     glLayer(1.3); glDrawSnap('fore');
     // clima e clarão (tela)
@@ -4082,9 +4174,10 @@
                       stroke-width="${f1(3 * (1 - k))}" opacity="${(0.8 * (1 - k)).toFixed(2)}"/>`;
     }).join('');
 
-    $('floaters').innerHTML = floaters.map(f => `<text x="${f1(f.x)}" y="${f1(f.y - f.t * 0.5)}" text-anchor="middle"
-        font-size="${f.size || 15}" font-weight="bold" fill="${f.col}" stroke="${f.col === '#ffffff' || f.col === '#fff' ? '#000' : '#fff'}" stroke-width=".8"
-        opacity="${clamp(1 - f.t / 60, 0, 1).toFixed(2)}">${f.text}</text>`).join('');
+    $('floaters').innerHTML = floaters.map(f => { const o = floatO(f), y = f.y - f.t * (f.pop ? 0.35 : 0.5);
+      return `<text transform="translate(${f1(f.x)} ${f1(y)})${f.rot ? ` rotate(${f1(f.rot * 57.3)})` : ''}${f.pop ? ` scale(${popK(f.t).toFixed(2)})` : ''}" text-anchor="middle"
+        font-size="${o.size}" font-weight="bold" fill="${o.fill}" stroke="${o.stroke}" stroke-width="${o.sw}" paint-order="stroke"
+        opacity="${clamp(1 - f.t / 60, 0, 1).toFixed(2)}">${f.text}</text>`; }).join('');
     }
 
     if (useGL) $('powerbar').innerHTML = '';                     // no WebGL a barra é desenhada pela placa de vídeo
@@ -4172,7 +4265,7 @@
           stroke="${sel ? '#ffb347' : cur ? '#8fe070' : '#fff'}" stroke-opacity="${sel || cur ? 1 : 0.55}" stroke-width="${sel || cur ? 3 : 1.6}"/>
         <text x="${x + 16}" y="${y + ch / 2 + 11}" font-size="30" font-weight="900" fill="${sel && !locked ? '#241400' : '#ffd34d'}">${i + 1}</text>
         <text x="${x + 44}" y="${y + ch / 2 - 5}" font-size="12.5" font-weight="bold" fill="${sel && !locked ? '#241400' : '#fff'}">${st.name}</text>
-        <text x="${x + 44}" y="${y + ch / 2 + 13}" font-size="10" fill="${sel && !locked ? '#3a2400' : '#bfe3ff'}">${locked ? 'bloqueada' : cleared ? '✔ concluída' : 'fase atual'}${st.boss ? ' · CHEFE' : ''}</text>
+        <text x="${x + 44}" y="${y + ch / 2 + 13}" font-size="10" fill="${sel && !locked ? '#3a2400' : '#bfe3ff'}">${locked ? 'bloqueada' : cleared ? (ORIG && getStars()[i] ? `<tspan fill="${sel && !locked ? '#7a4a00' : '#ffd34d'}">${starStr(getStars()[i])}</tspan>` : '✔ concluída') : 'fase atual'}${st.boss ? ' · CHEFE' : ''}</text>
         ${locked ? `<text x="${x + cw - 12}" y="${y + 24}" text-anchor="end" font-size="15">🔒</text>` : ''}</g>`;
     });
     // detalhes da fase em foco
@@ -4275,12 +4368,24 @@
     return s;
   }
 
+  function panelStars(P, by) {
+    if (!P.f0) P.f0 = frameNo;
+    const t = frameNo - P.f0; let s = '';
+    for (let i = 0; i < 3; i++) {
+      const ti = t - 8 - i * 14, on = i < P.stars, k = ti < 0 ? 0 : ti < 10 ? 1 + 0.5 * Math.sin(ti / 10 * Math.PI) : 1;
+      if (ti === 0 && on) Sfx.select();
+      const x = 400 + (i - 1) * 54, y = by - 4 - (i === 1 ? 10 : 0);
+      s += `<g transform="translate(${x} ${y}) scale(${f1(k * (i === 1 ? 1.25 : 1))})"><path d="M0,-20 L5.9,-8.1 L19,-6.2 L9.5,3.1 L11.8,16.2 L0,10 L-11.8,16.2 L-9.5,3.1 L-19,-6.2 L-5.9,-8.1 Z" fill="${on ? '#ffd34d' : '#3a4a6a'}" stroke="${on ? '#a86a00' : '#1a2440'}" stroke-width="2.4" stroke-linejoin="round"/>${on ? '<path d="M-5,-8 L0,-16 L3,-9 Z" fill="#fff6c0" opacity=".8"/>' : ''}</g>`;
+    }
+    return s;
+  }
   function panelSvg() {
     const P = panel;
     const nl = (P.lines || []).length, bx = 130, by = 90, bw = 540, bh = (P.caught.length ? 320 : 250) + nl * 20;
     let s = `<rect width="800" height="500" fill="#000" opacity=".5"/>
       <rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="20" fill="#13203a" fill-opacity=".96" stroke="#ffd34d" stroke-width="3"/>
       <text x="400" y="${by + 54}" text-anchor="middle" font-size="30" font-weight="800" fill="#ffd34d">${P.title}</text>
+      ${P.stars ? panelStars(P, by) : ''}
       <text x="400" y="${by + 82}" text-anchor="middle" font-size="15" fill="#fff">${P.sub}</text>`;
     let y = by + 100;
     (P.lines || []).forEach((ln, i) => { s += `<text x="400" y="${y + 6 + i * 20}" text-anchor="middle" font-size="13.5" fill="${ln.includes('evoluiu') ? '#6ad0ff' : '#cfe'}" font-weight="${ln.includes('evoluiu') ? 'bold' : 'normal'}">${ln}</text>`; });
@@ -4660,9 +4765,12 @@
     drawerT = Math.max(0, Math.min(1, drawerT + (settingsOpen ? 0.09 : -0.09)));
     if (settingsOpen) { updateCamera(); return; }   // pausado
     if (glActive && glLoading && scene === 'battle') { updateCamera(); return; }   // preparando as imagens: a batalha espera
+    if (hitStop > 0) { hitStop--; updateCamera(); return; }      // pausa curtinha no impacto (dá peso ao golpe)
     for (const u of units) {
       if (u.breath > 0) u.breath--;
       if (u.hurt > 0) u.hurt--;
+      if (u.sq > 0) u.sq = Math.max(0, u.sq - 0.045);
+      if (u.cheer) { u.cheer++; u.hop = u.cheer % 35; }
       if (scene !== 'intro') u.moving = false;
     }
     if (panel && panel.pause) { updateCamera(); return; }          // pergunta na tela: jogo parado
@@ -4676,6 +4784,12 @@
     fx = fx.filter(f => f.t < f.max);
     for (const f of floaters) f.t++;
     floaters = floaters.filter(f => f.t < 60);
+    for (const k of kos) { k.t++; if (k.t === 84) { smoke(k.u.x, k.u.y - 12, 10); spray(k.u.x, k.u.y - 14, 14, '#ffffff', 2.6, -0.01, 34, 2, 'spark'); } }
+    kos = kos.filter(k => k.t < 96);
+    if (party > 0 && scene === 'battle') {                         // confete da vitória
+      party--;
+      if (party % 2 === 0) for (let i = 0; i < 3; i++) addPart({ x: cam.x + rnd(-420, 420) / cam.z, y: cam.y - 260 / cam.z + rnd(-20, 10), vx: rnd(-0.6, 0.6), vy: rnd(0.8, 2), g: 0.012, life: 170, max: 170, r: rnd(2, 3.4), col: pick(['#ff5a6a', '#ffd34d', '#5ad0ff', '#8fe070', '#c88aff', '#ffffff']), kind: 'leaf' });
+    }
     if (msgT > 0 && --msgT === 0) msg = '';
     updateCamera();
   }
@@ -4684,7 +4798,7 @@
   function busy() {
     if (settingsOpen) return drawerT > 0 && drawerT < 1;
     if (glLoading || glLoadFade > 0) return true;
-    return projs.length > 0 || charging || !!cap || fx.length > 0 || floaters.length > 0 || flash.a > 0.02 || cam.shake > 0 ||
+    return projs.length > 0 || charging || !!cap || fx.length > 0 || floaters.length > 0 || kos.length > 0 || party > 0 || hitStop > 0 || flash.a > 0.02 || cam.shake > 0 ||
       !!(evo) || ['flying', 'capture', 'settle', 'guest', 'skip', 'evolve'].includes(state) || scene === 'intro' ||
       !!(keys.left || keys.right || keys.up || keys.down || keys.panL || keys.panR) || camMoving || !!panDrag || miniDrag;
   }

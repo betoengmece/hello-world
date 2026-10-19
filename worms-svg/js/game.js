@@ -8,7 +8,7 @@
   const GRAV = 0.2;           // gravidade base (px/frame²)
   const WALK_MAX = 120;       // distância máxima de caminhada por turno (mapas largos dão um pouco mais)
   const walkMax = () => WALK_MAX + Math.max(0, W - 800) * 0.07;
-  const GAME_VERSION = '18/10 bichos-6';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
+  const GAME_VERSION = '18/10 bichos-7';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
   const TURN_TIME = 30 * 60;  // 30 s para mirar e atirar (estourou: passa a vez)
   const WEAK = 0.35;          // abaixo dessa fração de PV o inimigo pode ser capturado
   const PLAYER_COL = '#3a9bff', WILD_COL = '#e0433a', GUEST_COL = '#ffd34d';
@@ -100,7 +100,7 @@
   const ORIG = !!MS.ORIGINAIS;
   const ORIG_COL = { brasito: '#e0583a', gotalho: '#4aa8e8', musguinho: '#4fae6a', faiscolino: '#7a6ac8', pedrugo: '#9a8f7c', ventolina: '#a9a0ec',
     caramelo: '#d38a3a', pinscher: '#2a2228', tatubola: '#8c7a62', formiga: '#c8382a', rolabosta: '#2e4a3a',
-    galinha: '#e8322a', barata: '#7a3e1c', baiacu: '#e8a83a', camaleao: '#5cbf4a', pombo: '#7a8496', abelha: '#f2c230' };
+    galinha: '#e8322a', barata: '#7a3e1c', baiacu: '#e8a83a', camaleao: '#5cbf4a', pombo: '#7a8496', abelha: '#f2c230', sapo: '#2a8ae8', picapau: '#e8322a' };
   // escolta da abelha rainha: 3 abelhinhas voando em volta (somem enquanto o Enxame está no ar)
   const beesOut = u => projs.some(p => p.ownerUnit === u && p.wp.style === 'bee');
   function escortPos(u, i) {
@@ -116,6 +116,8 @@
   const SPIKE_P = `<path d="M-7,-1.4 L7,0 L-7,1.4 Z" fill="#f6e6b0" stroke="#2a1f1a" stroke-width=".8" stroke-linejoin="round"/>`;
   const TONGUE_P = `<circle r="4.6" fill="#ff6a8a" stroke="#2a1f1a" stroke-width="1"/><ellipse cx="-1.4" cy="-1.6" rx="1.4" ry="1" fill="#ffb0c0"/>`;
   const POOP_P = `<path d="M-4.6,2 C-6,-1 -3,-4 0,-5 C1,-3 4,-3 4.6,0 C5.4,3 2,4.6 0,4.4 C-2,4.6 -4,4 -4.6,2 Z" fill="#f0ece4" stroke="#6a6a6a" stroke-width=".9"/><path d="M-2,0 q2,1.2 4,0" stroke="#9a9a9a" stroke-width=".8" fill="none"/>`;
+  const SLIME_P = `<path d="M-5.6,2 C-7,-2 -4,-6 0,-6 C4,-6 7,-2 5.6,2 C4.6,5 -4.6,5 -5.6,2 Z" fill="#8ae84a" stroke="#2a4a14" stroke-width="1"/><circle cx="-1.6" cy="-2.4" r="1.4" fill="#e8ffd0"/><circle cx="2.6" cy="1" r=".9" fill="#5ab82a"/>`;
+  const BEAK_P = `<path d="M-6,-3.4 L9,0 L-6,3.4 Z" fill="#f0b030" stroke="#2a1f1a" stroke-width="1" stroke-linejoin="round"/><path d="M-6,0 L8,0" stroke="#b07810" stroke-width=".8"/><path d="M-3,-2.4 L-1,2.4 M1,-1.8 L3,1.8" stroke="#b07810" stroke-width=".7"/>`;
   const MARK_P = `<path d="M-6,1 C-7,-4 -3,-6 1,-5.6 C5,-6 7,-2 6,2 C4,4.4 -4,4.4 -6,1 Z" fill="#e8b860" stroke="#2a1f1a" stroke-width="1" stroke-linejoin="round"/><path d="M-4,-1 C-2,-3 2,-3 4,-1 C2,1.6 -2,1.6 -4,-1 Z" fill="#fff0c8"/>`;
   const NET_SVG = `<g stroke="#e8f4ff" stroke-width=".9" fill="rgba(232,244,255,.18)"><circle r="8"/><circle r="4.4" fill="none"/><path d="M-8,0H8M0,-8V8M-5.7,-5.7L5.7,5.7M5.7,-5.7L-5.7,5.7" fill="none"/></g><g fill="#c98a2a"><circle cx="8" cy="0" r="1.3"/><circle cx="-8" cy="0" r="1.3"/><circle cx="0" cy="8" r="1.3"/><circle cx="0" cy="-8" r="1.3"/></g>`;
   const eggSvg = col => `<ellipse cx="0" cy="-7.5" rx="6.2" ry="7.6" fill="#fff6e0" stroke="#3a2a33" stroke-width="1.1"/>
@@ -321,7 +323,7 @@
     return `translate(400 250) scale(${z.toFixed(3)}) translate(${f1(-cx)} ${f1(-cy)})`;
   }
 
-  const FX_FILL = { bee: '#ffd34d', egg: '#fff6e0', roach: '#c8a07a', spike: '#f6e6b0', tongue: '#ff8aa0', poop: '#e8e4dc', bone: '#fff3d6', crumb: '#f0c878', dung: '#8a6038', fire: 'url(#boom)', leaf: 'url(#leafBoom)', water: 'url(#splash)', thunder: 'url(#zap)',
+  const FX_FILL = { slime: '#a8f05a', beak: '#f0d090', bee: '#ffd34d', egg: '#fff6e0', roach: '#c8a07a', spike: '#f6e6b0', tongue: '#ff8aa0', poop: '#e8e4dc', bone: '#fff3d6', crumb: '#f0c878', dung: '#8a6038', fire: 'url(#boom)', leaf: 'url(#leafBoom)', water: 'url(#splash)', thunder: 'url(#zap)',
                     normal: 'url(#hitBoom)', gust: 'url(#gustBoom)', web: 'url(#webBoom)', dragon: 'url(#dragBoom)', rock: 'url(#rockBoom)', poison: '#b46bd0', ice: '#bfeaf6', ghost: '#8a6ac0', punch: '#fff0c8', psy: '#ff8ad0', sound: 'rgba(191,233,255,.7)', powder: 'rgba(226,210,255,.7)' };
 
   // ---------- Geração do mundo ----------
@@ -1431,7 +1433,7 @@
       const d = Math.abs(u.x - x); if (d > wp.pull || d < 6 || Math.abs(u.y - y) > 110) continue;
       const tx = wp.pullOwner && p.ownerUnit ? p.ownerUnit.x : x;                  // língua: puxa para perto de quem atacou
       const dir = Math.sign(tx - u.x), n = Math.round(Math.min(Math.max(0, Math.abs(tx - u.x) - 16), wp.pullDist * (1 - 0.4 * d / wp.pull)));
-      for (let i = 0; i < n; i++) { const ny = u.flying ? u.y : stepTo(u, u.x + dir); if (ny === null) break; u.x += dir; if (!u.flying) u.y = ny; }
+      for (let i = 0; i < n; i++) { if (wp.pullOwner && !u.flying && ledgeAhead(u, dir)) break; const ny = u.flying ? u.y : stepTo(u, u.x + dir); if (ny === null) break; u.x += dir; if (!u.flying) u.y = ny; }
       floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 34, t: 6, text: 'Puxado!', col: '#dff6ff', size: 12 });
     }
     for (let i = 0; i < 26; i++) { const a = rnd(0, 6.3), r = rnd(30, wp.pull); addPart({ x: x + Math.cos(a) * r, y: y - 10 + Math.sin(a) * r * 0.4, vx: -Math.cos(a) * 2.2, vy: -Math.sin(a) * 0.8, g: 0, life: 30, max: 30, r: rnd(1.4, 2.6), col: '#ffffff', kind: 'drop' }); }
@@ -1578,7 +1580,7 @@
   }
 
   // ---------- Efeitos do tiro ----------
-  const STYLE_COL = { rock: '#c8b898', fire: '#ffb020', leaf: '#7be07b', water: '#9fe0ff', thunder: '#fff27a', normal: '#fff6c8', gust: '#ffffff', web: '#ffffff', dragon: '#9a6aff', poison: '#c783e4', ice: '#bfeaf6', ghost: '#9a7ac8', punch: '#fff0c8', psy: '#ff8ad0', sound: '#bfe9ff', powder: '#e8d8ff', bone: '#fff6e0', crumb: '#f0d090', dung: '#9a7048', egg: '#fff6e0', roach: '#c8a07a', spike: '#f6e6b0', tongue: '#ff8aa0', poop: '#e8e4dc', bee: '#ffd34d' };
+  const STYLE_COL = { rock: '#c8b898', fire: '#ffb020', leaf: '#7be07b', water: '#9fe0ff', thunder: '#fff27a', normal: '#fff6c8', gust: '#ffffff', web: '#ffffff', dragon: '#9a6aff', poison: '#c783e4', ice: '#bfeaf6', ghost: '#9a7ac8', punch: '#fff0c8', psy: '#ff8ad0', sound: '#bfe9ff', powder: '#e8d8ff', bone: '#fff6e0', crumb: '#f0d090', dung: '#9a7048', egg: '#fff6e0', roach: '#c8a07a', spike: '#f6e6b0', tongue: '#ff8aa0', poop: '#e8e4dc', bee: '#ffd34d', slime: '#a8f05a', beak: '#f0d090' };
 
   function muzzle(x, y, style, a) {
     const col = STYLE_COL[style] || '#fff';
@@ -2924,6 +2926,8 @@
       case 'spike': return `<g transform="translate(${f1(p.x)} ${f1(p.y)}) rotate(${f1(Math.atan2(p.vy, p.vx) * 57.3)}) scale(1.1)">${SPIKE_P}</g>`;
       case 'tongue': { const o = p.ownerUnit, m = o && o.alive ? mouthAt(o, o.face, false) : null; return (m ? `<line x1="${f1(m.x)}" y1="${f1(m.y)}" x2="${f1(p.x)}" y2="${f1(p.y)}" stroke="#ff6a8a" stroke-width="2.6" stroke-linecap="round"/>` : '') + `<g transform="translate(${f1(p.x)} ${f1(p.y)}) scale(1.1)">${TONGUE_P}</g>`; }
       case 'marker': return `<g transform="translate(${f1(p.x)} ${f1(p.y)}) rotate(${(frameNo * 11) % 360}) scale(1.2)">${MARK_P}</g>`;
+      case 'slime': return `<g transform="translate(${f1(p.x)} ${f1(p.y)}) scale(1.2)">${SLIME_P}</g>`;
+      case 'beak': return `<g transform="translate(${f1(p.x)} ${f1(p.y)}) rotate(${f1(Math.atan2(p.vy, p.vx) * 57.3)}) scale(1.2)">${BEAK_P}</g>`;
       case 'poop': return `<g transform="translate(${f1(p.x)} ${f1(p.y)}) rotate(${(frameNo * 6) % 360}) scale(${((p.wp.size || 1) * 1.15).toFixed(2)})">${POOP_P}</g>`;
       case 'bee': return `<g transform="translate(${f1(p.x)} ${f1(p.y + Math.sin(frameNo * 0.5 + p.spin) * 1.5)}) scale(${p.vx < 0 ? -1.5 : 1.5} 1.5)">${MS.BEE_MINI || ''}</g>`;
       case 'web':
@@ -3472,6 +3476,8 @@
     tongue: [TONGUE_P, [-6, -6, 12, 12]],
     poop: [POOP_P, [-6, -6, 12, 12]],
     marker: [MARK_P, [-8, -8, 16, 14]],
+    slime: [SLIME_P, [-7.5, -7.5, 15, 13]],
+    beak: [BEAK_P, [-7.5, -5, 18, 10]],
     bee: [MS.BEE_MINI || '<circle r="3" fill="#f6c428"/>', [-5, -7, 11, 10]]
   };
   function glPj(name, x, y, rot, sc = 1, a = 1) {
@@ -3542,6 +3548,8 @@
       case 'spike': glPj('spike', p.x, p.y, deg, 1.1); return;
       case 'tongue': { const o = p.ownerUnit; if (o && o.alive) { const m = mouthAt(o, o.face, false); R.line(m.x, m.y, p.x, p.y, 2.6, '#ff6a8a', 0.95); } glPj('tongue', p.x, p.y, 0, 1.1); return; }
       case 'marker': glPj('marker', p.x, p.y, frameNo * 0.2, 1.2); return;
+      case 'slime': glTrail(p, 1, 2, '#8ae84a', 0.45); glPj('slime', p.x, p.y, 0, 1.2 + Math.sin(frameNo * 0.4) * 0.08); return;
+      case 'beak': glTrail(p, 1, 1.6, '#f0d090', 0.35); glPj('beak', p.x, p.y, deg, 1.2); return;
       case 'poop': glPj('poop', p.x, p.y, frameNo * 0.1, (p.wp.size || 1) * 1.15); return;
       case 'bee': glTrail(p, 0.5, 0.8, '#fff6c0', 0.35); R.push(); R.tr(p.x, p.y); if (p.vx < 0) R.sc(-1, 1); glPj('bee', 0, Math.sin(frameNo * 0.5 + p.spin) * 1.5, 0, 1.5); R.pop(); return;
       default: {
@@ -4059,7 +4067,7 @@
     let s = `<rect width="800" height="500" fill="#0b1630" opacity=".55"/>
       <text x="400" y="78" text-anchor="middle" font-size="34" font-weight="900" fill="#fff" stroke="#173a78" stroke-width="6" paint-order="stroke">Escolha seu parceiro</text>
       <text x="400" y="108" text-anchor="middle" font-size="14" fill="#bfe3ff">Os outros você ganha nas fases: derrote com um golpe fraco e pegue o ovo!</text>`;
-    const NOTE = { abelha: 'Rainha da colmeia. Manda as abelhinhas atacarem.', galinha: 'Nervosa. Cacareja e bica sem parar.', barata: 'Sobrevive a tudo. Uma vez por fase.', baiacu: 'Infla quando apanha. Aí leva metade.', camaleao: 'Muda de cor. Some depois de atacar.', pombo: 'Rei da praça. Chama a turma com pão.', brasito: 'Esquentadinho. Assopra o próprio topete.', gotalho: 'Calmo e cuidadoso. Rega toda plantinha que vê.', musguinho: 'Tímido. O chapéu sempre cai nos olhos.',
+    const NOTE = { sapo: 'Pequeno e venenoso. As cores avisam: perigo!', picapau: 'Bica tudo. Abre túneis com o bico.', abelha: 'Rainha da colmeia. Manda as abelhinhas atacarem.', galinha: 'Nervosa. Cacareja e bica sem parar.', barata: 'Sobrevive a tudo. Uma vez por fase.', baiacu: 'Infla quando apanha. Aí leva metade.', camaleao: 'Muda de cor. Some depois de atacar.', pombo: 'Rei da praça. Chama a turma com pão.', brasito: 'Esquentadinho. Assopra o próprio topete.', gotalho: 'Calmo e cuidadoso. Rega toda plantinha que vê.', musguinho: 'Tímido. O chapéu sempre cai nos olhos.',
       caramelo: 'A alegria em pessoa. Nunca para de abanar o rabo.', pinscher: 'Pequeno e brabo. Com pouca vida, entra em fúria.', tatubola: 'Medroso e cascudo. Vira bola quando se assusta.' };
     list.forEach((sp, i) => {
       const x = 130 + i * 190, S = SPECIES[sp], sel = uiSel === i;

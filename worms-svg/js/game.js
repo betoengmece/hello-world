@@ -8,7 +8,7 @@
   const GRAV = 0.2;           // gravidade base (px/frame²)
   const WALK_MAX = 120;       // distância máxima de caminhada por turno (mapas largos dão um pouco mais)
   const walkMax = () => WALK_MAX + Math.max(0, W - 800) * 0.07;
-  const GAME_VERSION = '18/10 orig-3';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
+  const GAME_VERSION = '18/10 bichos-1';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
   const TURN_TIME = 30 * 60;  // 30 s para mirar e atirar (estourou: passa a vez)
   const WEAK = 0.35;          // abaixo dessa fração de PV o inimigo pode ser capturado
   const PLAYER_COL = '#3a9bff', WILD_COL = '#e0433a', GUEST_COL = '#ffd34d';
@@ -98,8 +98,12 @@
   const BALL_ORDER = ['ball', 'great', 'ultra'];
   // versão original: monstrinhos próprios e captura por Ovo de Laço (sem Pokébolas)
   const ORIG = !!MS.ORIGINAIS;
-  const ORIG_COL = { brasito: '#e0583a', gotalho: '#4aa8e8', musguinho: '#4fae6a', faiscolino: '#7a6ac8', pedrugo: '#9a8f7c', ventolina: '#a9a0ec' };
+  const ORIG_COL = { brasito: '#e0583a', gotalho: '#4aa8e8', musguinho: '#4fae6a', faiscolino: '#7a6ac8', pedrugo: '#9a8f7c', ventolina: '#a9a0ec',
+    caramelo: '#d38a3a', pinscher: '#2a2228', tatubola: '#8c7a62', formiga: '#c8382a', rolabosta: '#2e4a3a' };
   const eggCol = sp => ORIG_COL[sp] || '#e0583a';
+  const BONE_SVG = `<path d="M-6,-1.6 L6,-1.6 A2.6,2.6 0 1,1 8,-3.4 A2.6,2.6 0 1,1 8,3.4 A2.6,2.6 0 1,1 6,1.6 L-6,1.6 A2.6,2.6 0 1,1 -8,3.4 A2.6,2.6 0 1,1 -8,-3.4 A2.6,2.6 0 1,1 -6,-1.6 Z" fill="#fff6e0" stroke="#2a1f1a" stroke-width="1"/>`;
+  const CRUMB_SVG = `<path d="M-8,1 C-9,-4 -4,-7 1,-6.5 C6,-7 9,-3 8,2 C6,5 -5,5 -8,1 Z" fill="#e8c070" stroke="#2a1f1a" stroke-width="1" stroke-linejoin="round"/><circle cx="-3" cy="-2" r=".9" fill="#b8883a"/><circle cx="3" cy="-3.5" r=".8" fill="#b8883a"/><circle cx="4" cy="1" r=".9" fill="#b8883a"/>`;
+  const DUNG_SVG = `<circle r="7" fill="#7a5230" stroke="#2a1f1a" stroke-width="1.1"/><path d="M-4,-3 q2,-1.5 3.5,.8 M1.5,3 q2,-.8 3,1.4 M-2,4 q.8,-1.4 2,-.8" fill="none" stroke="#5a3a20" stroke-width="1" stroke-linecap="round"/>`;
   const NET_SVG = `<g stroke="#e8f4ff" stroke-width=".9" fill="rgba(232,244,255,.18)"><circle r="8"/><circle r="4.4" fill="none"/><path d="M-8,0H8M0,-8V8M-5.7,-5.7L5.7,5.7M5.7,-5.7L-5.7,5.7" fill="none"/></g><g fill="#c98a2a"><circle cx="8" cy="0" r="1.3"/><circle cx="-8" cy="0" r="1.3"/><circle cx="0" cy="8" r="1.3"/><circle cx="0" cy="-8" r="1.3"/></g>`;
   const eggSvg = col => `<ellipse cx="0" cy="-7.5" rx="6.2" ry="7.6" fill="#fff6e0" stroke="#3a2a33" stroke-width="1.1"/>
     <path d="M-5.4,-5 l2.4,-2 l2.2,2.2 l2.4,-2.2 l2.2,2.2 l2,-1.8" fill="none" stroke="${col}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
@@ -302,7 +306,7 @@
     return `translate(400 250) scale(${z.toFixed(3)}) translate(${f1(-cx)} ${f1(-cy)})`;
   }
 
-  const FX_FILL = { fire: 'url(#boom)', leaf: 'url(#leafBoom)', water: 'url(#splash)', thunder: 'url(#zap)',
+  const FX_FILL = { bone: '#fff3d6', crumb: '#f0c878', dung: '#8a6038', fire: 'url(#boom)', leaf: 'url(#leafBoom)', water: 'url(#splash)', thunder: 'url(#zap)',
                     normal: 'url(#hitBoom)', gust: 'url(#gustBoom)', web: 'url(#webBoom)', dragon: 'url(#dragBoom)', rock: 'url(#rockBoom)', poison: '#b46bd0', ice: '#bfeaf6', ghost: '#8a6ac0', punch: '#fff0c8', psy: '#ff8ad0', sound: 'rgba(191,233,255,.7)', powder: 'rgba(226,210,255,.7)' };
 
   // ---------- Geração do mundo ----------
@@ -698,7 +702,7 @@
   function initMenu() {
     scene = 'menu'; kind = 'menu'; menuPage = 'main'; resetCommon();
     genWorld('campo', VW, 'ground'); genClouds(); genDecor([105, 185, 615, 695]);
-    units = ORIG ? [mkUnit('brasito', 105, 0, 1), mkUnit('musguinho', 185, 0, 1), mkUnit('gotalho', 615, 0, -1), mkUnit('faiscolino', 695, 0, -1)]
+    units = ORIG ? [mkUnit('caramelo', 105, 0, 1), mkUnit('tatubola', 185, 0, 1), mkUnit('formiga', 615, 0, -1), mkUnit('pinscher', 695, 0, -1)]
                  : [mkUnit('charmander', 105, 0, 1), mkUnit('bulbasaur', 185, 0, 1), mkUnit('squirtle', 615, 0, -1), mkUnit('pikachu', 695, 0, -1)];
     teams = []; state = 'menu'; wind = 0; msg = ''; msgT = 0; uiSel = 0;
     syncButtons();
@@ -1312,7 +1316,7 @@
       const c = centerOf(u), d = Math.hypot(c.x - x, c.y - y);
       if (d >= wp.boom) continue;
       const k = 1 - d / wp.boom, mult = typeMult(wp.type, spOf(u).types);
-      const dmg = shieldDmg(u, Math.round(wp.dmg * k * mult * wxMul(wp.type) * (p.crit ? 1.6 : 1) * ((p.ownerUnit && p.ownerUnit.dmgMul) || 1)));
+      const dmg = shieldDmg(u, Math.round(wp.dmg * k * mult * wxMul(wp.type) * (p.crit ? 1.6 : 1) * ((p.ownerUnit && p.ownerUnit.dmgMul) || 1) * (p.ownerUnit && spOf(p.ownerUnit).furia && p.ownerUnit.hp / p.ownerUnit.maxhp < 0.4 ? 1.5 : 1)));
       if (dmg > 0) {
         u.hp -= dmg; u.hurt = 24; anyHurt = true;
         if (p.crit && k > 0.2) floaters.push({ x: u.x + 16, y: u.y - spOf(u).h * u.scale - 4, t: 4, text: 'Crítico!', col: '#ff5a5a', size: 12 });
@@ -1543,7 +1547,7 @@
   }
 
   // ---------- Efeitos do tiro ----------
-  const STYLE_COL = { rock: '#c8b898', fire: '#ffb020', leaf: '#7be07b', water: '#9fe0ff', thunder: '#fff27a', normal: '#fff6c8', gust: '#ffffff', web: '#ffffff', dragon: '#9a6aff', poison: '#c783e4', ice: '#bfeaf6', ghost: '#9a7ac8', punch: '#fff0c8', psy: '#ff8ad0', sound: '#bfe9ff', powder: '#e8d8ff' };
+  const STYLE_COL = { rock: '#c8b898', fire: '#ffb020', leaf: '#7be07b', water: '#9fe0ff', thunder: '#fff27a', normal: '#fff6c8', gust: '#ffffff', web: '#ffffff', dragon: '#9a6aff', poison: '#c783e4', ice: '#bfeaf6', ghost: '#9a7ac8', punch: '#fff0c8', psy: '#ff8ad0', sound: '#bfe9ff', powder: '#e8d8ff', bone: '#fff6e0', crumb: '#f0d090', dung: '#9a7048' };
 
   function muzzle(x, y, style, a) {
     const col = STYLE_COL[style] || '#fff';
@@ -2864,6 +2868,9 @@
       }
       case 'net':
         return `<g transform="translate(${f1(p.x)} ${f1(p.y)}) rotate(${(frameNo * 9) % 360}) scale(1.15)">${NET_SVG}</g>`;
+      case 'bone': return `<g transform="translate(${f1(p.x)} ${f1(p.y)}) rotate(${(frameNo * 17) % 360}) scale(1.1)">${BONE_SVG}</g>`;
+      case 'crumb': return `<g transform="translate(${f1(p.x)} ${f1(p.y)}) rotate(${(frameNo * 7) % 360}) scale(1.15)">${CRUMB_SVG}</g>`;
+      case 'dung': return `<g transform="translate(${f1(p.x)} ${f1(p.y)}) rotate(${(frameNo * 11) % 360}) scale(1.1)">${DUNG_SVG}</g>`;
       case 'web':
         p.trail.forEach((tp, i) => {
           const k = (i + 1) / p.trail.length;
@@ -3387,7 +3394,10 @@
     fire: [`<circle r="8" fill="url(#fireball)"/>`, [-8, -8, 16, 16]],
     dragon: [`<circle r="8" fill="url(#dragFire)"/>`, [-8, -8, 16, 16]],
     zap: [`<circle r="8" fill="url(#zap)"/>`, [-8, -8, 16, 16]],
-    net: [NET_SVG, [-10, -10, 20, 20]]
+    net: [NET_SVG, [-10, -10, 20, 20]],
+    bone: [BONE_SVG, [-10, -5, 20, 10]],
+    crumb: [CRUMB_SVG, [-9, -8, 18, 15]],
+    dung: [DUNG_SVG, [-8, -8, 16, 16]]
   };
   function glPj(name, x, y, rot, sc = 1, a = 1) {
     const d = PJ[name], R = GLR, s = R.svg('pj|' + name, d[0], d[1], R.res * Math.max(1, sc) * 1.5);
@@ -3449,6 +3459,9 @@
       }
       case 'web': glTrail(p, 0.8, 1.6, '#fff', 0.5); glPj('web', p.x, p.y, (frameNo * 5 % 360) * Math.PI / 180); return;
       case 'net': glTrail(p, 0.6, 1.2, '#e8f4ff', 0.4); glPj('net', p.x, p.y, frameNo * 0.15, 1.15); return;
+      case 'bone': glTrail(p, 1, 1.6, '#fff6e0', 0.35); glPj('bone', p.x, p.y, frameNo * 0.3, 1.1); return;
+      case 'crumb': glTrail(p, 1, 2, '#f0d090', 0.35); glPj('crumb', p.x, p.y, frameNo * 0.12, 1.15); return;
+      case 'dung': glTrail(p, 1.2, 2, '#8a6038', 0.35); glPj('dung', p.x, p.y, frameNo * 0.2, 1.1); return;
       default: {
         const pts = p.trail.concat([{ x: p.x, y: p.y }]).map((tp, i) => [tp.x, tp.y + (i % 2 ? 3 : -3)]);
         R.poly(pts, 4.5, '#ffd000', 0.45); R.poly(pts, 2, '#fffbd0');
@@ -3960,7 +3973,8 @@
     let s = `<rect width="800" height="500" fill="#0b1630" opacity=".55"/>
       <text x="400" y="78" text-anchor="middle" font-size="34" font-weight="900" fill="#fff" stroke="#173a78" stroke-width="6" paint-order="stroke">Escolha seu parceiro</text>
       <text x="400" y="108" text-anchor="middle" font-size="14" fill="#bfe3ff">Os outros você ganha nas fases: derrote com um golpe fraco e pegue o ovo!</text>`;
-    const NOTE = { brasito: 'Esquentadinho. Assopra o próprio topete.', gotalho: 'Calmo e cuidadoso. Rega toda plantinha que vê.', musguinho: 'Tímido. O chapéu sempre cai nos olhos.' };
+    const NOTE = { brasito: 'Esquentadinho. Assopra o próprio topete.', gotalho: 'Calmo e cuidadoso. Rega toda plantinha que vê.', musguinho: 'Tímido. O chapéu sempre cai nos olhos.',
+      caramelo: 'A alegria em pessoa. Nunca para de abanar o rabo.', pinscher: 'Pequeno e brabo. Com pouca vida, entra em fúria.', tatubola: 'Medroso e cascudo. Vira bola quando se assusta.' };
     list.forEach((sp, i) => {
       const x = 130 + i * 190, S = SPECIES[sp], sel = uiSel === i;
       const u = { uid: i + 1, sp, moving: false, breath: 0, hurt: 0, capScale: 1 };

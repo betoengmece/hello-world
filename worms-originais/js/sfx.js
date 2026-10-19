@@ -203,6 +203,11 @@
       step()  { tone({ type: 'triangle', f: r(150, 200), t: 0.04, vol: 0.035 }); },
       click() { tone({ f: 900, t: 0.04, vol: 0.06 }); },
       select() { tone({ f: 780, t: 0.07, vol: 0.1 }); tone({ f: 1040, t: 0.09, vol: 0.1, delay: 0.05 }); },
+      // zumbido chato do pernilongo (vai e volta de tom)
+      buzz(t = 1.1) {
+        for (let i = 0; i < 6; i++) tone({ type: 'sawtooth', f: 560 + (i % 2) * 90, f2: 620 - (i % 2) * 80, t: t / 6 + 0.02, vol: 0.05, delay: i * t / 6 });
+        tone({ type: 'square', f: 1180, f2: 1240, t, vol: 0.015 });
+      },
       voltWarn() {
         tone({ type: 'square', f: 250, f2: 1100, t: 1.2, vol: 0.045 });
         for (let i = 0; i < 5; i++) noise({ t: 0.04, vol: 0.12, ftype: 'highpass', f: 4000, delay: 0.1 + i * 0.2 });

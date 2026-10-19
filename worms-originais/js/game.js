@@ -8,7 +8,7 @@
   const GRAV = 0.2;           // gravidade base (px/frame²)
   const WALK_MAX = 120;       // distância máxima de caminhada por turno (mapas largos dão um pouco mais)
   const walkMax = () => WALK_MAX + Math.max(0, W - 800) * 0.07;
-  const GAME_VERSION = '18/10 bichos-7';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
+  const GAME_VERSION = '18/10 bichos-8';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
   const TURN_TIME = 30 * 60;  // 30 s para mirar e atirar (estourou: passa a vez)
   const WEAK = 0.35;          // abaixo dessa fração de PV o inimigo pode ser capturado
   const PLAYER_COL = '#3a9bff', WILD_COL = '#e0433a', GUEST_COL = '#ffd34d';
@@ -100,7 +100,7 @@
   const ORIG = !!MS.ORIGINAIS;
   const ORIG_COL = { brasito: '#e0583a', gotalho: '#4aa8e8', musguinho: '#4fae6a', faiscolino: '#7a6ac8', pedrugo: '#9a8f7c', ventolina: '#a9a0ec',
     caramelo: '#d38a3a', pinscher: '#2a2228', tatubola: '#8c7a62', formiga: '#c8382a', rolabosta: '#2e4a3a',
-    galinha: '#e8322a', barata: '#7a3e1c', baiacu: '#e8a83a', camaleao: '#5cbf4a', pombo: '#7a8496', abelha: '#f2c230', sapo: '#2a8ae8', picapau: '#e8322a' };
+    galinha: '#e8322a', barata: '#7a3e1c', baiacu: '#e8a83a', camaleao: '#5cbf4a', pombo: '#7a8496', abelha: '#f2c230', sapo: '#2a8ae8', picapau: '#e8322a', pernilongo: '#9a9eaa' };
   // escolta da abelha rainha: 3 abelhinhas voando em volta (somem enquanto o Enxame está no ar)
   const beesOut = u => projs.some(p => p.ownerUnit === u && p.wp.style === 'bee');
   function escortPos(u, i) {
@@ -1516,12 +1516,14 @@
   function surfAbove(x, y) { let yy = Math.floor(y); while (yy > 0 && solid(x, yy - 1)) yy--; return yy; }
 
   // Cria os projéteis de um ataque (alguns lançam vários)
+  let shotSeq = 0;
   function launch(wk, x, y, a, sp, owner, ownerUnit) {
     const wp = WEAPONS[wk];
+    if (owner !== 'split') shotSeq++;
     for (let i = 0; i < wp.count; i++) {
       const off = wp.count === 1 ? 0 : (i - (wp.count - 1) / 2) * wp.spread * Math.PI / 180;
       const aa = a + off, s = sp * wp.speed;
-      projs.push({ wk, wp, owner, ownerUnit, x, y, vx: s * Math.cos(aa), vy: -s * Math.sin(aa), trail: [], spin: rnd(0, 6), age: 0, bn: wp.bounce || 0, crit: !!wp.crit && Math.random() < wp.crit, sp: false });
+      projs.push({ wk, wp, owner, ownerUnit, shot: shotSeq, x, y, vx: s * Math.cos(aa), vy: -s * Math.sin(aa), trail: [], spin: rnd(0, 6), age: 0, bn: wp.bounce || 0, crit: !!wp.crit && Math.random() < wp.crit, sp: false });
     }
   }
 
@@ -1570,7 +1572,7 @@
     } else {
       const { x: mx, y: my } = mouthAt(u, u.face, false);
       launch(wk, mx, my, a, sp, 'unit', u);
-      u.breath = 18; Sfx.shoot(WEAPONS[wk].style);
+      u.breath = 18; Sfx.shoot(WEAPONS[wk].style); if (WEAPONS[wk].buzz && Sfx.buzz) Sfx.buzz();
       muzzle(mx, my, WEAPONS[wk].style, a);
       if (spOf(u).camuflagem) { u.invis = 3; floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 30, t: 0, text: 'Camuflado!', col: '#a8e07a', size: 13 }); }
     }
@@ -1667,6 +1669,7 @@
         explode(p.x, sy - 4, p);
         continue;
       }
+      if (ORIG) checkDodge(p);
       trailFx(p);
       p.trail.push({ x: p.x, y: p.y });
       if (p.trail.length > 14) p.trail.shift();
@@ -1741,6 +1744,28 @@
     if (!projs.length && !bolts.length && !beams.length && !flyers.length && state === 'flying') { state = 'settle'; camHold = 60; camWide = false; }
   }
 
+  // pernilongo: quando um tiro inimigo chega perto, sai voando para um lado sorteado (sem cair da beirada)
+  function checkDodge(p) {
+    if (p.wk === 'rede' || p.wk === 'ball') return;
+    const tm = p.ownerUnit ? p.ownerUnit.team : -1;
+    for (const u of units) {
+      if (!u.alive || u.hidden || u.team === tm || !spOf(u).esquiva || u.dodgeShot === p.shot || u.dodge) continue;
+      const c = centerOf(u), d = Math.hypot(c.x - p.x, c.y - p.y);
+      if (d > 75 || (p.vx * (c.x - p.x) + p.vy * (c.y - p.y)) < 0) continue;     // longe ou já passou
+      u.dodgeShot = p.shot;
+      const dirs = Math.random() < 0.5 ? [1, -1] : [-1, 1];
+      let pick = 0, dist = Math.round(rnd(28, 52));
+      for (const dir of dirs) {                                  // testa os passos: não pode parar em cima do nada
+        let x = u.x, y = u.y, ok = 0;
+        for (let i = 0; i < dist; i++) { if (ledgeAhead({ x, y }, dir)) break; const ny = stepTo({ x, y, scale: u.scale, sp: u.sp }, x + dir); if (ny === null) break; x += dir; y = ny; ok++; }
+        if (ok >= 12) { pick = dir; dist = ok; break; }
+      }
+      if (!pick) continue;
+      u.dodge = { dir: pick, left: dist };
+      floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 30, t: 0, text: 'Bzzz! Fugiu!', col: '#e8e0ff', size: 12 });
+      if (Sfx.buzz) Sfx.buzz(0.5);
+    }
+  }
   function homingTarget(p) {
     let best = null, bd = 1e9;
     const myTeam = p.ownerUnit ? p.ownerUnit.team : -1;
@@ -1830,6 +1855,11 @@
   function updateUnits() {
     for (const u of units) {
       if (!u.alive || (scene === 'intro')) continue;
+      if (u.dodge) {                                             // voo de fuga do pernilongo: 3 px por quadro
+        for (let k = 0; k < 3 && u.dodge.left > 0; k++) { const ny = stepTo(u, u.x + u.dodge.dir); if (ny === null || ledgeAhead(u, u.dodge.dir)) { u.dodge.left = 0; break; } u.x += u.dodge.dir; u.y = ny; u.dodge.left--; }
+        u.face = u.dodge.dir; u.lift = 10 + Math.sin(frameNo * 0.6) * 3;
+        if (u.dodge.left <= 0) { u.dodge = null; u.lift = 0; }
+      }
       if (u.flying && u.alt > 0) {                                   // voadores pairam no ar
         const g = Math.min(gy(u.x), WATER - 30);
         const ty = Math.max(46, g - u.alt) + Math.sin(aF() * 0.05 + u.blinkOff) * 3;
@@ -4067,7 +4097,7 @@
     let s = `<rect width="800" height="500" fill="#0b1630" opacity=".55"/>
       <text x="400" y="78" text-anchor="middle" font-size="34" font-weight="900" fill="#fff" stroke="#173a78" stroke-width="6" paint-order="stroke">Escolha seu parceiro</text>
       <text x="400" y="108" text-anchor="middle" font-size="14" fill="#bfe3ff">Os outros você ganha nas fases: derrote com um golpe fraco e pegue o ovo!</text>`;
-    const NOTE = { sapo: 'Pequeno e venenoso. As cores avisam: perigo!', picapau: 'Bica tudo. Abre túneis com o bico.', abelha: 'Rainha da colmeia. Manda as abelhinhas atacarem.', galinha: 'Nervosa. Cacareja e bica sem parar.', barata: 'Sobrevive a tudo. Uma vez por fase.', baiacu: 'Infla quando apanha. Aí leva metade.', camaleao: 'Muda de cor. Some depois de atacar.', pombo: 'Rei da praça. Chama a turma com pão.', brasito: 'Esquentadinho. Assopra o próprio topete.', gotalho: 'Calmo e cuidadoso. Rega toda plantinha que vê.', musguinho: 'Tímido. O chapéu sempre cai nos olhos.',
+    const NOTE = { pernilongo: 'Chato demais. Foge quando o tiro chega perto.', sapo: 'Pequeno e venenoso. As cores avisam: perigo!', picapau: 'Bica tudo. Abre túneis com o bico.', abelha: 'Rainha da colmeia. Manda as abelhinhas atacarem.', galinha: 'Nervosa. Cacareja e bica sem parar.', barata: 'Sobrevive a tudo. Uma vez por fase.', baiacu: 'Infla quando apanha. Aí leva metade.', camaleao: 'Muda de cor. Some depois de atacar.', pombo: 'Rei da praça. Chama a turma com pão.', brasito: 'Esquentadinho. Assopra o próprio topete.', gotalho: 'Calmo e cuidadoso. Rega toda plantinha que vê.', musguinho: 'Tímido. O chapéu sempre cai nos olhos.',
       caramelo: 'A alegria em pessoa. Nunca para de abanar o rabo.', pinscher: 'Pequeno e brabo. Com pouca vida, entra em fúria.', tatubola: 'Medroso e cascudo. Vira bola quando se assusta.' };
     list.forEach((sp, i) => {
       const x = 130 + i * 190, S = SPECIES[sp], sel = uiSel === i;

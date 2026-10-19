@@ -455,7 +455,7 @@
       precision mediump float;
       #endif
       uniform sampler2D D; uniform sampler2D C; uniform vec2 S; uniform float e;
-      uniform vec3 d0, d1, d2, s1, s2, g0, g1, g2; uniform vec2 dy, ph;
+      uniform vec3 d0, d1, d2, s1, s2, g0, g1, g2; uniform vec2 dy, ph; uniform float tx;
       uniform vec4 L[4]; uniform vec3 LC[4];
       varying vec2 vw;
       float solidAt(vec2 p){ return texture2D(D, p / S).r; }
@@ -478,6 +478,30 @@
         c = mix(c, vec3(0.85, 0.72, 0.55), 0.45 * ell(q, vec2(4.0, 24.0), vec2(0.9, 0.9)));
         return c;
       }
+      // veio de madeira (cozinha): faixas onduladas + nós
+      vec3 wood(vec3 c, vec2 p){
+        float v = p.y * 0.42 + sin(p.x * 0.021 + ph.x) * 3.2 + sin(p.x * 0.0063 + ph.y) * 7.0;
+        float g = abs(fract(v / 6.2832) - 0.5) * 2.0;
+        c = mix(c, c * 0.72, 0.55 * smoothstep(0.82, 0.97, g));
+        c = mix(c, c * 1.12, 0.35 * (1.0 - smoothstep(0.0, 0.25, g)));
+        vec2 q = vec2(mod(p.x + 37.0, 173.0), mod(p.y + 11.0, 61.0));
+        c = mix(c, c * 0.6, 0.6 * ell(q, vec2(80.0, 30.0), vec2(5.0, 2.6)));
+        c = mix(c, c * 0.8, 0.5 * ell(q, vec2(80.0, 30.0), vec2(9.0, 4.4)) * (1.0 - ell(q, vec2(80.0, 30.0), vec2(5.0, 2.6))));
+        return c;
+      }
+      // areia: grãos finos
+      vec3 sand(vec3 c, vec2 p){
+        float h = fract(sin(dot(floor(p * 0.5), vec2(12.9898, 78.233))) * 43758.5453);
+        return mix(c, h > 0.5 ? c * 1.1 : c * 0.9, 0.35);
+      }
+      // concreto/asfalto: blocos com juntas e pedrisco
+      vec3 blocks(vec3 c, vec2 p){
+        float row = floor(p.y / 22.0), x = p.x + mod(row, 2.0) * 26.0;
+        float jx = abs(mod(x, 52.0) - 0.5), jy = abs(mod(p.y, 22.0) - 0.5);
+        c = mix(c, c * 0.72, 0.7 * (1.0 - smoothstep(0.8, 1.6, min(jx, jy))));
+        float h = fract(sin(dot(floor(p * 0.7), vec2(12.9898, 78.233))) * 43758.5453);
+        return mix(c, c * (0.86 + h * 0.28), 0.5);
+      }
       void main(){
         vec2 w = vw;
         vec4 d = texture2D(D, w / S);
@@ -498,7 +522,7 @@
         // frente: terra com degradê, pedrinhas, camadas de rocha, queimado e contorno escuro
         float s = smoothstep(0.5 - e, 0.5 + e, d.r);
         if (s > 0.0) {
-          vec3 c = pebbles(dirt(w.y), w);
+          vec3 c = tx > 2.5 ? blocks(dirt(w.y), w) : tx > 1.5 ? sand(dirt(w.y), w) : tx > 0.5 ? wood(dirt(w.y), w) : pebbles(dirt(w.y), w);
           float dep = d.g * 255.0;
           if (dep > 48.0 + 8.0 * sin(w.x * 0.05 + ph.y)) c = mix(c, s1, 0.5);
           if (dep > 115.0 + 12.0 * sin(w.x * 0.03 + ph.x)) c = mix(c, s2, 0.7);
@@ -545,7 +569,7 @@
       if (!gl.getProgramParameter(p, gl.LINK_STATUS)) { R.terrErr = gl.getProgramInfoLog(p); tp = false; return tp; }
       tp = p;
       const u = n => gl.getUniformLocation(p, n);
-      tLoc = { sz: u('sz'), D: u('D'), C: u('C'), S: u('S'), e: u('e'), d0: u('d0'), d1: u('d1'), d2: u('d2'), s1: u('s1'), s2: u('s2'),
+      tLoc = { tx: u('tx'), sz: u('sz'), D: u('D'), C: u('C'), S: u('S'), e: u('e'), d0: u('d0'), d1: u('d1'), d2: u('d2'), s1: u('s1'), s2: u('s2'),
                g0: u('g0'), g1: u('g1'), g2: u('g2'), dy: u('dy'), ph: u('ph'), L: u('L'), LC: u('LC') };
       tBuf = gl.createBuffer();
       return tp;
@@ -609,6 +633,7 @@
       gl.uniform2f(tLoc.sz, 800, 500); gl.uniform2f(tLoc.S, W, H);
       gl.uniform1f(tLoc.e, Math.min(0.5, Math.max(0.06, 0.6 / Math.max(0.1, Math.sqrt(Math.abs(ma * md - mb * mc)) * (o.px || 1)))));
       for (const k of ['d0', 'd1', 'd2', 's1', 's2', 'g0', 'g1', 'g2']) gl.uniform3fv(tLoc[k], hex3(o[k]));
+      gl.uniform1f(tLoc.tx, o.tx || 0);
       gl.uniform2f(tLoc.dy, o.dy[0], o.dy[1]); gl.uniform2f(tLoc.ph, o.ph[0], o.ph[1]);
       const L = new Float32Array(16), LC = new Float32Array(12);
       (o.lights || []).slice(0, 4).forEach((l, i) => { L.set([l.x, l.y, l.r, l.k], i * 4); LC.set(hex3(l.col || '#ffb347'), i * 3); });

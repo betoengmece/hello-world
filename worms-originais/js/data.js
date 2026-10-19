@@ -545,23 +545,24 @@
     decor: ['vaso', 'regador', 'bola', 'flower', 'bush', 'casinha', 'flower'], sun: { x: 650, y: 90, col: '#fff3c4', glow: 1 },
     clouds: 1, terrain: { base: 292, amp: 0.85 }
   };
-  T.cozinha = {     // o chão é um bolo de chocolate com recheio de morango e cobertura rosa
-    sky: ['#f6e2c0', '#fbeedb', '#fff8ee'], far: ['#e8cfa8', '#efdcbc'], near: ['#d8b88e', '#e6caa2'], tl: '#b07c4a', tl2: 'shelf',
-    dirt: ['#7a4a2a', '#5a3018', '#3a1e10'], s1: '#f6e6c8', s2: '#e8507a', g: ['#f08ab0', '#ffe0ec', '#ff6aa0'],
-    sea: ['#9ad4ea', '#5a9ab8', '#c4ecf8', '#4a8aa8'], fore: '#5a3018',
-    decor: ['xicara', 'panela', 'garrafa', 'maca', 'queijo', 'maca'], sun: { x: 400, y: 40, col: '#fff6d8', glow: 0.6 },
+  T.cozinha = {     // bancada de madeira na frente de uma parede de azulejos, com armários e janela
+    sky: ['#efe4cc', '#f5ecd8', '#fbf6ea'], far: ['#e8dcc0', '#e8dcc0'], near: ['#e0d2b4', '#e0d2b4'], tl: '#7c9c8c', tl2: 'kitchen', win: '#d6ecf8',
+    deco: '#cdb894', decoA: 0.9, noHills: true, noTuft: true, tex: 'wood',
+    dirt: ['#c8925a', '#a8743e', '#7a5028'], s1: '#b4824c', s2: '#94622e', g: ['#6a4220', '#f0c890', '#8a5a2e'],
+    sea: ['#8ac8e0', '#4a8aa8', '#b8e4f4', '#3a7a98'], fore: '#5a3a1e',
+    decor: ['pote', 'pratos', 'bule', 'fruteira', 'panela', 'garrafa'], decorN: 6, decorS: [1.35, 1.7], sun: null,
     clouds: 0, terrain: { base: 300, amp: 0.6 }
   };
-  T.areia = Object.assign({}, T.praia, { decor: ['guardasol', 'balde', 'castelo', 'palm', 'concha', 'concha'] });
+  T.areia = Object.assign({}, T.praia, { tex: 'sand', decor: ['guardasol', 'balde', 'castelo', 'palm', 'concha', 'concha'] });
   T.rua = {
-    sky: ['#3a5a9a', '#9ab0d8', '#f4d8b0'], far: ['#8c9ab8', '#b4bed4'], near: ['#6e7a96', '#9aa4bc'], tl: '#56607a', tl2: 'city',
+    sky: ['#3a5a9a', '#9ab0d8', '#f4d8b0'], far: ['#8c9ab8', '#b4bed4'], near: ['#6e7a96', '#9aa4bc'], tl: '#56607a', tl2: 'city', tex: 'blocks',
     dirt: ['#8a8a90', '#5e5e66', '#34343a'], s1: '#4a4a52', s2: '#2a2a30', g: ['#6a6a72', '#c8ccd4', '#8a8a92'],
     sea: ['#4a7a6a', '#24443a', '#6a9a88', '#1a382e'], fore: '#2a2a32',
     decor: ['poste', 'lixeira', 'hidrante', 'cone', 'banco', 'lixeira'], sun: { x: 140, y: 200, col: '#ffd8a0', glow: 1 },
     clouds: 0.7, terrain: { base: 296, amp: 0.8 }
   };
   // decoração que solta lasca cinza/colorida ao ser destruída (em vez de folhas)
-  MS.DECOR_HARD = { vaso: '#c8643a', regador: '#4aa0d8', bola: '#ff5a4a', casinha: '#c84a3a', xicara: '#ffffff', panela: '#8a8f9a', garrafa: '#7ad0a0', maca: '#e8322a', queijo: '#ffd23a',
+  MS.DECOR_HARD = { vaso: '#c8643a', regador: '#4aa0d8', bola: '#ff5a4a', casinha: '#c84a3a', xicara: '#ffffff', panela: '#8a8f9a', garrafa: '#7ad0a0', maca: '#e8322a', queijo: '#ffd23a', pote: '#e8d8b8', pratos: '#ffffff', bule: '#5aa0c8', fruteira: '#ffb030',
     guardasol: '#ff6a5a', balde: '#ffc83a', castelo: '#ead59c', concha: '#ffd0c0', poste: '#5a5f6a', lixeira: '#4a8a5a', hidrante: '#e8322a', cone: '#ff8a2a', banco: '#a8743a' };
 
   const ORIG_STAGES = [
@@ -570,7 +571,7 @@
     { world: 'Quintal', name: 'Casinha do Cachorro', theme: 'quintal', enemies: ['pinscher', 'caramelo', 'rolabosta'], err: 8,  hpMult: 1.1,  wind: 2, boss: true, guests: [G('formiga', 0.15)] },
     { world: 'Cozinha', name: 'Pia',                theme: 'cozinha', enemies: ['barata', 'pernilongo', 'baiacu'],   err: 7,   hpMult: 1.1,  wind: 1, guests: [G('formiga', 0.15)] },
     { world: 'Cozinha', name: 'Bancada',            theme: 'cozinha', enemies: ['formiga', 'barata', 'galinha'],     err: 6,   hpMult: 1.15, wind: 1, guests: [G('pernilongo', 0.15)] },
-    { world: 'Cozinha', name: 'Geladeira',          theme: 'cozinha', enemies: ['camaleao', 'baiacu', 'barata'],     err: 5.5, hpMult: 1.2,  wind: 1, boss: true, guests: [G('barata', 0.12)], weather: [{ type: 'snow', p: 1 }] },
+    { world: 'Cozinha', name: 'Fogão',              theme: 'cozinha', enemies: ['camaleao', 'baiacu', 'barata'],     err: 5.5, hpMult: 1.2,  wind: 1, boss: true, guests: [G('barata', 0.12)], weather: [{ type: 'sun', p: 0.6 }] },
     { world: 'Praia',   name: 'Areia Quente',       theme: 'areia',   enemies: ['baiacu', 'pernilongo', 'pombo'],    err: 5,   hpMult: 1.2,  wind: 3, guests: [G('galinha', 0.12)], weather: [{ type: 'sun', p: 0.5 }] },
     { world: 'Praia',   name: 'Píer',               theme: 'areia',   enemies: ['galinha', 'picapau', 'baiacu'],     err: 4.8, hpMult: 1.25, wind: 3, guests: [G('tatubola', 0.12)], weather: [{ type: 'rain', p: 0.3 }, { type: 'storm', p: 0.15 }] },
     { world: 'Praia',   name: 'Quiosque',           theme: 'areia',   enemies: ['pombo', 'pinscher', 'tatubola'],    err: 4.6, hpMult: 1.3,  wind: 3, boss: true, guests: [G('pernilongo', 0.15)], weather: [{ type: 'sun', p: 0.35 }] },

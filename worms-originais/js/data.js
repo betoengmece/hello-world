@@ -477,6 +477,7 @@
     abelha:     { name: 'Abelha Rainha', types: ['bug', 'flying'],  weapon: 'enxame',    maxhp: 90,  h: 44, hitY: 17, hitR: 12, catch: 0.6, mouth: [16, -22], mania: true, orig: true, escolta: 3, sh: 300 },
     sapo:       { name: 'Sapo Colorido', types: ['poison'],         weapon: 'gosma',     maxhp: 80,  h: 34, hitY: 14, hitR: 11, catch: 0.6, mouth: [17, -13], mania: true, orig: true, sh: 300 },
     picapau:    { name: 'Pica-pau',   types: ['normal', 'flying'],   weapon: 'bicada',    maxhp: 95,  h: 38, hitY: 15, hitR: 11, catch: 0.6, mouth: [24, -20], mania: true, orig: true, sh: 220 },
+    gato:       { name: 'Gato Persa', types: ['normal'],             weapon: 'bolapelo',  maxhp: 105, h: 40, hitY: 16, hitR: 13, catch: 0.6, mouth: [16, -17], mania: true, orig: true, engasga: true, sh: 30 },
     pernilongo: { name: 'Pernilongo', types: ['bug', 'flying'],      weapon: 'zumbido',   maxhp: 55,  h: 40, hitY: 22, hitR: 10, catch: 0.6, mouth: [24, -22], mania: true, orig: true, esquiva: true, sh: 120 },
     rolabosta:  { name: 'Rola-bosta', types: ['ground', 'bug'],      weapon: 'bolaterra', maxhp: 100, h: 34, hitY: 12, hitR: 12, catch: 0.6, mouth: [18, -12], mania: true, orig: true, sh: 60 }
   });
@@ -495,27 +496,56 @@
     enxame:    { label: 'Enxame',          type: 'bug',      style: 'bee',    count: 3, spread: 9, speed: 1.05, grav: 0.6,  boom: 22, carve: 4,  dmg: 18, windMul: 0.6, homing: 0.05 },
     gosma:     { label: 'Gosma Venenosa',  type: 'poison',   style: 'slime',  count: 1, spread: 0, speed: 1.0,  grav: 1.0,  boom: 34, carve: 8,  dmg: 26, st: { type: 'poison', p: 0.7 } },
     bicada:    { label: 'Bicada Broca',    type: 'normal',   style: 'beak',   count: 1, spread: 0, speed: 1.05, grav: 1.1,  boom: 34, carve: 24, dmg: 40, windMul: 0.3, dig: 50, digR: 10, shake: 6 },
+    bolapelo:  { label: 'Bola de Pelo',    type: 'normal',   style: 'hair',   count: 1, spread: 0, speed: 1.0,  grav: 1.1,  boom: 40, carve: 18, dmg: 40, bounce: 2, hair: true },
     zumbido:   { label: 'Zumbido',         type: 'bug',      style: 'sound',  count: 1, spread: 0, speed: 1.0,  grav: 0.5,  boom: 32, carve: 0,  dmg: 9,  windMul: 1.2, buzz: true },
     bolaterra: { label: 'Bola de Terra',   type: 'ground',   style: 'dung',  count: 1, spread: 0, speed: 1.0,  grav: 1.2,  boom: 36, carve: 20, dmg: 34, windMul: 0.3, bounce: 3 }
   });
   MS.ORIG_STARTERS = ['caramelo', 'pinscher', 'tatubola'];
-  if (MS.AIM_TIERS) { const base = MS.aimRange, tier = { pernilongo: 'wide', abelha: 'wide', pedrugo: 'mid', ventolina: 'wide', musguinho: 'basic', pinscher: 'wide', tatubola: 'mid', rolabosta: 'mid', barata: 'wide', baiacu: 'mid', pombo: 'wide' }; MS.aimRange = sp => (tier[sp] ? MS.AIM_TIERS[tier[sp]] : base(sp)); }
+  if (MS.AIM_TIERS) { const base = MS.aimRange, tier = { gato: 'mid', pernilongo: 'wide', abelha: 'wide', pedrugo: 'mid', ventolina: 'wide', musguinho: 'basic', pinscher: 'wide', tatubola: 'mid', rolabosta: 'mid', barata: 'wide', baiacu: 'mid', pombo: 'wide' }; MS.aimRange = sp => (tier[sp] ? MS.AIM_TIERS[tier[sp]] : base(sp)); }
   const G = (sp, rarity) => ({ sp, rarity });
+  // ---------- Mundos temáticos: Quintal, Cozinha, Praia e Cidade (3 fases cada; a última é o chefão) ----------
+  const T = MS.THEMES;
+  T.quintal = {
+    sky: ['#3a8ad8', '#9cd4f4', '#eef6dc'], far: ['#b8d4c0', '#dcebd8'], near: ['#8cc08c', '#bfe0b0'], tl: '#f4f0e6', tl2: 'fence',
+    dirt: ['#8a5a32', '#62401f', '#3a2412'], s1: '#4a3018', s2: '#2c1a0c', g: ['#3e9a2c', '#9ce05a', '#5cb83a'],
+    sea: ['#4a9ad8', '#1e5a8a', '#6ab8f0', '#164a78'], fore: '#245a1c',
+    decor: ['vaso', 'regador', 'bola', 'flower', 'bush', 'casinha', 'flower'], sun: { x: 650, y: 90, col: '#fff3c4', glow: 1 },
+    clouds: 1, terrain: { base: 292, amp: 0.85 }
+  };
+  T.cozinha = {     // o chão é um bolo de chocolate com recheio de morango e cobertura rosa
+    sky: ['#f6e2c0', '#fbeedb', '#fff8ee'], far: ['#e8cfa8', '#efdcbc'], near: ['#d8b88e', '#e6caa2'], tl: '#b07c4a', tl2: 'shelf',
+    dirt: ['#7a4a2a', '#5a3018', '#3a1e10'], s1: '#f6e6c8', s2: '#e8507a', g: ['#f08ab0', '#ffe0ec', '#ff6aa0'],
+    sea: ['#9ad4ea', '#5a9ab8', '#c4ecf8', '#4a8aa8'], fore: '#5a3018',
+    decor: ['xicara', 'panela', 'garrafa', 'maca', 'queijo', 'maca'], sun: { x: 400, y: 40, col: '#fff6d8', glow: 0.6 },
+    clouds: 0, terrain: { base: 300, amp: 0.6 }
+  };
+  T.areia = Object.assign({}, T.praia, { decor: ['guardasol', 'balde', 'castelo', 'palm', 'concha', 'concha'] });
+  T.rua = {
+    sky: ['#3a5a9a', '#9ab0d8', '#f4d8b0'], far: ['#8c9ab8', '#b4bed4'], near: ['#6e7a96', '#9aa4bc'], tl: '#56607a', tl2: 'city',
+    dirt: ['#8a8a90', '#5e5e66', '#34343a'], s1: '#4a4a52', s2: '#2a2a30', g: ['#6a6a72', '#c8ccd4', '#8a8a92'],
+    sea: ['#4a7a6a', '#24443a', '#6a9a88', '#1a382e'], fore: '#2a2a32',
+    decor: ['poste', 'lixeira', 'hidrante', 'cone', 'banco', 'lixeira'], sun: { x: 140, y: 200, col: '#ffd8a0', glow: 1 },
+    clouds: 0.7, terrain: { base: 296, amp: 0.8 }
+  };
+  // decoração que solta lasca cinza/colorida ao ser destruída (em vez de folhas)
+  MS.DECOR_HARD = { vaso: '#c8643a', regador: '#4aa0d8', bola: '#ff5a4a', casinha: '#c84a3a', xicara: '#ffffff', panela: '#8a8f9a', garrafa: '#7ad0a0', maca: '#e8322a', queijo: '#ffd23a',
+    guardasol: '#ff6a5a', balde: '#ffc83a', castelo: '#ead59c', concha: '#ffd0c0', poste: '#5a5f6a', lixeira: '#4a8a5a', hidrante: '#e8322a', cone: '#ff8a2a', banco: '#a8743a' };
+
   const ORIG_STAGES = [
-    { name: 'Campina',             theme: 'campo',    enemies: ['formiga', 'galinha'],                 err: 12,  hpMult: 1.0,  wind: 2, guests: [G('pombo', 0.2), G('abelha', 0.12)], weather: [{ type: 'sun', p: 0.3 }, { type: 'rain', p: 0.25 }] },
-    { name: 'Bosque Verde',        theme: 'floresta', enemies: ['sapo', 'camaleao', 'abelha'],         err: 10,  hpMult: 1.0,  wind: 2, guests: [G('caramelo', 0.15)], weather: [{ type: 'rain', p: 0.35 }, { type: 'sun', p: 0.25 }] },
-    { name: 'Praia',               theme: 'praia',    enemies: ['baiacu', 'pernilongo', 'pombo'],      err: 8,   hpMult: 1.0,  wind: 3, guests: [G('galinha', 0.12)], weather: [{ type: 'sun', p: 0.35 }, { type: 'rain', p: 0.25 }, { type: 'storm', p: 0.15 }] },
-    { name: 'Caverna',             theme: 'caverna',  enemies: ['tatubola', 'barata', 'picapau'],      err: 6,   hpMult: 1.15, wind: 1, guests: [G('camaleao', 0.15)] },
-    { name: 'Torre Assombrada',    theme: 'noite',    enemies: ['barata', 'pinscher', 'pernilongo'],   err: 5.5, hpMult: 1.15, wind: 2, guests: [G('pombo', 0.12)], weather: [{ type: 'rain', p: 0.25 }, { type: 'storm', p: 0.2 }] },
-    { name: 'Usina Abandonada',    theme: 'usina',    enemies: ['pombo', 'barata', 'pinscher'],        err: 5,   hpMult: 1.2,  wind: 2, guests: [G('caramelo', 0.1)], weather: [{ type: 'storm', p: 0.4 }, { type: 'rain', p: 0.15 }] },
-    { name: 'Cabo Azul',           theme: 'cabo',     enemies: ['baiacu', 'galinha', 'tatubola'],      err: 4.8, hpMult: 1.25, wind: 3, guests: [G('rolabosta', 0.15)], weather: [{ type: 'rain', p: 0.35 }, { type: 'sun', p: 0.2 }] },
-    { name: 'Gruta Gelada',        theme: 'gelo',     enemies: ['camaleao', 'sapo', 'caramelo'],       err: 4.4, hpMult: 1.3,  wind: 2, guests: [G('pinscher', 0.12)], weather: [{ type: 'snow', p: 0.65 }] },
-    { name: 'Ilha Vulcânica',      theme: 'lava',     enemies: ['rolabosta', 'barata', 'galinha'],     err: 4.2, hpMult: 1.35, wind: 2, guests: [G('formiga', 0.12)], weather: [{ type: 'sun', p: 0.55 }] },
-    { name: 'Estrada da Vitória',  theme: 'vitoria',  enemies: ['caramelo', 'abelha', 'pombo'],        err: 4,   hpMult: 1.4,  wind: 3, guests: [G('baiacu', 0.1)], weather: [{ type: 'sun', p: 0.25 }, { type: 'storm', p: 0.2 }] },
-    { name: 'Pico do Vento',       theme: 'montanha', enemies: ['pinscher', 'galinha'],                err: 3.5, hpMult: 1.9,  wind: 4, boss: true, guests: [], weather: [{ type: 'storm', p: 0.35 }, { type: 'rain', p: 0.15 }] }
+    { world: 'Quintal', name: 'Gramado',            theme: 'quintal', enemies: ['formiga', 'galinha'],               err: 12,  hpMult: 1.0,  wind: 2, guests: [G('pombo', 0.2), G('abelha', 0.12)], weather: [{ type: 'sun', p: 0.35 }, { type: 'rain', p: 0.2 }] },
+    { world: 'Quintal', name: 'Horta',              theme: 'quintal', enemies: ['sapo', 'camaleao', 'abelha'],       err: 10,  hpMult: 1.0,  wind: 2, guests: [G('rolabosta', 0.15), G('caramelo', 0.1)], weather: [{ type: 'rain', p: 0.35 }, { type: 'sun', p: 0.25 }] },
+    { world: 'Quintal', name: 'Casinha do Cachorro', theme: 'quintal', enemies: ['pinscher', 'caramelo', 'rolabosta'], err: 8,  hpMult: 1.1,  wind: 2, boss: true, guests: [G('formiga', 0.15)] },
+    { world: 'Cozinha', name: 'Pia',                theme: 'cozinha', enemies: ['barata', 'pernilongo', 'baiacu'],   err: 7,   hpMult: 1.1,  wind: 1, guests: [G('formiga', 0.15)] },
+    { world: 'Cozinha', name: 'Bancada',            theme: 'cozinha', enemies: ['formiga', 'barata', 'galinha'],     err: 6,   hpMult: 1.15, wind: 1, guests: [G('pernilongo', 0.15)] },
+    { world: 'Cozinha', name: 'Geladeira',          theme: 'cozinha', enemies: ['camaleao', 'baiacu', 'barata'],     err: 5.5, hpMult: 1.2,  wind: 1, boss: true, guests: [G('barata', 0.12)], weather: [{ type: 'snow', p: 1 }] },
+    { world: 'Praia',   name: 'Areia Quente',       theme: 'areia',   enemies: ['baiacu', 'pernilongo', 'pombo'],    err: 5,   hpMult: 1.2,  wind: 3, guests: [G('galinha', 0.12)], weather: [{ type: 'sun', p: 0.5 }] },
+    { world: 'Praia',   name: 'Píer',               theme: 'areia',   enemies: ['galinha', 'picapau', 'baiacu'],     err: 4.8, hpMult: 1.25, wind: 3, guests: [G('tatubola', 0.12)], weather: [{ type: 'rain', p: 0.3 }, { type: 'storm', p: 0.15 }] },
+    { world: 'Praia',   name: 'Quiosque',           theme: 'areia',   enemies: ['pombo', 'pinscher', 'tatubola'],    err: 4.6, hpMult: 1.3,  wind: 3, boss: true, guests: [G('pernilongo', 0.15)], weather: [{ type: 'sun', p: 0.35 }] },
+    { world: 'Cidade',  name: 'Praça',              theme: 'rua',     enemies: ['pombo', 'pombo', 'caramelo'],       err: 4.4, hpMult: 1.35, wind: 2, guests: [G('gato', 0.12)], weather: [{ type: 'rain', p: 0.2 }] },
+    { world: 'Cidade',  name: 'Beco do Lixo',       theme: 'rua',     enemies: ['barata', 'gato', 'pernilongo'],     err: 4.2, hpMult: 1.4,  wind: 2, guests: [G('pombo', 0.15)], weather: [{ type: 'rain', p: 0.3 }, { type: 'storm', p: 0.2 }] },
+    { world: 'Cidade',  name: 'Telhado',            theme: 'rua',     enemies: ['gato', 'pombo'],                    err: 3.5, hpMult: 1.9,  wind: 4, boss: true, guests: [], weather: [{ type: 'storm', p: 0.3 }, { type: 'rain', p: 0.15 }] }
   ];
-  const ORIG_POOL = { campo: ['formiga', 'galinha', 'pombo'], floresta: ['formiga', 'camaleao', 'rolabosta', 'abelha', 'sapo', 'picapau'], praia: ['baiacu', 'pombo', 'pernilongo'], caverna: ['tatubola', 'barata', 'picapau'],
-    noite: ['barata', 'pinscher', 'pernilongo'], usina: ['pombo', 'barata', 'pinscher'], cabo: ['baiacu', 'galinha', 'tatubola'], gelo: ['camaleao', 'baiacu'], lava: ['rolabosta', 'barata'], vitoria: ['caramelo', 'camaleao', 'pombo', 'galinha'], montanha: [] };
+  const ORIG_POOL = { quintal: ['formiga', 'galinha', 'pombo', 'abelha', 'sapo', 'rolabosta'], cozinha: ['barata', 'formiga', 'pernilongo'], areia: ['baiacu', 'pombo', 'pernilongo', 'galinha'], rua: ['pombo', 'barata', 'gato', 'pernilongo'] };
   ORIG_STAGES.forEach(st => { st.pool = ORIG_POOL[st.theme] || []; });
   if (!MS.KEEP_POKEMON) { MS.STAGES.length = 0; MS.STAGES.push(...ORIG_STAGES); MS.ORIGINAIS = true; }   // KEEP_POKEMON: testes da versão antiga
 })();

@@ -8,7 +8,7 @@
   const GRAV = 0.2;           // gravidade base (px/frame²)
   const WALK_MAX = 120;       // distância máxima de caminhada por turno (mapas largos dão um pouco mais)
   const walkMax = () => WALK_MAX + Math.max(0, W - 800) * 0.07;
-  const GAME_VERSION = '18/10 bichos-4';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
+  const GAME_VERSION = '18/10 bichos-5';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
   const TURN_TIME = 30 * 60;  // 30 s para mirar e atirar (estourou: passa a vez)
   const WEAK = 0.35;          // abaixo dessa fração de PV o inimigo pode ser capturado
   const PLAYER_COL = '#3a9bff', WILD_COL = '#e0433a', GUEST_COL = '#ffd34d';
@@ -116,6 +116,7 @@
   const SPIKE_P = `<path d="M-7,-1.4 L7,0 L-7,1.4 Z" fill="#f6e6b0" stroke="#2a1f1a" stroke-width=".8" stroke-linejoin="round"/>`;
   const TONGUE_P = `<circle r="4.6" fill="#ff6a8a" stroke="#2a1f1a" stroke-width="1"/><ellipse cx="-1.4" cy="-1.6" rx="1.4" ry="1" fill="#ffb0c0"/>`;
   const POOP_P = `<path d="M-4.6,2 C-6,-1 -3,-4 0,-5 C1,-3 4,-3 4.6,0 C5.4,3 2,4.6 0,4.4 C-2,4.6 -4,4 -4.6,2 Z" fill="#f0ece4" stroke="#6a6a6a" stroke-width=".9"/><path d="M-2,0 q2,1.2 4,0" stroke="#9a9a9a" stroke-width=".8" fill="none"/>`;
+  const MARK_P = `<path d="M-6,1 C-7,-4 -3,-6 1,-5.6 C5,-6 7,-2 6,2 C4,4.4 -4,4.4 -6,1 Z" fill="#e8b860" stroke="#2a1f1a" stroke-width="1" stroke-linejoin="round"/><path d="M-4,-1 C-2,-3 2,-3 4,-1 C2,1.6 -2,1.6 -4,-1 Z" fill="#fff0c8"/>`;
   const NET_SVG = `<g stroke="#e8f4ff" stroke-width=".9" fill="rgba(232,244,255,.18)"><circle r="8"/><circle r="4.4" fill="none"/><path d="M-8,0H8M0,-8V8M-5.7,-5.7L5.7,5.7M5.7,-5.7L-5.7,5.7" fill="none"/></g><g fill="#c98a2a"><circle cx="8" cy="0" r="1.3"/><circle cx="-8" cy="0" r="1.3"/><circle cx="0" cy="8" r="1.3"/><circle cx="0" cy="-8" r="1.3"/></g>`;
   const eggSvg = col => `<ellipse cx="0" cy="-7.5" rx="6.2" ry="7.6" fill="#fff6e0" stroke="#3a2a33" stroke-width="1.1"/>
     <path d="M-5.4,-5 l2.4,-2 l2.2,2.2 l2.4,-2.2 l2.2,2.2 l2,-1.8" fill="none" stroke="${col}" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/>
@@ -182,7 +183,7 @@
   let weather = null, lightT = 300, bolt = null;
   let bolts = [], beams = [];   // raios do céu esperando para cair; hiper raios em andamento
   let terrAt = 0, windY = 0, windA = 0, windS = 0, turnT = 0, roundTurns = 0;   // vento em qualquer direção; tempo do turno; turnos na rodada
-  let netMode = false, lastNet = false, nets = [];   // versão original: rede para pegar ovos
+  let netMode = false, lastNet = false, nets = [], flyers = [];   // flyers: pombos que vêm até o pão de isca   // versão original: rede para pegar ovos
   let ballMode = false, ballType = 'ball', lastBall = false, lastBallType = 'ball', pickups = [], ai = null, cap = null, panel = null, pendingPanel = null;
   let campaign = null, stageIdx = 0, stageCaught = [], intro = null, teamSel = null;
   let uiList = [], uiSel = 0, themeKey = 'campo';
@@ -246,6 +247,8 @@
     else if (state === 'flying' && projs.length) {
       const p = projs[Math.floor(projs.length / 2)];
       tx = p.x; ty = p.y; tz = scene === 'intro' ? 1.2 : big ? GL_ZOOM : 1.35; k = 0.12;
+    } else if (state === 'flying' && flyers.length) {
+      const q = flyerPos(flyers[0]); tx = q.x; ty = q.y + 70; tz = big ? 1.5 : 1.15; k = 0.1;
     } else if (state === 'flying' && (bolts.length || beams.length)) {
       const b = bolts[0] || beams[0]; tx = b.x !== undefined ? b.x : (b.u.x + b.tx) / 2; ty = b.ty !== undefined ? Math.min(b.u.y, b.ty) - 20 : 250; tz = big ? 1.3 : 1.15; k = 0.1;
     } else if (state === 'settle') { tx = focus.x; ty = focus.y; tz = big ? 1.8 : 1.25; }
@@ -694,7 +697,7 @@
     power = 0; charging = false; ballMode = false; lastBall = false; pickups = []; weather = null; bolt = null; ai = null; cap = null; panel = null; pendingPanel = null;
     keys = {}; wxPrev = null; wxK = 1;
     guest = null; gCool = 1; gMode = ''; lastShotGuest = false; splashU = null; evo = null;
-    roundTurns = 0; windY = 0; windS = 0; turnT = TURN_TIME; bolts = []; beams = [];
+    roundTurns = 0; windY = 0; windS = 0; turnT = TURN_TIME; bolts = []; beams = []; flyers = [];
     cam.x = 400; cam.y = 250; cam.z = 1; cam.shake = 0;
     Sfx.chargeStop();
   }
@@ -1358,11 +1361,11 @@
     else if (weak) setTimeout(() => Sfx.weakEff(), 140);
   }
 
-  const STATUS_TXT = { burn: ['Queimando!', '#ff9a3a'], poison: ['Envenenado!', '#c783e4'], freeze: ['Congelado! Perde a vez', '#bfeaf6'], sleep: ['Dormindo! Perde a vez', '#c8d8ff'], para: ['Paralisado! Perde a vez', '#fff27a'] };
+  const STATUS_TXT = { burn: ['Queimando!', '#ff9a3a'], poison: ['Envenenado!', '#c783e4'], freeze: ['Congelado! Perde a vez', '#bfeaf6'], sleep: ['Dormindo! Perde a vez', '#c8d8ff'], para: ['Paralisado! Perde a vez', '#fff27a'], sujo: ['Sujou! (perde um pouco por turno)', '#e8e0cc'] };
   function applyStatus(u, type) {
     if (!u.alive || u.status) return;
     const T = STATUS_TXT[type]; if (!T) return;
-    if (type === 'burn' || type === 'poison') u.dot = { type, turns: 3 };
+    if (type === 'burn' || type === 'poison' || type === 'sujo') u.dot = { type, turns: 3 };
     else u.webbed = true;
     u.status = type;
     floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 50, t: 8, text: T[0], col: T[1], size: 12 });
@@ -1373,9 +1376,9 @@
     if (only) team = only.team;
     for (const u of units) {
       if (!u.alive || u.team !== team || !u.dot || (only && u !== only)) continue;
-      const d = u.dot.type === 'burn' ? 7 : 5;
+      const d = u.dot.type === 'burn' ? 7 : u.dot.type === 'sujo' ? 4 : 5;
       u.hp -= d; u.hurt = 14;
-      floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 18, t: 0, text: '-' + d, col: u.dot.type === 'burn' ? '#ff9a3a' : '#c783e4' });
+      floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 18, t: 0, text: '-' + d, col: u.dot.type === 'burn' ? '#ff9a3a' : u.dot.type === 'sujo' ? '#e8e0cc' : '#c783e4' });
       if (--u.dot.turns <= 0) { u.dot = null; u.status = null; }
     }
     for (const u of units) if (u.alive && u.team === team && (!only || u === only) && u.status && !u.dot && !u.webbed) u.status = null;
@@ -1435,6 +1438,19 @@
     Sfx.boom('gust');
   }
   // Raio do Céu: depois do aviso, cai um raio na coluna marcada
+  // pombo convocado: atravessa o céu, solta o cocô bem em cima do pão e vai embora
+  function flyerPos(f) {
+    const flyY = clamp(Math.min(surf(f.x, 0), f.y) - 150, 40, H - 120), k = f.t / 50;
+    return { x: f.x - f.dir * 280 * (1 - k), y: flyY + Math.sin(f.t * 0.2) * 3 };
+  }
+  function stepFlyers() {
+    for (const f of flyers) {
+      f.t++;
+      if (f.t === 50) { const q = flyerPos(f); launch('coco', q.x, q.y + 6, -Math.PI / 2, 1.2, 'unit', f.owner); Sfx.ballThrow(); }
+      if (f.t % 18 === 0 && f.t < 100) Sfx.click();
+    }
+    flyers = flyers.filter(f => f.t < 110);
+  }
   function stepBolts() {
     for (const b of bolts) {
       b.t++;
@@ -1630,7 +1646,7 @@
   }
 
   function stepProjs() {
-    stepBolts(); stepBeams();
+    stepBolts(); stepBeams(); stepFlyers();
     for (let i = projs.length - 1; i >= 0; i--) {
       const p = projs[i], isBall = p.wk === 'ball', isNet = p.wk === 'rede';
       if (p.under) {                                          // Ataque Subterrâneo: corre por baixo da terra
@@ -1703,6 +1719,14 @@
       if (!outcome) continue;
       projs.splice(i, 1);
       if (p.wp.teleport) { teleportTo(p, outcome, target); continue; }
+      if (p.wp.marker) {                                           // pão de isca: chama outro pombo que vem voando soltar o cocô ali em cima
+        if (outcome !== 'gone') {
+          // o pombo mira no bicho mais perto do pão (até 50 px); senão solta em cima do pão
+          const tm = p.ownerUnit ? p.ownerUnit.team : -1; let fx = p.x, bd = 50;
+          for (const v of units) if (v.alive && !v.hidden && v.team !== tm && Math.abs(v.x - p.x) < bd && Math.abs(v.y - p.y) < 80) { bd = Math.abs(v.x - p.x); fx = v.x; }
+          flyers.push({ x: fx, y: Math.min(p.y, H), t: 0, owner: p.ownerUnit, dir: p.vx >= 0 ? 1 : -1 }); spray(p.x, p.y - 2, 6, '#f0c878', 1.6, 0.12, 30, 1.6, 'chunk'); showMsg('Pruu! Lá vem o pombo...', 80); }
+        continue;
+      }
       if (outcome === 'gone') continue;
       if (isNet) {
         if (outcome === 'egg') netCatch(p, target);
@@ -1712,7 +1736,7 @@
       if (isBall) { ballResolve(p, target, outcome); continue; }
       explode(p.x, Math.min(p.y, H), p);
     }
-    if (!projs.length && !bolts.length && !beams.length && state === 'flying') { state = 'settle'; camHold = 60; camWide = false; }
+    if (!projs.length && !bolts.length && !beams.length && !flyers.length && state === 'flying') { state = 'settle'; camHold = 60; camWide = false; }
   }
 
   function homingTarget(p) {
@@ -2435,6 +2459,7 @@
       <g transform="${tilt}scale(${f1(u.face * sc)} ${f1(sc)})"${u.invis > 0 ? ' opacity=".3"' : flash ? ' opacity=".45"' : ''}><g${shF(u.sp, u.sh)}>${Art.draw(u.sp, ctx)}</g></g>
       ${u.sh && u.capScale > 0.5 ? glint(af, -S.hitR * u.scale * 0.8, -S.hitY * u.scale - 6, 1.2, u.blinkOff) + glint(af, S.hitR * u.scale * 0.9, -S.hitY * u.scale + 8, 0.9, u.blinkOff + 2) + glint(af, 0, -S.h * u.scale * 0.8, 1, u.blinkOff + 4) : ''}
       ${spOf(u).escolta && u.capScale > 0.5 && !beesOut(u) && MS.BEE_MINI ? Array.from({ length: spOf(u).escolta }, (_, i) => { const q = escortPos(u, i); return `<g transform="translate(${f1(q.x)} ${f1(q.y)}) scale(${f1(q.dir * 1.25 * u.scale)} ${f1(1.25 * u.scale)})">${MS.BEE_MINI}</g>`; }).join('') : ''}
+      ${u.status === 'sujo' && u.capScale > 0.5 ? `<g transform="translate(${2 * u.face} ${f1(-S.h * u.scale * 0.92)}) scale(1.5)">${POOP_P}</g>` : ''}
       ${statusIcon(u)}${web}${label}` };
   }
   const unitSvg = (u, opt) => { const p = unitParts(u, opt); return `<g transform="${p.t}">${p.h}</g>`; };
@@ -2462,8 +2487,8 @@
   function statusIcon(u) {
     if (!u.status || u.capScale < 0.5) return '';
     const S = spOf(u), y = -S.h * u.scale * 0.55, b = Math.sin(aF() * 0.15) * 1.5;
-    const col = { burn: '#ff7a1a', poison: '#b45ac8', freeze: '#bfeaf6', sleep: '#c8d8ff', para: '#ffe96a' }[u.status] || '#fff';
-    const ch = { burn: '🔥', poison: '☠', freeze: '❄', sleep: 'Z', para: '⚡' }[u.status] || '';
+    const col = { burn: '#ff7a1a', poison: '#b45ac8', freeze: '#bfeaf6', sleep: '#c8d8ff', para: '#ffe96a', sujo: '#e8e0cc' }[u.status] || '#fff';
+    const ch = { burn: '🔥', poison: '☠', freeze: '❄', sleep: 'Z', para: '⚡', sujo: '💩' }[u.status] || '';
     return `<g transform="translate(${f1(-S.hitR * u.scale - 8)} ${f1(y + b)})"><circle r="6.5" fill="#000" opacity=".55" stroke="${col}" stroke-width="1.4"/><text y="3.4" text-anchor="middle" font-size="9" fill="${col}" font-weight="bold">${ch}</text></g>`;
   }
 
@@ -2898,6 +2923,7 @@
       case 'roach': return `<g transform="translate(${f1(p.x)} ${f1(p.y)}) rotate(${f1(Math.atan2(p.vy, p.vx) * 57.3)}) scale(1.1)">${ROACH_P}</g>`;
       case 'spike': return `<g transform="translate(${f1(p.x)} ${f1(p.y)}) rotate(${f1(Math.atan2(p.vy, p.vx) * 57.3)}) scale(1.1)">${SPIKE_P}</g>`;
       case 'tongue': { const o = p.ownerUnit, m = o && o.alive ? mouthAt(o, o.face, false) : null; return (m ? `<line x1="${f1(m.x)}" y1="${f1(m.y)}" x2="${f1(p.x)}" y2="${f1(p.y)}" stroke="#ff6a8a" stroke-width="2.6" stroke-linecap="round"/>` : '') + `<g transform="translate(${f1(p.x)} ${f1(p.y)}) scale(1.1)">${TONGUE_P}</g>`; }
+      case 'marker': return `<g transform="translate(${f1(p.x)} ${f1(p.y)}) rotate(${(frameNo * 11) % 360}) scale(1.2)">${MARK_P}</g>`;
       case 'poop': return `<g transform="translate(${f1(p.x)} ${f1(p.y)}) rotate(${(frameNo * 6) % 360}) scale(${((p.wp.size || 1) * 1.15).toFixed(2)})">${POOP_P}</g>`;
       case 'bee': return `<g transform="translate(${f1(p.x)} ${f1(p.y + Math.sin(frameNo * 0.5 + p.spin) * 1.5)}) scale(${p.vx < 0 ? -1.5 : 1.5} 1.5)">${MS.BEE_MINI || ''}</g>`;
       case 'web':
@@ -2917,6 +2943,14 @@
     }
   }
 
+  const flyerSnip = k => {
+    const a = [-40, -10, 25, -10][k];
+    const wing = `<g transform="translate(-2 -13) rotate(${a})"><path d="M0,0 C-6,-10 -16,-10 -20,-4 C-14,-2 -6,0 0,2 Z" fill="#8a94a6" stroke="#2a1f1a" stroke-width="1" stroke-linejoin="round"/><path d="M-12,-6 l-2,4 M-16,-5 l-1.6,3" stroke="#5a6476" stroke-width=".8"/></g>`;
+    return wing + Art.draw('pombo', { f: 0, blink: false, breath: 0, bob: 0, step: 0, x: 0, charge: false, flap: true, mania: null, hurt: false });
+  };
+  function flyersSvg() {
+    return flyers.map(f => { const q = flyerPos(f), k = (frameNo >> 2) % 4; return `<g transform="translate(${f1(q.x)} ${f1(q.y)}) scale(${f.dir * 0.9} .9)">${flyerSnip(k)}</g>`; }).join('');
+  }
   function netsSvg() {
     let s = '';
     for (const n of nets) { const q = netPos(n); s += `<g transform="translate(${f1(q.x)} ${f1(q.y + 8)}) scale(${(1.35 - q.k * 0.4).toFixed(2)})">${eggSvg(n.e.col)}</g><g transform="translate(${f1(q.x)} ${f1(q.y)}) rotate(${f1(q.k * 340)}) scale(${(1.9 - q.close * 0.75).toFixed(2)})">${NET_SVG}</g>`; }
@@ -3372,10 +3406,11 @@
     }
     if (u.status && u.capScale >= 0.5) {
       const y = -S.h * u.scale * 0.55 + Math.sin(aF() * 0.15) * 1.5, x = -S.hitR * u.scale - 8;
-      const c2 = { burn: '#ff7a1a', poison: '#b45ac8', freeze: '#bfeaf6', sleep: '#c8d8ff', para: '#ffe96a' }[u.status] || '#fff';
-      const ch = { burn: '🔥', poison: '☠', freeze: '❄', sleep: 'Z', para: '⚡' }[u.status] || '';
+      const c2 = { burn: '#ff7a1a', poison: '#b45ac8', freeze: '#bfeaf6', sleep: '#c8d8ff', para: '#ffe96a', sujo: '#e8e0cc' }[u.status] || '#fff';
+      const ch = { burn: '🔥', poison: '☠', freeze: '❄', sleep: 'Z', para: '⚡', sujo: '💩' }[u.status] || '';
       R.circle(x, y, 6.5, '#000', 0.55); R.ring(x, y, 6.5, 1.4, c2); R.text(ch, x, y + 3.4, { size: 9, fill: c2 });
     }
+    if (u.status === 'sujo' && u.capScale > 0.5) { const s = R.svg('pj|poop', PJ.poop[0], PJ.poop[1], R.res * 1.5); if (s) { R.push(); R.tr(2 * u.face, -S.h * u.scale * 0.92); R.sc(1.5); R.spr(s); R.pop(); } }
     if (u.webbed || u.stuck) {
       const s = R.svg('web', `<g stroke="#fff" stroke-width="1" fill="rgba(255,255,255,.18)"><circle r="15"/><circle r="8"/><path d="M-15,0H15M0,-15V15M-10.6,-10.6L10.6,10.6M10.6,-10.6L-10.6,10.6" stroke-width=".8"/></g>`, [-17, -17, 34, 34], R.res * u.scale);
       if (s) { R.push(); R.tr(0, -S.hitY * u.scale); R.sc(u.scale); R.spr(s, 0.9); R.pop(); }
@@ -3436,6 +3471,7 @@
     spike: [SPIKE_P, [-8, -2.5, 16, 5]],
     tongue: [TONGUE_P, [-6, -6, 12, 12]],
     poop: [POOP_P, [-6, -6, 12, 12]],
+    marker: [MARK_P, [-8, -8, 16, 14]],
     bee: [MS.BEE_MINI || '<circle r="3" fill="#f6c428"/>', [-5, -7, 11, 10]]
   };
   function glPj(name, x, y, rot, sc = 1, a = 1) {
@@ -3505,6 +3541,7 @@
       case 'roach': glPj('roach', p.x, p.y, deg + Math.sin(frameNo * 0.6) * 0.15, 1.1); return;
       case 'spike': glPj('spike', p.x, p.y, deg, 1.1); return;
       case 'tongue': { const o = p.ownerUnit; if (o && o.alive) { const m = mouthAt(o, o.face, false); R.line(m.x, m.y, p.x, p.y, 2.6, '#ff6a8a', 0.95); } glPj('tongue', p.x, p.y, 0, 1.1); return; }
+      case 'marker': glPj('marker', p.x, p.y, frameNo * 0.2, 1.2); return;
       case 'poop': glPj('poop', p.x, p.y, frameNo * 0.1, (p.wp.size || 1) * 1.15); return;
       case 'bee': glTrail(p, 0.5, 0.8, '#fff6c0', 0.35); R.push(); R.tr(p.x, p.y); if (p.vx < 0) R.sc(-1, 1); glPj('bee', 0, Math.sin(frameNo * 0.5 + p.spin) * 1.5, 0, 1.5); R.pop(); return;
       default: {
@@ -3733,6 +3770,10 @@
       R.ellipse(p.x, g, 8 * k + 2, 2.4 * k + 0.6, '#000', 0.35 * k);
     }
     for (const p of projs) glProj(p);
+    for (const f of flyers) {                       // pombo convocado (asas batendo: 4 desenhos)
+      const q = flyerPos(f), k = (frameNo >> 2) % 4, s = R.svg('flyer|' + k, () => flyerSnip(k), [-24, -40, 50, 42], R.res);
+      if (s) { R.push(); R.tr(q.x, q.y); R.sc(f.dir * 0.9, 0.9); R.spr(s); R.pop(); }
+    }
     if (cap) {
       const c = cap;
       if (c.t <= 22) R.circle(c.x, c.y, 6 + c.t * 1.2, '#fff', 1 - c.t / 22);
@@ -3862,7 +3903,7 @@
 
     renderKeyed('worms', scene === 'intro' ? [] : inBattle ? renderBattleUnits(act) : units.map(u => { const p = unitParts(u, { color: '#fff', noBar: true }); return { k: u.uid, t: p.t, h: p.h }; }));
 
-    $('proj').innerHTML = projs.map(projSvg).join('') + captureSvg() + (ORIG ? netsSvg() : '');
+    $('proj').innerHTML = projs.map(projSvg).join('') + captureSvg() + (ORIG ? netsSvg() + flyersSvg() : '');
 
     $('pshadow').innerHTML = lite ? '' : projs.map(p => {
       if (p.x < 0 || p.x >= W) return '';
@@ -4018,7 +4059,7 @@
     let s = `<rect width="800" height="500" fill="#0b1630" opacity=".55"/>
       <text x="400" y="78" text-anchor="middle" font-size="34" font-weight="900" fill="#fff" stroke="#173a78" stroke-width="6" paint-order="stroke">Escolha seu parceiro</text>
       <text x="400" y="108" text-anchor="middle" font-size="14" fill="#bfe3ff">Os outros você ganha nas fases: derrote com um golpe fraco e pegue o ovo!</text>`;
-    const NOTE = { abelha: 'Rainha da colmeia. Manda as abelhinhas atacarem.', galinha: 'Nervosa. Cacareja e bica sem parar.', barata: 'Sobrevive a tudo. Uma vez por fase.', baiacu: 'Infla quando apanha. Aí leva metade.', camaleao: 'Muda de cor. Some depois de atacar.', pombo: 'Rei da praça. Ataca lá do alto.', brasito: 'Esquentadinho. Assopra o próprio topete.', gotalho: 'Calmo e cuidadoso. Rega toda plantinha que vê.', musguinho: 'Tímido. O chapéu sempre cai nos olhos.',
+    const NOTE = { abelha: 'Rainha da colmeia. Manda as abelhinhas atacarem.', galinha: 'Nervosa. Cacareja e bica sem parar.', barata: 'Sobrevive a tudo. Uma vez por fase.', baiacu: 'Infla quando apanha. Aí leva metade.', camaleao: 'Muda de cor. Some depois de atacar.', pombo: 'Rei da praça. Chama a turma com pão.', brasito: 'Esquentadinho. Assopra o próprio topete.', gotalho: 'Calmo e cuidadoso. Rega toda plantinha que vê.', musguinho: 'Tímido. O chapéu sempre cai nos olhos.',
       caramelo: 'A alegria em pessoa. Nunca para de abanar o rabo.', pinscher: 'Pequeno e brabo. Com pouca vida, entra em fúria.', tatubola: 'Medroso e cascudo. Vira bola quando se assusta.' };
     list.forEach((sp, i) => {
       const x = 130 + i * 190, S = SPECIES[sp], sel = uiSel === i;

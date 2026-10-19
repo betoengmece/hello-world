@@ -473,7 +473,7 @@
     barata:     { name: 'Barata',     types: ['bug'],                weapon: 'voobarata', maxhp: 75,  h: 34, hitY: 12, hitR: 11, catch: 0.6, mouth: [16, -11], mania: true, orig: true, tenaz: true, sh: 200 },
     baiacu:     { name: 'Baiacu',     types: ['water', 'poison'],    weapon: 'espinhos',  maxhp: 95,  h: 26, hitY: 12, hitR: 11, catch: 0.6, mouth: [17, -12], mania: true, orig: true, infla: true, sh: 180 },
     camaleao:   { name: 'Camaleão',   types: ['grass'],              weapon: 'lingua',    maxhp: 90,  h: 34, hitY: 12, hitR: 11, catch: 0.6, mouth: [19, -14], mania: true, orig: true, camuflagem: true, sh: 120 },
-    pombo:      { name: 'Pombo',      types: ['normal', 'flying'],   weapon: 'presente',  maxhp: 85,  h: 32, hitY: 13, hitR: 11, catch: 0.6, mouth: [17, -19], mania: true, orig: true, sh: 260 },
+    pombo:      { name: 'Pombo',      types: ['normal', 'flying'],   weapon: 'paoisca',   maxhp: 85,  h: 32, hitY: 13, hitR: 11, catch: 0.6, mouth: [17, -19], mania: true, orig: true, sh: 260 },
     abelha:     { name: 'Abelha Rainha', types: ['bug', 'flying'],  weapon: 'enxame',    maxhp: 90,  h: 44, hitY: 17, hitR: 12, catch: 0.6, mouth: [16, -22], mania: true, orig: true, escolta: 3, sh: 300 },
     rolabosta:  { name: 'Rola-bosta', types: ['ground', 'bug'],      weapon: 'bolaterra', maxhp: 100, h: 34, hitY: 12, hitR: 12, catch: 0.6, mouth: [18, -12], mania: true, orig: true, sh: 60 }
   });
@@ -485,6 +485,8 @@
     voobarata: { label: 'Voo na Cara',     type: 'bug',      style: 'roach',  count: 1, spread: 0, speed: 1.35, grav: 0.45, boom: 24, carve: 6,  dmg: 32, windMul: 0.6 },
     espinhos:  { label: 'Espinhos',        type: 'poison',   style: 'spike',  count: 3, spread: 7, speed: 1.1,  grav: 0.8,  boom: 18, carve: 4,  dmg: 17, st: { type: 'poison', p: 0.3 } },
     lingua:    { label: 'Língua Puxadora', type: 'grass',    style: 'tongue', count: 1, spread: 0, speed: 1.25, grav: 0.7,  boom: 22, carve: 0,  dmg: 24, pull: 80, pullDist: 55, pullOwner: true },
+    paoisca:   { label: 'Pão de Isca',     type: 'normal',   style: 'marker', count: 1, spread: 0, speed: 1.0,  grav: 1.0,  boom: 22, carve: 0,  dmg: 12, marker: true },
+    coco:      { label: 'Cocô do Pombo',   type: 'normal',   style: 'poop',   count: 1, spread: 0, speed: 1.0,  grav: 1.0,  boom: 22, carve: 4,  dmg: 10, windMul: 0, st: { type: 'sujo', p: 1 } },
     presente:  { label: 'Presente do Céu', type: 'normal',   style: 'poop',   count: 1, spread: 0, speed: 1.0,  grav: 1.0,  boom: 20, carve: 6,  dmg: 16, split: { n: 4, wk: 'caquinha' } },
     caquinha:  { label: 'Caquinha',        type: 'normal',   style: 'poop',   count: 1, spread: 0, speed: 1.0,  grav: 1.1,  boom: 20, carve: 6,  dmg: 16, size: 0.8 },
     enxame:    { label: 'Enxame',          type: 'bug',      style: 'bee',    count: 3, spread: 9, speed: 1.05, grav: 0.6,  boom: 22, carve: 4,  dmg: 18, windMul: 0.6, homing: 0.05 },

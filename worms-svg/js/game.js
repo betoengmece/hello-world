@@ -8,7 +8,7 @@
   const GRAV = 0.2;           // gravidade base (px/frame²)
   const WALK_MAX = 120;       // distância máxima de caminhada por turno (mapas largos dão um pouco mais)
   const walkMax = () => WALK_MAX + Math.max(0, W - 800) * 0.07;
-  const GAME_VERSION = '18/10 bichos-5';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
+  const GAME_VERSION = '18/10 bichos-6';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
   const TURN_TIME = 30 * 60;  // 30 s para mirar e atirar (estourou: passa a vez)
   const WEAK = 0.35;          // abaixo dessa fração de PV o inimigo pode ser capturado
   const PLAYER_COL = '#3a9bff', WILD_COL = '#e0433a', GUEST_COL = '#ffd34d';
@@ -1121,7 +1121,7 @@
     if (state === 'aim') {
       if (keys.up) angle = Math.min(88, angle + 1.2);
       if (keys.down) angle = Math.max(4, angle - 1.2);
-      if (charging) { power = Math.min(100, power + 0.9); Sfx.chargeSet(power); }
+      if (charging) stepCharge(0.9);
     }
     if (state === 'flying') stepIntroProj();
     if (state === 'capture' && cap) stepCapture();
@@ -4266,10 +4266,19 @@
   }
 
   let fireLatch = false, fireDownAt = 0;
+  // tiro em dois toques: o 1º começa a barra (sobe até o máximo e volta); o 2º atira. Se a barra zerar, o tiro é cancelado
+  let chargeDir = 1;
   function pressFire() {
-    if (state === 'aim' && !charging && (scene === 'intro' ? intro.balls > 0 : !teams[turnTeam].ai)) {
-      charging = true; power = 0; Sfx.unlock(); Sfx.chargeStart();
+    if (charging) { releaseFire(); return; }
+    if (state === 'aim' && (scene === 'intro' ? intro.balls > 0 : !teams[turnTeam].ai)) {
+      charging = true; power = 0; chargeDir = 1; Sfx.unlock(); Sfx.chargeStart();
     }
+  }
+  function stepCharge(rate) {
+    power += rate * chargeDir;
+    if (power >= 100) { power = 100; chargeDir = -1; }
+    if (chargeDir < 0 && power <= 0) { power = 0; charging = false; chargeDir = 1; Sfx.chargeStop(); showMsg('Tiro cancelado', 60); return; }
+    Sfx.chargeSet(power);
   }
   function releaseFire() {
     if (!charging) return;
@@ -4287,8 +4296,7 @@
       if (holdKey) keys[holdKey] = true;
       else if (act === 'fire') {
         // TIRO: segurar e soltar, ou tocar uma vez para começar a carregar e outra para soltar (bom para ponteiro de TV)
-        if (charging && fireLatch) { fireLatch = false; releaseFire(); }
-        else { pressFire(); fireDownAt = Date.now(); fireLatch = false; }
+        pressFire();
       }
       else if (act === 'pass') passTurn();
       else if (act === 'restart') restart();
@@ -4303,8 +4311,7 @@
       btn.classList.remove('on');
       if (holdKey) keys[holdKey] = false;
       else if (act === 'fire') {
-        if (charging && !fireLatch && Date.now() - fireDownAt < 260) { fireLatch = true; showMsg('Carregando... toque TIRO de novo para soltar', 90); }
-        else if (!fireLatch) releaseFire();
+        /* tiro em dois toques: soltar o botão não faz nada */
       }
     };
     btn.addEventListener('pointerdown', press);
@@ -4424,7 +4431,7 @@
 
   addEventListener('keyup', e => {
     if (ARROWS[e.key]) keys[ARROWS[e.key]] = false;
-    else if (e.code === 'Space') releaseFire();
+    else if (e.code === 'Space') { /* tiro em dois toques */ }
     else if (e.key === 'q' || e.key === 'Q') keys.panL = false;
     else if (e.key === 'e' || e.key === 'E') keys.panR = false;
   });
@@ -4483,10 +4490,7 @@
           if (wu && wu.face !== dir) { wu.face = dir; angle = 180 - angle; }
           walkUnit(wu, dir);
         }
-      } else {
-        power = Math.min(100, power + 0.9);
-        Sfx.chargeSet(power);
-      }
+      } else stepCharge(0.9);
     }
     if (state === 'aim' && !teams[turnTeam].ai) clampAim(activeUnit());      // andar muda a inclinação e a faixa de mira
     if (state === 'aim' && !teams[turnTeam].ai && --turnT <= 0) { if (charging) fire(); else passTurn(); }

@@ -9,6 +9,8 @@ Esta versão troca os personagens de terceiros por bichos caricatos próprios e 
 - **Ovo de Laço:** um selvagem derrotado sem exagero no dano (sobra de dano até 35% da vida dele) solta um ovo; com golpe forte demais a chance cai para 30%. O ovo rola pelo terreno e pode cair na água ou quebrar numa explosão. Na sua vez, aperte **B** (ou o botão **REDE**) e lance a rede: se acertar o ovo, a rede fecha, o ovo voa até quem lançou e fica com ele. Depois de um turno o ovo choca e o filhote entra na batalha do seu lado, com metade do tamanho, da vida e da força. Ao vencer a fase a captura vale: os filhotes crescem até o tamanho normal e entram no time. Se o último selvagem deixar um ovo, você ganha uma vez extra só para lançar a rede.
 - As fases usam só os monstrinhos originais. Sem Pokébolas no campo e sem o botão BOLA.
 
+**Tiro em dois toques:** o primeiro toque (ESPAÇO, X no controle ou TIRO) começa a barra de força, que sobe até o máximo e volta; o segundo toque atira. Se a barra zerar sem o segundo toque, o tiro é cancelado e dá para tentar de novo.
+
 O resto do jogo (WebGL, terreno por shader, câmera, controles) é igual ao ramo principal.
 
 ---

@@ -231,7 +231,36 @@
     </g>`;
   }
 
-  const NEW = { galinha, barata, baiacu, camaleao, pombo, abelha, sapo, picapau };
+  // ---------- Pernilongo: cabeção cinza, tromba fina, asas transparentes e pernas compridas; sempre voando; mania: esfrega as patinhas e zumbe ----------
+  function pernilongo(c) {
+    const m = c.mania, rub = on(m) ? sin(m * PI * 10) * 2 : 0;
+    const wing = sin(c.f * 2.6) * 22, hover = sin(c.f * 0.15) * 2 - 10;
+    const leg = (x, a) => `<path d="M${x},-4 l${f1(a)},6 l${f1(a * 0.4)},6" fill="none" stroke="${OUT}" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>`;
+    return `<g transform="translate(0 ${f1(hover + c.bob)})">
+      <ellipse cx="0" cy="${f1(10 - hover)}" rx="6" ry="1.6" fill="#000" opacity="0"/>
+      ${leg(-5, -4)}${leg(-2, -1.5)}${leg(1, 1.5)}
+      <path d="M-4,-6 C-10,-4 -15,-6 -16,-9 C-12,-10 -7,-10 -3,-9 Z" fill="#8a8e9a" stroke="${OUT}" stroke-width="1"/>
+      <path d="M-13,-7.6 l2,-1 M-10,-7 l2,-1.4 M-7,-6.6 l2,-1.4" stroke="#5a5e6a" stroke-width=".8"/>
+      <ellipse cx="-1" cy="-8" rx="4.6" ry="3.6" fill="#9a9eaa" stroke="${OUT}" stroke-width="1"/>
+      <g transform="translate(-2 -11) rotate(${f1(-30 - wing)})"><ellipse cx="-3" cy="-7" rx="3.4" ry="8" fill="#eef6ff" fill-opacity=".7" stroke="${OUT}" stroke-width=".8"/></g>
+      <g transform="translate(0 -11) rotate(${f1(10 + wing)})"><ellipse cx="2" cy="-7" rx="3.2" ry="7.6" fill="#eef6ff" fill-opacity=".7" stroke="${OUT}" stroke-width=".8"/></g>
+      <g transform="translate(${f1(4 + rub * 0.3)} ${f1(-4)})">${leg(0, 3 + rub)}</g>
+      <g transform="translate(7 -18) scale(1.18)">
+        <path d="M-3,-7 Q-6,-13 -10,-12 M2,-7 Q3,-13 7,-14" fill="none" stroke="${OUT}" stroke-width="1" stroke-linecap="round"/>
+        <path d="M-5,-12 l-2,-1 M-7,-12 l-1,-2 M4,-13 l1,-2 M6,-13 l2,-1" stroke="${OUT}" stroke-width=".7"/>
+        <circle r="8.5" fill="#a8acb8" stroke="${OUT}" stroke-width="1.2"/>
+        <path d="M-5,-5 Q-1,-8 3,-6" fill="none" stroke="#d0d4de" stroke-width="1.6" stroke-linecap="round"/>
+        <path d="M6,2 L17,5" stroke="${OUT}" stroke-width="2" stroke-linecap="round"/><path d="M6,2 L17,5" stroke="#3a2a2a" stroke-width=".9" stroke-linecap="round"/>
+        ${eye(-1, -1, 3.4, '#c03030', c, 0.3)}${eye(5, -1.4, 3, '#c03030', c, 0.3)}
+        <path d="M-4,-5 L1,-3.6 M3.4,-4 L7.4,-5.2" stroke="${OUT}" stroke-width="1.1" stroke-linecap="round"/>
+        ${blush(-4.5, 4, '#ff9ab0', 1.8)}
+      </g>
+      ${on(m) || c.breath > 0 ? `<g stroke="#fff" stroke-width=".9" stroke-linecap="round" fill="none" opacity=".85"><path d="M20,-20 q2,-2 0,-4 q-2,-2 0,-4"/><path d="M24,-19 q2,-2 0,-4 q-2,-2 0,-4"/></g>` : ''}
+      ${puff(c, 20, -14, '#e8e0ff', '#ffffff')}
+    </g>`;
+  }
+
+  const NEW = { galinha, barata, baiacu, camaleao, pombo, abelha, sapo, picapau, pernilongo };
   const reg = () => { if (MS.Art && MS.Art.register) { for (const k in NEW) MS.Art.register(k, NEW[k]); return true; } return false; };
   if (!reg()) document.addEventListener('DOMContentLoaded', reg);
 })();

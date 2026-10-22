@@ -8,7 +8,7 @@
   const GRAV = 0.2;           // gravidade base (px/frame²)
   const WALK_MAX = 120;       // distância máxima de caminhada por turno (mapas largos dão um pouco mais)
   const walkMax = () => WALK_MAX + Math.max(0, W - 800) * 0.07;
-  const GAME_VERSION = '19/10 bichos-12';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
+  const GAME_VERSION = '22/10 bichos-13';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
   const TURN_TIME = 30 * 60;  // 30 s para mirar e atirar (estourou: passa a vez)
   const WEAK = 0.35;          // abaixo dessa fração de PV o inimigo pode ser capturado
   const PLAYER_COL = '#3a9bff', WILD_COL = '#e0433a', GUEST_COL = '#ffd34d';
@@ -327,7 +327,7 @@
     return `translate(400 250) scale(${z.toFixed(3)}) translate(${f1(-cx)} ${f1(-cy)})`;
   }
 
-  const FX_FILL = { hair: '#d8b890', slime: '#a8f05a', beak: '#f0d090', bee: '#ffd34d', egg: '#fff6e0', roach: '#c8a07a', spike: '#f6e6b0', tongue: '#ff8aa0', poop: '#e8e4dc', bone: '#fff3d6', crumb: '#f0c878', dung: '#8a6038', fire: 'url(#boom)', leaf: 'url(#leafBoom)', water: 'url(#splash)', thunder: 'url(#zap)',
+  const FX_FILL = { dog: '#fff0c8', hair: '#d8b890', slime: '#a8f05a', beak: '#f0d090', bee: '#ffd34d', egg: '#fff6e0', roach: '#c8a07a', spike: '#f6e6b0', tongue: '#ff8aa0', poop: '#e8e4dc', bone: '#fff3d6', crumb: '#f0c878', dung: '#8a6038', fire: 'url(#boom)', leaf: 'url(#leafBoom)', water: 'url(#splash)', thunder: 'url(#zap)',
                     normal: 'url(#hitBoom)', gust: 'url(#gustBoom)', web: 'url(#webBoom)', dragon: 'url(#dragBoom)', rock: 'url(#rockBoom)', poison: '#b46bd0', ice: '#bfeaf6', ghost: '#8a6ac0', punch: '#fff0c8', psy: '#ff8ad0', sound: 'rgba(191,233,255,.7)', powder: 'rgba(226,210,255,.7)' };
 
   // ---------- Geração do mundo ----------
@@ -1430,7 +1430,12 @@
         for (let i = 0; i < n; i++) { const ny = u.flying ? u.y : stepTo(u, u.x + dir); if (ny === null) break; u.x += dir; u.y = ny; }
       }
     }
-    if (wp.build) raiseTerrain(x, wp.boom + 4, wp.build);
+    if (wp.build) {
+      const br = wp.buildR || wp.boom + 4;
+      raiseTerrain(x, br, wp.build);
+      for (const u of units) if (u.alive && !u.flying && Math.abs(u.x - x) < br + 4 && solid(u.x, u.y - 2)) u.y = surfAbove(u.x, u.y);
+      if (ORIG && style === 'dung') spray(x, y - 4, 12, '#8a6038', 2.2, 0.12, 50, 2.6, 'chunk');
+    }
     if (wp.quake) quakeHit(x, p, wp);
     if (wp.chain) chainHit(x, y, p, wp);
     if (wp.pull) pullHit(x, y, p, wp);
@@ -1591,6 +1596,21 @@
     floaters.push({ x, y: ty - spOf(u).h * u.scale - 30, t: 0, text: 'Teleporte!', col: '#ff8ad0', size: 14 });
     Sfx.ballCatch();
   }
+  // Pulo Raivoso: morde onde cair e fica ali; se cair no vazio ou na água, volta para onde estava (não se mata)
+  function leapLand(p, outcome, target) {
+    const u = p.ownerUnit; if (!u) return;
+    u.leaping = false;
+    if (outcome !== 'gone') explode(p.x, Math.min(p.y, H), p);
+    if (!u.alive) return;
+    let x = clamp(target ? target.x + (u.x < target.x ? -22 : 22) : p.x, 12, W - 12);
+    const ty = outcome === 'gone' ? H + 200 : surf(x, Math.min(p.y, H) - 40);
+    if (ty >= WATER - 4 || ledgeAhead({ x, y: ty }, 1) && ledgeAhead({ x, y: ty }, -1)) {
+      floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 30, t: 0, text: 'Voltou correndo!', col: '#ffffff', size: 12 }); u.hop = 1; return;
+    }
+    u.face = target ? (target.x >= x ? 1 : -1) : u.face;
+    u.x = x; u.y = ty; u.vy = 0; u.air = false; u.sq = 1; focus = { x, y: ty };
+    floaters.push({ x: x + 8, y: ty - spOf(u).h * u.scale - 40, t: 0, text: 'NHAC!', col: '#ffd34d', size: 20, pop: 1, comic: true, rot: -0.2 });
+  }
   // a superfície logo acima de um ponto debaixo da terra
   function surfAbove(x, y) { let yy = Math.floor(y); while (yy > 0 && solid(x, yy - 1)) yy--; return yy; }
 
@@ -1728,6 +1748,7 @@
       const boost = ORIG && !dualGo ? useItem(u) : 1, n0 = projs.length;
       const { x: mx, y: my } = mouthAt(u, u.face, false);
       launch(wk, mx, my, a, sp, 'unit', u);
+      if (WEAPONS[wk].leap) { u.leaping = true; spray(u.x, u.y - 4, 8, '#e8dcc0', 2, 0.05, 30, 2.4, 'smoke'); }
       if (boost !== 1) for (let i = n0; i < projs.length; i++) projs[i].boost = boost;
       u.breath = 18; Sfx.shoot(WEAPONS[wk].style); if (WEAPONS[wk].buzz && Sfx.buzz) Sfx.buzz();
       muzzle(mx, my, WEAPONS[wk].style, a);
@@ -1739,7 +1760,7 @@
   }
 
   // ---------- Efeitos do tiro ----------
-  const STYLE_COL = { rock: '#c8b898', fire: '#ffb020', leaf: '#7be07b', water: '#9fe0ff', thunder: '#fff27a', normal: '#fff6c8', gust: '#ffffff', web: '#ffffff', dragon: '#9a6aff', poison: '#c783e4', ice: '#bfeaf6', ghost: '#9a7ac8', punch: '#fff0c8', psy: '#ff8ad0', sound: '#bfe9ff', powder: '#e8d8ff', bone: '#fff6e0', crumb: '#f0d090', dung: '#9a7048', egg: '#fff6e0', roach: '#c8a07a', spike: '#f6e6b0', tongue: '#ff8aa0', poop: '#e8e4dc', bee: '#ffd34d', slime: '#a8f05a', beak: '#f0d090', hair: '#d8b890' };
+  const STYLE_COL = { rock: '#c8b898', fire: '#ffb020', leaf: '#7be07b', water: '#9fe0ff', thunder: '#fff27a', normal: '#fff6c8', gust: '#ffffff', web: '#ffffff', dragon: '#9a6aff', poison: '#c783e4', ice: '#bfeaf6', ghost: '#9a7ac8', punch: '#fff0c8', psy: '#ff8ad0', sound: '#bfe9ff', powder: '#e8d8ff', bone: '#fff6e0', crumb: '#f0d090', dung: '#9a7048', egg: '#fff6e0', roach: '#c8a07a', spike: '#f6e6b0', tongue: '#ff8aa0', poop: '#e8e4dc', bee: '#ffd34d', slime: '#a8f05a', beak: '#f0d090', hair: '#d8b890', dog: '#fff0c8' };
 
   function muzzle(x, y, style, a) {
     const col = STYLE_COL[style] || '#fff';
@@ -1881,6 +1902,7 @@
       if (!outcome) continue;
       projs.splice(i, 1);
       if (p.wp.teleport) { teleportTo(p, outcome, target); continue; }
+      if (p.wp.leap) { leapLand(p, outcome, target); continue; }
       if (p.wp.marker) {                                           // pão de isca: chama outro pombo que vem voando soltar o cocô ali em cima
         if (outcome !== 'gone') {
           // o pombo mira no bicho mais perto do pão (até 50 px); senão solta em cima do pão
@@ -2159,6 +2181,7 @@
 
   function settle() {
     if (projs.length) return;
+    for (const u of units) if (u.leaping) u.leaping = false;
     if (units.some(u => u.alive && !u.hidden && !(u.flying && u.alt > 0) && u.air)) return;   // ainda caindo
     if (!dotDone) { dotDone = true; if (!lastShotGuest) { applyDots(activeUnit()); if (guest && guest.alive && guest.dot && roundTurns === 0) applyDots(guest); } }
     for (const u of units) {
@@ -3127,6 +3150,7 @@
       case 'tongue': { const o = p.ownerUnit, m = o && o.alive ? mouthAt(o, o.face, false) : null; return (m ? `<line x1="${f1(m.x)}" y1="${f1(m.y)}" x2="${f1(p.x)}" y2="${f1(p.y)}" stroke="#ff6a8a" stroke-width="2.6" stroke-linecap="round"/>` : '') + `<g transform="translate(${f1(p.x)} ${f1(p.y)}) scale(1.1)">${TONGUE_P}</g>`; }
       case 'marker': return `<g transform="translate(${f1(p.x)} ${f1(p.y)}) rotate(${(frameNo * 11) % 360}) scale(1.2)">${MARK_P}</g>`;
       case 'slime': return `<g transform="translate(${f1(p.x)} ${f1(p.y)}) scale(1.2)">${SLIME_P}</g>`;
+      case 'dog': return `<g transform="translate(${f1(p.x)} ${f1(p.y)}) scale(${p.vx < 0 ? -1 : 1} 1) rotate(${f1((p.vx < 0 ? -1 : 1) * Math.atan2(p.vy, Math.abs(p.vx)) * 34)})">${PJ.dog[0]}</g>`;
       case 'hair': return `<g transform="translate(${f1(p.x)} ${f1(p.y)}) rotate(${(frameNo * 9) % 360}) scale(1.1)">${HAIR_P}</g>`;
       case 'beak': return `<g transform="translate(${f1(p.x)} ${f1(p.y)}) rotate(${f1(Math.atan2(p.vy, p.vx) * 57.3)}) scale(1.2)">${BEAK_P}</g>`;
       case 'poop': return `<g transform="translate(${f1(p.x)} ${f1(p.y)}) rotate(${(frameNo * 6) % 360}) scale(${((p.wp.size || 1) * 1.15).toFixed(2)})">${POOP_P}</g>`;
@@ -3191,7 +3215,7 @@
   function renderBattleUnits(act) {
     const items = [];
     for (const u of units) {
-      if (!u.alive || u.hidden) continue;
+      if (!u.alive || u.hidden || u.leaping) continue;
       const isFoe = kind === 'campaign' && u.team >= 1;
       const p = unitParts(u, u.team === 2 ? { extra: `<text x="0" y="-26" text-anchor="middle" font-size="8.5" font-weight="bold" fill="${GUEST_COL}" stroke="#000" stroke-width=".5" letter-spacing="1">VISITANTE</text>` } : {});
       let h = p.h;
@@ -3687,6 +3711,7 @@
     slime: [SLIME_P, [-7.5, -7.5, 15, 13]],
     beak: [BEAK_P, [-7.5, -5, 18, 10]],
     hair: [HAIR_P, [-8, -8, 16, 16]],
+    dog: [`<g transform="translate(0 16) scale(.75)">${Art.draw('pinscher', { f: 0, blink: false, breath: 10, bob: 0, step: 1.6, x: 0, mania: null, hurt: false })}</g>`, [-18, -24, 40, 44]],
     bee: [MS.BEE_MINI || '<circle r="3" fill="#f6c428"/>', [-5, -7, 11, 10]]
   };
   function glPj(name, x, y, rot, sc = 1, a = 1) {
@@ -3758,6 +3783,7 @@
       case 'tongue': { const o = p.ownerUnit; if (o && o.alive) { const m = mouthAt(o, o.face, false); R.line(m.x, m.y, p.x, p.y, 2.6, '#ff6a8a', 0.95); } glPj('tongue', p.x, p.y, 0, 1.1); return; }
       case 'marker': glPj('marker', p.x, p.y, frameNo * 0.2, 1.2); return;
       case 'slime': glTrail(p, 1, 2, '#8ae84a', 0.45); glPj('slime', p.x, p.y, 0, 1.2 + Math.sin(frameNo * 0.4) * 0.08); return;
+      case 'dog': glTrail(p, 1, 1.6, '#ffffff', 0.25); { const d = PJ.dog, s = GLR.svg('pj|dog', d[0], d[1], GLR.res * 2); if (s) { GLR.push(); GLR.tr(p.x, p.y); GLR.sc(p.vx < 0 ? -1 : 1, 1); GLR.rot((p.vx < 0 ? -1 : 1) * Math.atan2(p.vy, Math.abs(p.vx)) * 0.6); GLR.spr(s); GLR.pop(); } } return;
       case 'hair': glTrail(p, 1, 1.4, '#d8b890', 0.3); glPj('hair', p.x, p.y, frameNo * 0.16, 1.1); return;
       case 'beak': glTrail(p, 1, 1.6, '#f0d090', 0.35); glPj('beak', p.x, p.y, deg, 1.2); return;
       case 'poop': glPj('poop', p.x, p.y, frameNo * 0.1, (p.wp.size || 1) * 1.15); return;
@@ -3972,7 +3998,7 @@
     // Pokémon
     for (const u of units) {
       if (!u.alive && inBattle) continue;
-      if (u.hidden) continue;
+      if (u.hidden || u.leaping) continue;
       if (!inBattle) { glUnit(u, { color: '#fff', noBar: true }); continue; }
       const isFoe = kind === 'campaign' && u.team >= 1;
       glUnit(u, {

@@ -489,6 +489,17 @@
         c = mix(c, c * 0.8, 0.5 * ell(q, vec2(80.0, 30.0), vec2(9.0, 4.4)) * (1.0 - ell(q, vec2(80.0, 30.0), vec2(5.0, 2.6))));
         return c;
       }
+      // cocô do rola-bosta: marrom com caroços e brilho
+      vec3 dung(vec2 p, float dep){
+        vec3 c = mix(vec3(0.40, 0.25, 0.09), vec3(0.24, 0.14, 0.05), clamp(dep / 40.0, 0.0, 1.0));
+        vec2 q = vec2(mod(p.x, 14.0), mod(p.y + floor(p.x / 14.0) * 5.0, 11.0));
+        c = mix(c, c * 1.35, 0.7 * ell(q, vec2(5.0, 4.0), vec2(4.0, 2.4)));
+        c = mix(c, vec3(0.62, 0.46, 0.24), 0.45 * ell(q, vec2(4.0, 3.2), vec2(1.6, 0.8)));
+        c = mix(c, c * 0.7, 0.5 * ell(q, vec2(10.0, 8.0), vec2(2.4, 1.4)));
+        float h = fract(sin(dot(floor(p * 0.6), vec2(12.9898, 78.233))) * 43758.5453);
+        if (h > 0.93) c = mix(c, vec3(0.86, 0.80, 0.55), 0.6);      // sementinhas
+        return c;
+      }
       // areia: grãos finos
       vec3 sand(vec3 c, vec2 p){
         float h = fract(sin(dot(floor(p * 0.5), vec2(12.9898, 78.233))) * 43758.5453);
@@ -522,7 +533,7 @@
         // frente: terra com degradê, pedrinhas, camadas de rocha, queimado e contorno escuro
         float s = smoothstep(0.5 - e, 0.5 + e, d.r);
         if (s > 0.0) {
-          vec3 c = tx > 2.5 ? blocks(dirt(w.y), w) : tx > 1.5 ? sand(dirt(w.y), w) : tx > 0.5 ? wood(dirt(w.y), w) : pebbles(dirt(w.y), w);
+          vec3 c = d.b > 0.5 ? dung(w, d.g * 255.0) : tx > 2.5 ? blocks(dirt(w.y), w) : tx > 1.5 ? sand(dirt(w.y), w) : tx > 0.5 ? wood(dirt(w.y), w) : pebbles(dirt(w.y), w);
           float dep = d.g * 255.0;
           if (dep > 48.0 + 8.0 * sin(w.x * 0.05 + ph.y)) c = mix(c, s1, 0.5);
           if (dep > 115.0 + 12.0 * sin(w.x * 0.03 + ph.x)) c = mix(c, s2, 0.7);

@@ -8,7 +8,7 @@
   const GRAV = 0.2;           // gravidade base (px/frame²)
   const WALK_MAX = 120;       // distância máxima de caminhada por turno (mapas largos dão um pouco mais)
   const walkMax = () => WALK_MAX + Math.max(0, W - 800) * 0.07;
-  const GAME_VERSION = '22/10 bichos-13';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
+  const GAME_VERSION = '22/10 bichos-14';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
   const TURN_TIME = 30 * 60;  // 30 s para mirar e atirar (estourou: passa a vez)
   const WEAK = 0.35;          // abaixo dessa fração de PV o inimigo pode ser capturado
   const PLAYER_COL = '#3a9bff', WILD_COL = '#e0433a', GUEST_COL = '#ffd34d';
@@ -407,7 +407,7 @@
   }
   function syncTop(x0, x1) { for (let x = Math.max(0, x0 | 0); x <= Math.min(W - 1, Math.ceil(x1)); x++) heights[x] = surf(x, 0); }
   function fillMask(top, bot) {
-    mask = new Uint8Array(W * H); scorch = [];
+    mask = new Uint8Array(W * H); scorch = []; dungM = new Uint8Array(W * H); piles = [];
     for (let x = 0; x < W; x++) {
       if (bot[x] < 0) continue;
       for (let y = Math.max(0, Math.ceil(top[x])), y1 = Math.min(H, Math.floor(bot[x])); y < y1; y++) mask[y * W + x] = 1;
@@ -1432,7 +1432,9 @@
     }
     if (wp.build) {
       const br = wp.buildR || wp.boom + 4;
-      raiseTerrain(x, br, wp.build);
+      const dung = ORIG && style === 'dung';
+      raiseTerrain(x, br, wp.build, dung);
+      if (dung) pileAdd(Math.round(x), wp.build);
       for (const u of units) if (u.alive && !u.flying && Math.abs(u.x - x) < br + 4 && solid(u.x, u.y - 2)) u.y = surfAbove(u.x, u.y);
       if (ORIG && style === 'dung') spray(x, y - 4, 12, '#8a6038', 2.2, 0.12, 50, 2.6, 'chunk');
     }
@@ -1470,13 +1472,13 @@
     for (const u of units) if (u.alive && u.team === team && (!only || u === only) && u.status && !u.dot && !u.webbed) u.status = null;
   }
   // Bomba de Lama e afins: ergue chão por cima da superfície (só onde há ilha embaixo)
-  function raiseTerrain(cx, r, hgt) {
+  function raiseTerrain(cx, r, hgt, dung) {
     let ya = 1e9, yb = -1e9;
     for (let x = Math.max(0, Math.floor(cx - r)); x <= Math.min(W - 1, Math.ceil(cx + r)); x++) {
       const k = 1 - Math.abs(x - cx) / r; if (k <= 0) continue;
       const t0 = heights[x]; if (t0 >= WATER - 2) continue;
       const t1 = Math.max(60, Math.round(t0 - hgt * Math.sqrt(k)));
-      for (let y = t1; y < t0; y++) mask[y * W + x] = 1;
+      for (let y = t1; y < t0; y++) { mask[y * W + x] = 1; if (dung) dungM[y * W + x] = 1; }
       heights[x] = t1; grass[x] = 0; ya = Math.min(ya, t1); yb = Math.max(yb, t0);
     }
     if (yb > ya) { glMark(cx - r - 14, ya - 30, cx + r + 14, yb + 14); glTMark(cx - r - 1, cx + r + 1); }
@@ -1627,6 +1629,74 @@
   }
 
   let gagSt = 'aim', gagGo = false;
+  // ---------- Montinhos de cocô do rola-bosta ----------
+  // pixels de cocô (dungM) viram chão marrom; cada monte tem moscas que picam quem termina o turno perto (mais monte = mais dano)
+  let dungM = new Uint8Array(0), piles = [];
+  function pileAdd(x, amt) {
+    let p = piles.find(q => Math.abs(q.x - x) < 34);
+    if (!p) { p = { x, size: 0, seed: Math.random() * 6 }; piles.push(p); }
+    else p.x = Math.round((p.x * p.size + x * amt) / (p.size + amt));
+    p.size += amt;
+  }
+  // altura real do monte = maior coluna de cocô ainda de pé (explosões vão gastando)
+  function pileFix() {
+    for (const p of piles) {
+      let best = 0;
+      for (let x = Math.max(0, p.x - 14); x <= Math.min(W - 1, p.x + 14); x++) { let n = 0; for (let y = 0; y < H; y++) if (dungM[y * W + x] && mask[y * W + x]) n++; best = Math.max(best, n); }
+      p.size = Math.min(p.size, best);
+    }
+    piles = piles.filter(p => p.size >= 3);
+  }
+  const pileTop = p => heights[clamp(Math.round(p.x), 0, W - 1)];
+  const pileDmg = p => Math.max(1, Math.round(p.size * 0.11));
+  function flyBite(u) {
+    if (!u || !u.alive || u.sp === 'rolabosta' || !piles.length) return;
+    for (const p of piles) {
+      const r = 40 + p.size * 0.5;
+      if (Math.abs(u.x - p.x) > r || Math.abs(u.y - pileTop(p)) > 70) continue;
+      const d = pileDmg(p); u.hp -= d; u.hurt = 14; u.sq = 0.6;
+      floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 18, t: 0, text: `Moscas! -${d}`, col: '#b8d86a', size: 13 });
+      if (Sfx.buzz) Sfx.buzz(0.35);
+      p.bite = { u, t: 0 };
+    }
+  }
+  // moscas voando em volta do monte (posição de cada uma no quadro atual)
+  function flyPos(p, i, n) {
+    const t = frameNo * 0.05 + p.seed + i * 1.7, top = pileTop(p), r = 10 + p.size * 0.35;
+    let x = p.x + Math.sin(t * 1.3 + i) * r, y = top - 14 - p.size * 0.15 + Math.sin(t * 2.1 + i * 2) * 8;
+    if (p.bite && p.bite.t < 50) { const k = Math.sin(p.bite.t / 50 * Math.PI); x += (p.bite.u.x - x) * k; y += (p.bite.u.y - 16 - y) * k; }
+    return { x, y };
+  }
+  const nFlies = p => Math.min(9, 2 + Math.floor(p.size / 10));
+  function glPiles() {
+    const R = GLR;
+    for (const p of piles) {
+      const top = pileTop(p);
+      for (let i = 0; i < 3; i++) {                 // cheiro: fiapos esverdeados subindo e sumindo
+        const ph = ((frameNo * 0.6 + i * 40 + p.seed * 30) % 120) / 120, pts = [];
+        for (let k = 0; k <= 8; k++) { const yy = top - 6 - ph * 40 - k * 3.4; pts.push([p.x + (i - 1) * 9 + Math.sin(k * 0.9 + frameNo * 0.08 + i) * 3.2, yy]); }
+        R.poly(pts, 2.6, '#8fbf3a', 0.8 * Math.sin(ph * Math.PI));
+      }
+      const n = nFlies(p);
+      for (let i = 0; i < n; i++) {
+        const q = flyPos(p, i, n), w = (frameNo + i) % 4 < 2;
+        R.ellipse(q.x - 1.8, q.y - 2, 2.4, w ? 1.6 : 0.8, '#ffffff', 0.85); R.ellipse(q.x + 1.8, q.y - 2, 2.4, w ? 1.6 : 0.8, '#ffffff', 0.85);
+        R.circle(q.x, q.y, 2.3, '#1a1a1a'); R.circle(q.x + 1.2, q.y - 0.6, 0.9, '#c03030');
+      }
+    }
+  }
+  function svgPiles() {
+    let h = '';
+    for (const p of piles) {
+      const top = pileTop(p), r = 18 + p.size * 0.3;
+      let d = '';
+      for (let x = Math.round(p.x - r); x <= p.x + r; x++) { const y = heights[clamp(x, 0, W - 1)]; d += (d ? 'L' : 'M') + x + ',' + y; }
+      h += `<path d="${d}" fill="none" stroke="#6a4424" stroke-width="5" stroke-linecap="round" opacity=".85"/>`;
+      for (let i = 0; i < 3; i++) { const ph = ((frameNo * 0.6 + i * 40) % 120) / 120; h += `<path d="M${f1(p.x + (i - 1) * 9)},${f1(top - 6 - ph * 40)} q3,-5 0,-10 q-3,-5 0,-10" fill="none" stroke="#a8c860" stroke-width="1.8" opacity="${(0.65 * Math.sin(ph * Math.PI)).toFixed(2)}"/>`; }
+      for (let i = 0, n = nFlies(p); i < n; i++) { const q = flyPos(p, i, n); h += `<circle cx="${f1(q.x)}" cy="${f1(q.y)}" r="1.5" fill="#1a1a1a"/>`; }
+    }
+    return h;
+  }
   // ---------- Sensação de impacto ----------
   let hitStop = 0, kos = [], party = 0;
   const POW = ['POW!', 'TUM!', 'PAF!', 'BAM!', 'CABUM!', 'PLAFT!'];
@@ -2183,7 +2253,7 @@
     if (projs.length) return;
     for (const u of units) if (u.leaping) u.leaping = false;
     if (units.some(u => u.alive && !u.hidden && !(u.flying && u.alt > 0) && u.air)) return;   // ainda caindo
-    if (!dotDone) { dotDone = true; if (!lastShotGuest) { applyDots(activeUnit()); if (guest && guest.alive && guest.dot && roundTurns === 0) applyDots(guest); } }
+    if (!dotDone) { dotDone = true; if (ORIG) { pileFix(); if (!lastShotGuest) flyBite(activeUnit()); } if (!lastShotGuest) { applyDots(activeUnit()); if (guest && guest.alive && guest.dot && roundTurns === 0) applyDots(guest); } }
     for (const u of units) {
       if (!u.alive) continue;
       const drowned = u.y > WATER - 6;
@@ -3224,6 +3294,7 @@
         h += `<path transform="translate(0 ${f1(-(spOf(u).h * u.scale + 34) + Math.sin(aF() * 0.15) * 3)})" d="M-6,0 L6,0 L0,8 Z" fill="${teams[u.team].color}" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/>`;
       items.push({ k: u.uid, t: p.t, h });
     }
+    if (piles.length) items.push({ k: 'piles', t: '', h: svgPiles() });
     for (const k of kos) {
       const u = k.u, q = koPose(k);
       let h = `<g transform="rotate(${f1(-u.face * q.fall * 83)}) scale(${f1(u.face * u.scale)} ${f1(u.scale)})" opacity="${q.a.toFixed(2)}"><g${shF(u.sp, u.sh)}>${Art.draw(artSp(u), { f: 0, blink: false, breath: 0, bob: 0, step: 0, x: 0, mania: null, hurt: true })}</g></g>`;
@@ -3489,8 +3560,8 @@
       let run = 0;
       for (let y = 0; y < H; y++) {
         const o = (y * W + x) * 4;
-        if (mask[y * W + x]) { d[o] = 255; d[o + 1] = Math.min(255, run); run++; }
-        else { d[o] = 0; d[o + 1] = 0; run = 0; }
+        if (mask[y * W + x]) { d[o] = 255; d[o + 1] = Math.min(255, run); d[o + 2] = dungM.length && dungM[y * W + x] ? 255 : 0; run++; }
+        else { d[o] = 0; d[o + 1] = 0; d[o + 2] = 0; run = 0; }
       }
     }
   }
@@ -4012,6 +4083,7 @@
       if (s) { R.push(); R.tr(u.x, u.y + q.hop); R.rot(-u.face * q.fall * 1.45); R.sc(u.face * u.scale, u.scale); R.spr(s, q.a); R.pop(); }
       if (k.t > 10 && k.t < 84) for (let i = 0; i < 3; i++) { const a = frameNo * 0.13 + i * 2.09; R.text('★', q.hx + Math.cos(a) * 11, q.hy - 10 + Math.sin(a) * 4, { size: 11, fill: '#ffd34d', stroke: '#6a4a00', sw: 0.8 }, q.a); }
     }
+    if (piles.length) glPiles();
     // sombra dos tiros, tiros, captura
     if (!lite) for (const p of projs) {
       if (p.x < 0 || p.x >= W) continue;
@@ -4810,6 +4882,7 @@
     fx = fx.filter(f => f.t < f.max);
     for (const f of floaters) f.t++;
     floaters = floaters.filter(f => f.t < 60);
+    for (const p of piles) if (p.bite && ++p.bite.t > 60) p.bite = null;
     for (const k of kos) { k.t++; if (k.t === 84) { smoke(k.u.x, k.u.y - 12, 10); spray(k.u.x, k.u.y - 14, 14, '#ffffff', 2.6, -0.01, 34, 2, 'spark'); } }
     kos = kos.filter(k => k.t < 96);
     if (party > 0 && scene === 'battle') {                         // confete da vitória
@@ -4824,7 +4897,7 @@
   function busy() {
     if (settingsOpen) return drawerT > 0 && drawerT < 1;
     if (glLoading || glLoadFade > 0) return true;
-    return projs.length > 0 || charging || !!cap || fx.length > 0 || floaters.length > 0 || kos.length > 0 || party > 0 || hitStop > 0 || flash.a > 0.02 || cam.shake > 0 ||
+    return projs.length > 0 || charging || !!cap || fx.length > 0 || floaters.length > 0 || kos.length > 0 || party > 0 || hitStop > 0 || piles.length > 0 || flash.a > 0.02 || cam.shake > 0 ||
       !!(evo) || ['flying', 'capture', 'settle', 'guest', 'skip', 'evolve'].includes(state) || scene === 'intro' ||
       !!(keys.left || keys.right || keys.up || keys.down || keys.panL || keys.panR) || camMoving || !!panDrag || miniDrag;
   }
@@ -4855,7 +4928,7 @@
   MS.debug = {
     get lastBall() { return lastBall; },
     get: () => ({ scene, kind, state, stageIdx, units, teams, campaign, cap, intro, panel, angle, power, wind, ballMode, turnTeam, ai, guest, gCool, gMode, evo, projs }),
-    get pickups() { return pickups; }, BALLS, get eggs() { return eggs; }, get nets() { return nets; }, toggleNet, get netMode() { return netMode; }, get stageEggs() { return stageEggs; }, get campaign() { return campaign; },
+    get pickups() { return pickups; }, get piles() { return piles; }, BALLS, get eggs() { return eggs; }, get nets() { return nets; }, toggleNet, get netMode() { return netMode; }, get stageEggs() { return stageEggs; }, get campaign() { return campaign; },
     setWeather: w => { weather = w; lightT = 5; $('sun').style.display = (w === 'rain' || w === 'storm') ? 'none' : ''; glSkyDirty = true; }, get weather() { return weather; },
     glInfo: () => ({ aiw: !!aiWorker, aiJobs: aiJobSeq, active: glActive, loading: glLoading, prog: glLoadProg, gen: GLR && GLR.gen, resK: glResK, P: glP, snaps: Object.fromEntries(Object.entries(glSnap).map(([k, v]) => [k, { ok: v.ok, vb: v.vb }])), terrOk: glTerrOk, busy: glTerrBusy, full: glFullT, box: glBox, stats: GLR && GLR.stats, lite, ms: rN ? +(rTime / rN).toFixed(2) : 0, resetMs: (rTime = 0, rN = 0) }),
     setRender: r => { if ((settings.render === 'svg') !== (r === 'svg')) toggleRender(); },

@@ -8,7 +8,7 @@
   const GRAV = 0.2;           // gravidade base (px/frame²)
   const WALK_MAX = 120;       // distância máxima de caminhada por turno (mapas largos dão um pouco mais)
   const walkMax = () => WALK_MAX + Math.max(0, W - 800) * 0.07;
-  const GAME_VERSION = '22/10 bichos-14';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
+  const GAME_VERSION = '23/10 bichos-15';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
   const TURN_TIME = 30 * 60;  // 30 s para mirar e atirar (estourou: passa a vez)
   const WEAK = 0.35;          // abaixo dessa fração de PV o inimigo pode ser capturado
   const PLAYER_COL = '#3a9bff', WILD_COL = '#e0433a', GUEST_COL = '#ffd34d';
@@ -271,7 +271,7 @@
     if (scene === 'battle' && (state === 'settle' || state === 'aim' || state === 'ai')) {
       if (camWide && (charging || keys.left || keys.right || keys.up || keys.down || keys.panL || keys.panR)) camWide = false;
       if (camHold > 0) {
-        if (--camHold === 0) camWide = true;
+        if (--camHold === 0) camWide = state === 'settle';      // se a vez já mudou, a câmera vai direto para quem joga
         tx = focus.x; ty = focus.y; tz = big ? GL_ZOOM : 1.35; k = 0.1;
       } else if (camWide) { tx = cam.x; ty = 250; tz = 1; k = 0.06; }
     }
@@ -2168,8 +2168,9 @@
   }
 
   let dotDone = false;
+  let turnHi = 0;      // destaque de quem está na vez (anel pulsando + câmera vai até ele)
   function startTurn() {
-    dotDone = false; panX = null;
+    dotDone = false; panX = null; camWide = false; turnHi = 90;
     // ordem por atraso: joga o Pokémon (de qualquer lado) com menos atraso acumulado
     const order = turnOrder();
     if (!order.length) return;
@@ -2276,6 +2277,7 @@
     teams.forEach(fixCur);
     if (guest && !guest.alive) { guest = null; gCool = 1 + Math.floor(Math.random() * 3); }
     units = units.filter(u => u.team !== 2 || u.alive);
+    if (camHold > 0) return;            // deixa ver o estrago (1 s) antes de passar a vez; aí a câmera vai até quem joga
 
     {
       if (!teamAlive(teams[1])) {
@@ -3290,7 +3292,11 @@
       const p = unitParts(u, u.team === 2 ? { extra: `<text x="0" y="-26" text-anchor="middle" font-size="8.5" font-weight="bold" fill="${GUEST_COL}" stroke="#000" stroke-width=".5" letter-spacing="1">VISITANTE</text>` } : {});
       let h = p.h;
       if (isFoe && u.hp / u.maxhp <= WEAK && state !== 'capture') h += weakMarker(u);
-      if (u === act && (state === 'aim' || state === 'ai') && !teams[turnTeam].ai)
+      if (u === act && turnHi > 0 && (state === 'aim' || state === 'ai')) {
+        const k = 1 - turnHi / 90, col = teams[u.team].color, cy = -spOf(u).hitY * u.scale;
+        for (let i = 0; i < 2; i++) { const kk = (k * 2 + i * 0.5) % 1; h += `<circle cx="0" cy="${f1(cy)}" r="${f1(10 + kk * 34 * Math.max(1, u.scale))}" fill="none" stroke="${col}" stroke-width="${f1(3 * (1 - kk))}" opacity="${(0.9 * (1 - kk)).toFixed(2)}"/>`; }
+      }
+      if (u === act && (state === 'aim' || state === 'ai') && (!teams[turnTeam].ai || turnHi > 0))
         h += `<path transform="translate(0 ${f1(-(spOf(u).h * u.scale + 34) + Math.sin(aF() * 0.15) * 3)})" d="M-6,0 L6,0 L0,8 Z" fill="${teams[u.team].color}" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/>`;
       items.push({ k: u.uid, t: p.t, h });
     }
@@ -4075,8 +4081,13 @@
       glUnit(u, {
         extraText: u.team === 2 ? { t: 'VISITANTE', y: -26, o: { size: 8.5, fill: GUEST_COL, stroke: '#000', sw: 0.5, ls: 1 } } : null,
         weak: isFoe && u.hp / u.maxhp <= WEAK && state !== 'capture',
-        arrow: u === act && (state === 'aim' || state === 'ai') && !teams[turnTeam].ai ? teams[u.team].color : null
+        arrow: u === act && (state === 'aim' || state === 'ai') && (!teams[turnTeam].ai || turnHi > 0) ? teams[u.team].color : null
       });
+      if (u === act && turnHi > 0 && (state === 'aim' || state === 'ai')) {
+        const S2 = spOf(u), cy = u.y - S2.hitY * u.scale, k = 1 - turnHi / 90, col = teams[u.team].color;
+        for (let i = 0; i < 2; i++) { const kk = (k * 2 + i * 0.5) % 1; R.ring(u.x, cy, 10 + kk * 34 * Math.max(1, u.scale), 3 * (1 - kk), col, 0.9 * (1 - kk)); }
+        R.ellipse(u.x, u.y + 1, 16 * Math.max(1, u.scale), 4, col, 0.35 + 0.2 * Math.sin(frameNo * 0.3));
+      }
     }
     for (const k of kos) {
       const u = k.u, q = koPose(k), s = glBodySpr(u, glBodyRes(u), 0, 'h');
@@ -4867,6 +4878,7 @@
     for (const u of units) {
       if (u.breath > 0) u.breath--;
       if (u.hurt > 0) u.hurt--;
+      if (turnHi > 0 && u === units[0]) turnHi--;
       if (u.sq > 0) u.sq = Math.max(0, u.sq - 0.045);
       if (u.cheer) { u.cheer++; u.hop = u.cheer % 35; }
       if (scene !== 'intro') u.moving = false;

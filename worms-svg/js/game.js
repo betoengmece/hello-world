@@ -2596,7 +2596,8 @@
           const k = (i + 1) / p.trail.length;
           ph += `<circle cx="${f1(tp.x)}" cy="${f1(tp.y)}" r="${f1(2 + 5 * k)}" fill="${k > 0.5 ? c1[0] : c1[1]}" opacity="${(k * 0.7).toFixed(2)}"/>`;
         });
-        return ph + `<circle cx="${f1(p.x)}" cy="${f1(p.y)}" r="${f1((st === 'fire' ? 7 : 8.5) + Math.sin(frameNo * 0.6) * 1.2)}" fill="url(#${st === 'fire' ? 'fireball' : 'dragFire'})"/>`;
+        const radius = (st === 'fire' ? 7 : 8.5) + Math.sin(frameNo * 0.6) * 1.2;
+        return ph + `<circle cx="${f1(p.x)}" cy="${f1(p.y)}" r="${f1(radius * 1.45)}" fill="${c1[0]}" opacity=".14"/><circle cx="${f1(p.x)}" cy="${f1(p.y)}" r="${f1(radius)}" fill="url(#${st === 'fire' ? 'fireball' : 'dragFire'})"/><circle cx="${f1(p.x - 1.5)}" cy="${f1(p.y - 1.5)}" r="${f1(radius * .22)}" fill="#fff" opacity=".7"/>`;
       }
       case 'poison': {
         p.trail.forEach((tp, i) => {
@@ -3237,6 +3238,7 @@
       case 'fire': case 'dragon': {
         const c1 = st === 'fire' ? ['#ffb020', '#ff5a1f'] : ['#b79cff', '#6a3cff'];
         glTrail(p, 2, 5, c1[0], 0.7, c1[1]);
+        R.circle(p.x, p.y, 11, c1[0], 0.14);
         glPj(st, p.x, p.y, 0, ((st === 'fire' ? 7 : 8.5) + Math.sin(frameNo * 0.6) * 1.2) / 8); return;
       }
       case 'poison': glTrail(p, 1, 2, '#c783e4', 0.55); glPj('poison', p.x, p.y, deg); return;
@@ -3991,9 +3993,17 @@
         else if (!fireLatch) releaseFire();
       }
     };
+    const cancel = e => {
+      e.preventDefault();
+      btn.classList.remove('on');
+      if (holdKey) keys[holdKey] = false;
+      else if (act === 'fire') {
+        charging = false; power = 0; fireLatch = false; Sfx.chargeStop();
+      }
+    };
     btn.addEventListener('pointerdown', press);
     btn.addEventListener('pointerup', release);
-    btn.addEventListener('pointercancel', release);
+    btn.addEventListener('pointercancel', cancel);
   });
 
   // clique/toque nos menus: testa as áreas desenhadas no overlay
@@ -4056,6 +4066,8 @@
   const ARROWS = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
 
   addEventListener('keydown', e => {
+    // Ações pontuais não devem disparar repetidamente ao segurar a tecla.
+    if (e.repeat && ['o', 'm', 'f', 'r', 'p', 'b', 'g', 'c'].includes(e.key.toLowerCase())) return;
     if (e.key === 'o' || e.key === 'O') { e.preventDefault(); toggleSettings(); return; }
     if (settingsOpen) {
       if (e.key === 'Escape') toggleSettings(false);
@@ -4112,7 +4124,7 @@
     else if (e.key === 'q' || e.key === 'Q') keys.panL = false;
     else if (e.key === 'e' || e.key === 'E') keys.panR = false;
   });
-  addEventListener('blur', () => { keys = {}; charging = false; power = 0; Sfx.chargeStop(); });
+  addEventListener('blur', () => { keys = {}; charging = false; power = 0; fireLatch = false; document.querySelectorAll('.btn.on').forEach(btn => btn.classList.remove('on')); Sfx.chargeStop(); });
 
   // ---------- Controle (DualSense/PS5, Xbox, genéricos): vira as mesmas teclas do teclado ----------
   // X segura e solta para atirar (e confirma nos menus) · direcional/analógico esquerdo anda e mira · ▢ Pokébola · △ troca de golpe

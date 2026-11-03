@@ -9,7 +9,8 @@
                           fill="none" stroke="#222" stroke-width="1.1" stroke-linecap="round"/>`;
     return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#fff" stroke="#222" stroke-width=".8"/>
             <circle cx="${f1(cx + r * 0.3)}" cy="${cy}" r="${f1(r * 0.58)}" fill="${pupil}"/>
-            <circle cx="${f1(cx + r * 0.45)}" cy="${f1(cy - r * 0.3)}" r="${f1(r * 0.24)}" fill="#fff"/>`;
+            <circle cx="${f1(cx + r * 0.45)}" cy="${f1(cy - r * 0.3)}" r="${f1(r * 0.24)}" fill="#fff"/>
+            <circle cx="${f1(cx + r * 0.1)}" cy="${f1(cy + r * 0.27)}" r="${f1(r * 0.12)}" fill="#fff" opacity=".65"/>`;
   }
 
   function feet(step, grad, stroke, dx = 4) {
@@ -23,7 +24,8 @@
     const [mx, my] = m, j = Math.sin(c.f * 1.7) * 2;
     return `<g opacity="${(c.breath / 18).toFixed(2)}">
       <path d="M${mx},${my - 2} Q${mx + 11},${f1(my - 7 + j)} ${mx + 25},${my - 1} Q${mx + 13},${my + 4} ${mx},${my + 3} Z" fill="${col}"/>
-      <path d="M${mx},${my} Q${mx + 9},${my - 2} ${mx + 19},${my - 1} Q${mx + 9},${my + 2} ${mx},${my + 2} Z" fill="${hi}"/></g>`;
+      <path d="M${mx},${my} Q${mx + 9},${my - 2} ${mx + 19},${my - 1} Q${mx + 9},${my + 2} ${mx},${my + 2} Z" fill="${hi}"/>
+      <circle cx="${mx + 23}" cy="${f1(my - 3 + j)}" r="1.2" fill="${hi}" opacity=".8"/></g>`;
   }
 
   function starPath(n, R, r, rot) {

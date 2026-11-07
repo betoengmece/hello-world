@@ -15,7 +15,7 @@ const math=Object.create(Math);let seed=7351;math.random=()=>{seed=(seed*1664525
 const storage=new Map();
 const ctx={console,Math:math,window:{},navigator:{maxTouchPoints:0},document:{getElementById:element,querySelectorAll(){return [];},body:element('body')},localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,String(v)),removeItem:k=>storage.delete(k)},addEventListener(){},matchMedia:()=>({matches:false}),requestAnimationFrame:f=>{frameCallback=f;},setTimeout(){},clearTimeout(){}};
 vm.createContext(ctx);
-for(const name of ['data.js','art.js','art2.js','animated-kanto.js'])vm.runInContext(fs.readFileSync(path.join(root,'js',name),'utf8'),ctx,{filename:name});
+for(const name of ['data.js','art.js','art2.js','animated-kanto.js','art-mar.js'])vm.runInContext(fs.readFileSync(path.join(root,'js',name),'utf8'),ctx,{filename:name});
 const MS=ctx.window.MS;
 MS.Sfx=new Proxy({isOn:()=>false},{get:(obj,key)=>obj[key]||(()=>{})});
 let engine=fs.readFileSync(path.join(root,'js/game.js'),'utf8');
@@ -50,8 +50,8 @@ assert.deepEqual(Array.from(MS.STAGES[1].enemies),['caterpie','beedrill','pidgey
 assert.deepEqual(Array.from(MS.STAGES[3].enemies),['zubat','dugtrio','geodude']);
 assert(MS.STAGES[0].guests.some(g=>g.sp==='jigglypuff'));
 assert(MS.STAGES[2].guests.some(g=>g.sp==='exeggutor'));
-assert(MS.STAGES[10].guests.some(g=>g.sp==='snorlax'&&g.stayRounds===7));
-for(const [sp,stage] of [['jigglypuff',0],['exeggutor',2],['snorlax',10]]){
+const DRAGAO=MS.STAGES.findIndex(s=>s.name==='Covil do Dragão');assert(MS.STAGES[DRAGAO].guests.some(g=>g.sp==='snorlax'&&g.stayRounds===7));
+for(const [sp,stage] of [['jigglypuff',0],['exeggutor',2],['snorlax',DRAGAO]]){
  debug.newCampaign('charmander');debug.beginStage(stage);
  const original=MS.STAGES[stage].guests;const def=original.find(g=>g.sp===sp);MS.STAGES[stage].guests=[{...def,rarity:1}];
  for(let i=0;i<10&&!debug.get().guest;i++)hooks.roundEnd();
@@ -80,7 +80,7 @@ console.log('OK: Veneno, 11 fases, visitantes, captura, 5 ataques, renderizaçã
 assert.equal(MS.SPECIES.magikarp.evo,'gyarados');assert(MS.SPECIES.gyarados&&MS.SPECIES.magikarp.xpMul>1);
 assert.equal(MS.typeMult('ice',['grass','flying']),4);assert.equal(MS.typeMult('fighting',['normal']),2);assert.equal(MS.typeMult('ghost',['ghost']),2);
 assert(MS.typeMult('normal',['ghost'])<1&&MS.typeMult('fire',['ice'])===2);
-assert.equal(MS.STAGES.length,11);
+assert.equal(MS.STAGES.length,13);
 for(const st of MS.STAGES){assert(MS.THEMES[st.theme],st.name+' theme');for(const e of st.enemies.concat((st.guests||[]).map(g=>g.sp)))assert(MS.SPECIES[e],e+' exists');
   for(const w of (st.weather||[]))assert(['rain','sun','storm','snow'].includes(w.type));}
 assert(!MS.STAGES[3].weather,'a Caverna não tem clima');
@@ -118,7 +118,7 @@ console.log('OK: variantes de golpe, novos tipos, 11 fases, Magikarp -> Gyarados
   assert.deepEqual(Array.from(hooks.loadSave().sh),[0,0],'save antigo sem shiny');
   // todas as fases em larguras e relevos diferentes
   for(const w of [800,1100,1400,1700])for(const arch of ['rolling','flat','valley','slope','mesas','spires']){
-    debug.setMap({w,arch});debug.newCampaign('charmander');debug.beginStage(Math.floor(Math.random()*11));hooks.renderAll();
+    debug.setMap({w,arch});debug.newCampaign('charmander');debug.beginStage(Math.floor(Math.random()*MS.STAGES.length));hooks.renderAll();
     const g=debug.get();assert.equal(debug.W,w);assert.equal(debug.heights.length,w);
     assert(g.units.every(u=>u.x>=0&&u.x<=w&&Number.isFinite(u.y)&&u.y<480),'posições válidas '+w+arch);
     assert(g.teams[0].units.length>=1&&g.teams[1].units.length>=1);
@@ -283,3 +283,17 @@ console.log('OK: faixa de mira por espécie, ângulo absoluto, confirmação do 
 }
 assert([...elements.values()].every(e=>!/(?:NaN|undefined)/.test(e.innerHTML)), 'camadas sem NaN depois dos golpes especiais');
 console.log('OK: golpes especiais (subterrâneo, raio do céu, fissura, teleporte, hiper raio, redemoinho, proteção).');
+
+// fases debaixo d'água: tema com flag under, Pokémon de Fogo na bolha, Água forte e Fogo fraco
+{
+ const RECIFE=MS.STAGES.findIndex(s=>s.theme==='recife');assert(RECIFE>0,'tem o Recife de Coral');
+ assert(MS.THEMES.recife.under&&MS.THEMES.abismo.under);
+ debug.newCampaign('charmander');debug.beginStage(RECIFE);
+ const b=debug.get(),me=b.units[0],foe=b.units.find(u=>u.team===1);
+ const hp0=foe.hp;hooks.explode(foe.x,foe.y-MS.SPECIES[foe.sp].hitY*foe.scale,{wp:{...MS.WEAPONS[MS.SPECIES.charmander.weapon]},ownerUnit:me});
+ const fogo=hp0-foe.hp;foe.hp=hp0;
+ hooks.explode(foe.x,foe.y-MS.SPECIES[foe.sp].hitY*foe.scale,{wp:{...MS.WEAPONS[MS.SPECIES.charmander.weapon],type:'normal'},ownerUnit:me});
+ assert(fogo>0&&fogo<hp0-foe.hp+1,'fogo enfraquece debaixo d\'água ('+fogo+' vs '+(hp0-foe.hp)+')');
+ hooks.renderAll();
+ console.log('OK underwater stages');
+}

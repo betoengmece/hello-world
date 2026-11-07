@@ -8,7 +8,7 @@
   const GRAV = 0.2;           // gravidade base (px/frame²)
   const WALK_MAX = 120;       // distância máxima de caminhada por turno (mapas largos dão um pouco mais)
   const walkMax = () => WALK_MAX + Math.max(0, W - 800) * 0.07;
-  const GAME_VERSION = '23/10 a';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
+  const GAME_VERSION = '07/11 a';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
   const TURN_TIME = 30 * 60;  // 30 s para mirar e atirar (estourou: passa a vez)
   const WEAK = 0.35;          // abaixo dessa fração de PV o inimigo pode ser capturado
   const PLAYER_COL = '#3a9bff', WILD_COL = '#e0433a', GUEST_COL = '#ffd34d';
@@ -326,6 +326,7 @@
     setStop('seaFS0', t.sea[2]); setStop('seaFS1', t.sea[3]);
     $('strata1').setAttribute('fill', t.s1); $('strata2').setAttribute('fill', t.s2);
     $('treeline').setAttribute('fill', t.tl);
+    $('tlWin').setAttribute('fill', t.win || '#ffe9a0');
     $('edgeGrass').setAttribute('stroke', t.g[0]); $('tbackGrass').setAttribute('stroke', t.g[0]);
     $('edgeGrassHi').setAttribute('stroke', t.g[1]); $('tufts').setAttribute('stroke', t.g[2]);
     $('fore').setAttribute('fill', t.fore);
@@ -501,7 +502,17 @@
 
     // faixa de fundo: prédios (cidade), dunas (praia), pedras pontudas (caverna) ou pinheiros
     let tl = '', win = '';
-    if (key === 'cidade') { const s = skyline(); tl = s.d; win = s.win; }
+    if (THEMES[key].tl2 === 'kelp') {
+      // floresta de algas ao fundo + raios de luz vindos da superfície
+      tl = `M-60,${H} L-60,286`;
+      for (let x = -60; x <= W + 60; x += rnd(10, 22)) {
+        const b = 286 + 8 * Math.sin(x * 0.013 + p3), h = rnd(50, 150), sw = rnd(-14, 14);
+        tl += ` L${f1(x - 3)},${f1(b)} Q${f1(x + sw)},${f1(b - h * 0.5)} ${f1(x + sw * 0.4)},${f1(b - h)} Q${f1(x + sw + 5)},${f1(b - h * 0.5)} ${f1(x + 4)},${f1(b)}`;
+      }
+      tl += ` L${W + 60},286 L${W + 60},${H} Z`;
+      for (let x = rnd(-40, 60); x < W + 60; x += rnd(110, 200)) { const w = rnd(26, 60), sk = rnd(40, 110); win += `M${f1(x)},-10 L${f1(x + w)},-10 L${f1(x + w + sk + w * 0.8)},330 L${f1(x + sk)},330 Z `; }
+    }
+    else if (key === 'cidade') { const s = skyline(); tl = s.d; win = s.win; }
     else if (key === 'praia' || key === 'cabo' || key === 'vitoria' || key === 'usina') {
       const pts = []; for (let x = -20; x <= W + 40; x += 70) pts.push({ x, y: rnd(268, 290) });
       tl = hillPath(pts);
@@ -558,7 +569,8 @@
       <ellipse cx="0" cy="8" rx="46" ry="10" fill="#d9e6f2"/>
       <circle cx="-22" cy="0" r="16" fill="#fff"/><circle cx="0" cy="-9" r="22" fill="#fff"/>
       <circle cx="24" cy="0" r="15" fill="#fff"/><rect x="-38" y="0" width="78" height="12" rx="6" fill="#fff"/></g>`;
-    $('clouds').innerHTML = clouds.map(() => `<g>${CLOUD}</g>`).join('');
+    const CL = THEMES[themeKey] && THEMES[themeKey].under && MS.FISH_SVG ? MS.FISH_SVG : CLOUD;
+    $('clouds').innerHTML = clouds.map(() => `<g>${CL}</g>`).join('');
     cloudEls = [...$('clouds').children];
   }
 
@@ -725,7 +737,7 @@
     turnTeam = 0; state = 'aim'; panX = null;
     startTurn();
     const au = activeUnit(); if (au) { cam.x = clamp(au.x, VW / 2, Math.max(VW / 2, W - VW / 2)); }
-    showMsg(`Fase ${si + 1}: ${st.name}` + (weather ? ` · ${WEATHER[weather].name} (${WEATHER[weather].note})` : '') + (W > VW ? ` · mapa largo` : ''), 170);
+    showMsg(`Fase ${si + 1}: ${st.name}` + (THEMES[st.theme].under ? ' · Fundo do mar (Água +30%, Fogo −40%; Pokémon de Fogo na bolha de ar)' : '') + (weather ? ` · ${WEATHER[weather].name} (${WEATHER[weather].note})` : '') + (W > VW ? ` · mapa largo` : ''), 190);
     if (shinyName) { setTimeout(() => Sfx.shiny(), 400); showMsg(`✨ ${shinyName} SHINY selvagem! Fase ${si + 1}: ${st.name}`, 200); }
     syncButtons();
   }
@@ -1177,6 +1189,37 @@
   const sideColor = u => (u.team === 2 ? GUEST_COL : teams[u.team] ? teams[u.team].color : '#fff');
 
   const wxMul = type => (weather && WEATHER[weather].boost[type]) || 1;
+  // ---------- Fases debaixo d'água ----------
+  // Água +30%; golpes de Fogo -40%; Pokémon de Fogo ficam numa bolha de ar: os outros golpes deles -20% e levam +15% de dano
+  const under = () => scene === 'battle' && !!(THEMES[themeKey] && THEMES[themeKey].under);
+  const isFireMon = u => spOf(u).types.includes('fire');
+  const inBubble = u => under() && u.alive && isFireMon(u);
+  function seaMul(type, owner, target) {
+    if (!under()) return 1;
+    let k = type === 'water' ? 1.3 : type === 'fire' ? 0.6 : 1;
+    if (owner && isFireMon(owner) && type !== 'fire') k *= 0.8;
+    if (target && isFireMon(target)) k *= 1.15;
+    return k;
+  }
+  // bolha de ar em volta do Pokémon de Fogo (respira e balança quando apanha)
+  function bubbleOf(u) {
+    const S = spOf(u), c = centerOf(u), r = (Math.max(S.h * 0.62, S.hitR + 10)) * u.scale + 4;
+    const wob = Math.sin(frameNo * 0.08 + u.uid) * 1.2 + (u.hurt > 0 ? Math.sin(u.hurt * 1.3) * 3 : 0);
+    return { x: c.x, y: c.y - 2, rx: r + wob, ry: r - wob * 0.6 };
+  }
+  function glBubble(u) {
+    const R = GLR, b = bubbleOf(u);
+    R.ellipse(b.x, b.y, b.rx, b.ry, '#bfeaff', 0.16);
+    R.ring(b.x, b.y, (b.rx + b.ry) / 2, 1.6, '#e8f8ff', 0.7);
+    R.ellipse(b.x - b.rx * 0.4, b.y - b.ry * 0.45, b.rx * 0.22, b.ry * 0.12, '#ffffff', 0.75);
+    R.circle(b.x + b.rx * 0.45, b.y - b.ry * 0.2, 1.6, '#ffffff', 0.6);
+  }
+  function svgBubble(u) {
+    const b = bubbleOf(u), ox = u.x, oy = u.y;
+    return `<g transform="translate(${f1(b.x - ox)} ${f1(b.y - oy)})"><ellipse rx="${f1(b.rx)}" ry="${f1(b.ry)}" fill="#bfeaff" fill-opacity=".16" stroke="#e8f8ff" stroke-opacity=".7" stroke-width="1.6"/>
+      <ellipse cx="${f1(-b.rx * 0.4)}" cy="${f1(-b.ry * 0.45)}" rx="${f1(b.rx * 0.22)}" ry="${f1(b.ry * 0.12)}" fill="#fff" opacity=".75"/></g>`;
+  }
+  const bubblePart = (x, y, r = rnd(1.2, 2.8)) => addPart({ x, y, vx: rnd(-0.15, 0.15), vy: rnd(-0.9, -0.4), g: -0.004, life: 160, max: 160, r, col: '#e0f6ff', kind: 'drop' });
 
   function explode(x, y, p) {
     const wp = p.wp, style = wp.style;
@@ -1193,7 +1236,7 @@
       const c = centerOf(u), d = Math.hypot(c.x - x, c.y - y);
       if (d >= wp.boom) continue;
       const k = 1 - d / wp.boom, mult = typeMult(wp.type, spOf(u).types);
-      const dmg = shieldDmg(u, Math.round(wp.dmg * k * mult * wxMul(wp.type) * (p.crit ? 1.6 : 1)));
+      const dmg = shieldDmg(u, Math.round(wp.dmg * k * mult * wxMul(wp.type) * seaMul(wp.type, p.ownerUnit, u) * (p.crit ? 1.6 : 1)));
       if (dmg > 0) {
         u.hp -= dmg; u.hurt = 24; anyHurt = true;
         if (p.crit && k > 0.2) floaters.push({ x: u.x + 16, y: u.y - spOf(u).h * u.scale - 4, t: 4, text: 'Crítico!', col: '#ff5a5a', size: 12 });
@@ -1217,6 +1260,11 @@
     if (wp.bolts) { wp.bolts.forEach((dx, k) => bolts.push({ x: clamp(x + dx, 4, W - 4), t: -(34 + k * 10), dmg: wp.bdmg, wp, owner: p.ownerUnit })); showMsg('Um raio vai cair do céu!', 60); }
     if (wp.beam && p.ownerUnit && p.ownerUnit.alive) beams.push({ u: p.ownerUnit, tx: x, ty: y, wp, t: 0, rise: !!(SPECIES[p.ownerUnit.sp].fly && !p.ownerUnit.flying) });
     if (anyHurt && wxMul(wp.type) > 1) floaters.push({ x, y: y - 30, t: 0, text: WEATHER[weather].name + ' reforça!', col: '#9fe0ff', size: 12 });
+    if (under()) {                                   // debaixo d'água: bolhas na explosão; fogo vira vapor
+      for (let i = 0; i < 12; i++) bubblePart(x + rnd(-wp.boom * 0.5, wp.boom * 0.5), y + rnd(-10, 10));
+      if (wp.type === 'fire') { smoke(x, y - 6, 10); if (anyHurt) floaters.push({ x, y: y - 30, t: 0, text: 'A água apaga o fogo...', col: '#cfe0ea', size: 12 }); }
+      else if (wp.type === 'water' && anyHurt) floaters.push({ x, y: y - 30, t: 0, text: 'O mar reforça!', col: '#9fe0ff', size: 12 });
+    }
     if (anyHurt) Sfx.hurt();
     if (sup) setTimeout(() => Sfx.superEff(), 140);
     else if (weak) setTimeout(() => Sfx.weakEff(), 140);
@@ -1429,6 +1477,7 @@
 
   // rastro de partículas que sai do projétil (cada ataque tem o seu)
   function trailFx(p) {
+    if (under() && frameNo % 3 === 0) bubblePart(p.x + rnd(-2, 2), p.y + rnd(-2, 2), rnd(1, 2.2));
     if (p.wk === 'ball') return;
     const st = p.wp.style, x = p.x, y = p.y, e = frameNo % 2 === 0;
     switch (st) {
@@ -1642,7 +1691,7 @@
     u.alive = false; u.hp = 0;
     for (let k = 0; k < 16; k++) addPart({ x: u.x, y: WATER, vx: rnd(-2, 2), vy: rnd(-4, -1.5), g: 0.15, life: 45, max: 45, r: rnd(1.5, 2.5), col: '#bfe9ff', kind: 'drop' });
     Sfx.splash(); Sfx.death();
-    showMsg(`${u.name} afogou!`, 100);
+    showMsg(`${u.name} ${under() ? 'afundou no abismo!' : 'afogou!'}`, 100);
     if (u === activeUnit() && (state === 'aim' || state === 'ai')) { charging = false; power = 0; Sfx.chargeStop(); ai = null; state = 'settle'; }
   }
   function updateUnits() {
@@ -1784,7 +1833,7 @@
           Sfx.splash();
         } else { smoke(u.x, u.y - 14, 8); spray(u.x, u.y - 14, 10, '#ffffff', 2.5, 0.02, 30, 2, 'spark'); }
         Sfx.death();
-        showMsg(`${u.name} ${drowned ? 'afogou!' : 'desmaiou!'}`, 100);
+        showMsg(`${u.name} ${drowned ? (under() ? 'afundou no abismo!' : 'afogou!') : 'desmaiou!'}`, 100);
       }
     }
     teams.forEach(fixCur);
@@ -2195,7 +2244,8 @@
   }
   function burstDecor(d) {
     const y = d.base - 10;
-    if (['rock', 'stalag', 'tomb', 'volrock', 'pillar', 'ember'].includes(d.type)) spray(d.x, y, 8, '#8c8f94', 3, 0.15, 60, 2.6, 'chunk');
+    if (MS.DECOR_HARD && MS.DECOR_HARD[d.type]) spray(d.x, y, 9, MS.DECOR_HARD[d.type], 3, 0.15, 60, 2.4, 'chunk');
+    else if (['rock', 'stalag', 'tomb', 'volrock', 'pillar', 'ember'].includes(d.type)) spray(d.x, y, 8, '#8c8f94', 3, 0.15, 60, 2.6, 'chunk');
     else if (d.type === 'icespike' || d.type === 'snowpine') spray(d.x, y, 10, '#dff4ff', 3, 0.1, 50, 2.2, 'spark');
     else if (d.type === 'pylon') spray(d.x, y, 10, '#fff27a', 3, 0.05, 40, 1.6, 'spark');
     else if (d.type === 'crystal') spray(d.x, y, 10, d.col, 3, 0.1, 50, 2.2, 'spark');
@@ -2548,7 +2598,7 @@
       <circle cx="${wcx}" cy="${wcy}" r="12" fill="#000" fill-opacity=".35" stroke="#8fe0ff" stroke-opacity=".5" stroke-width="1.2"/>
       ${windS > 0.05 ? `<line x1="${f1(wcx - wdx * wl)}" y1="${f1(wcy - wdy * wl)}" x2="${f1(wcx + wdx * wl)}" y2="${f1(wcy + wdy * wl)}" stroke="#8fe0ff" stroke-width="2.4" stroke-linecap="round"/>
         <path d="M0,-4 L6,0 L0,4 Z" fill="#8fe0ff" transform="translate(${f1(wcx + wdx * wl)} ${f1(wcy + wdy * wl)}) rotate(${f1(-windA * 57.3)})"/>` : ''}
-      <text x="372" y="21" font-size="9" fill="#ddd" letter-spacing="1.5">${windS > 0.05 ? 'VENTO' : 'SEM VENTO'}</text>
+      <text x="372" y="21" font-size="9" fill="#ddd" letter-spacing="1.5">${under() ? (windS > 0.05 ? 'CORRENTEZA' : 'ÁGUA PARADA') : windS > 0.05 ? 'VENTO' : 'SEM VENTO'}</text>
       <text x="372" y="37" font-size="14" font-weight="bold" fill="#8fe0ff">${Math.round(windS * 8)}</text>`;
     s += orderSvg();
     s += weatherBadge();
@@ -2754,6 +2804,7 @@
       }
       if (u === act && (state === 'aim' || state === 'ai') && (!teams[turnTeam].ai || turnHi > 0))
         h += `<path transform="translate(0 ${f1(-(spOf(u).h * u.scale + 34) + Math.sin(aF() * 0.15) * 3)})" d="M-6,0 L6,0 L0,8 Z" fill="${teams[u.team].color}" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/>`;
+      if (inBubble(u)) h += svgBubble(u);
       items.push({ k: u.uid, t: p.t, h });
     }
     return items;
@@ -3055,7 +3106,7 @@
   function glDrawTerrain() {
     const t = THEMES[themeKey], y1 = parseFloat($('dirt').getAttribute('y1')) || 160;
     GLR.drawTerrain({ d0: t.dirt[0], d1: t.dirt[1], d2: t.dirt[2], s1: t.s1, s2: t.s2, g0: t.g[0], g1: t.g[1], g2: t.g[2],
-      dy: [y1, 500], ph: terrPh, px: glP, lights: lite ? [] : glLights() });
+      dy: [y1, 500], ph: terrPh, px: glP, tx: { sand: 2 }[THEMES[themeKey].tex] || 0, lights: lite ? [] : glLights() });
     // árvores, pedras e flores (desenho SVG de cada uma vira imagem)
     const R = GLR;
     for (const d of decor) {
@@ -3430,7 +3481,8 @@
     // céu e nuvens (presos à tela)
     R.setBase(1, 0, 0);
     glDrawSnap('sky');
-    const cs = R.svg('cloud', CLOUD_SVG, [-48, -33, 96, 53], glP);
+    const fishy = THEMES[themeKey] && THEMES[themeKey].under && MS.FISH_SVG;
+    const cs = fishy ? R.svg('fish', MS.FISH_SVG, [-48, -33, 96, 53], glP) : R.svg('cloud', CLOUD_SVG, [-48, -33, 96, 53], glP);
     if (cs) { const op = +THEMES[themeKey].clouds || 0; for (const c of clouds) { R.push(); R.tr(c.x, c.y); R.sc(c.s); R.spr(cs, op); R.pop(); } }
     // montanhas e faixa do fundo (parallax)
     glLayer(0.25); glDrawSnap('far');
@@ -3474,6 +3526,7 @@
         weak: isFoe && u.hp / u.maxhp <= WEAK && state !== 'capture',
         arrow: u === act && (state === 'aim' || state === 'ai') && (!teams[turnTeam].ai || turnHi > 0) ? teams[u.team].color : null
       });
+      if (inBubble(u)) glBubble(u);
       if (u === act && turnHi > 0 && (state === 'aim' || state === 'ai')) {
         const S2 = spOf(u), cy = u.y - S2.hitY * u.scale, k = 1 - turnHi / 90, col = teams[u.team].color;
         for (let i = 0; i < 2; i++) { const kk = (k * 2 + i * 0.5) % 1; R.ring(u.x, cy, 10 + kk * 34 * Math.max(1, u.scale), 3 * (1 - kk), col, 0.9 * (1 - kk)); }
@@ -3749,7 +3802,7 @@
     // detalhes da fase em foco
     const fi = Math.min(Math.max(uiSel, 0), STAGES.length - 1), F = STAGES[fi], fl = fi > sv.stage;
     const names = a => Array.from(new Set(a)).map(e => SPECIES[e].name).join(', ');
-    const wx = (F.weather || []).map(w => WEATHER[w.type].name).join(' / ') || 'sem clima (ambiente fechado)';
+    const wx = THEMES[F.theme] && THEMES[F.theme].under ? 'debaixo d\'água: Água +30%, Fogo −40%' : (F.weather || []).map(w => WEATHER[w.type].name).join(' / ') || 'sem clima (ambiente fechado)';
     const iy = y0 + Math.ceil(STAGES.length / cols) * (ch + gy_) + 4;
     s += `<rect x="${x0}" y="${iy}" width="${cols * cw + (cols - 1) * gx}" height="92" rx="12" fill="#0d1b2a" fill-opacity=".85" stroke="#fff" stroke-opacity=".35"/>`;
     if (fl) s += `<text x="400" y="${iy + 52}" text-anchor="middle" font-size="14" fill="#fff" opacity=".85">🔒 Vença a fase ${fi} para liberar.</text>`;
@@ -4209,6 +4262,8 @@
     drawerT = Math.max(0, Math.min(1, drawerT + (settingsOpen ? 0.09 : -0.09)));
     if (settingsOpen) { updateCamera(); return; }   // pausado
     if (glActive && glLoading && scene === 'battle') { updateCamera(); return; }   // preparando as imagens: a batalha espera
+    if (under() && frameNo % 7 === 0) bubblePart(cam.x + rnd(-430, 430) / cam.z, WATER - rnd(0, 40));
+    if (under()) for (const u of units) if (inBubble(u) && frameNo % 40 === (u.uid * 7) % 40) { const b = bubbleOf(u); bubblePart(b.x + rnd(-4, 4), b.y - b.ry, rnd(1, 1.8)); }
     for (const u of units) {
       if (u.breath > 0) u.breath--;
       if (u.hurt > 0) u.hurt--;

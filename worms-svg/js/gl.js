@@ -455,7 +455,7 @@
       precision mediump float;
       #endif
       uniform sampler2D D; uniform sampler2D C; uniform vec2 S; uniform float e;
-      uniform vec3 d0, d1, d2, s1, s2, g0, g1, g2; uniform vec2 dy, ph;
+      uniform vec3 d0, d1, d2, s1, s2, g0, g1, g2; uniform vec2 dy, ph; uniform float tx;
       uniform vec4 L[4]; uniform vec3 LC[4];
       varying vec2 vw;
       float solidAt(vec2 p){ return texture2D(D, p / S).r; }
@@ -480,6 +480,14 @@
         c = mix(c, vec3(0.95, 0.84, 0.68), 0.22 * seg(q, vec2(19.0, 24.0), vec2(24.0, 25.0), 0.6));
         return c;
       }
+      // areia do fundo do mar: grãos finos e algumas conchinhas claras
+      vec3 sand(vec3 c, vec2 p){
+        float h = fract(sin(dot(floor(p * 0.5), vec2(12.9898, 78.233))) * 43758.5453);
+        c = mix(c, h > 0.5 ? c * 1.1 : c * 0.9, 0.35);
+        vec2 cell = floor(p / 9.0), q = fract(p / 9.0) - 0.5;
+        float g = fract(sin(dot(cell, vec2(39.3468, 11.135))) * 43758.5453);
+        return (g > 0.965 && length(q) < 0.2) ? mix(c, vec3(0.98, 0.93, 0.86), 0.6) : c;
+      }
       void main(){
         vec2 w = vw;
         vec4 d = texture2D(D, w / S);
@@ -500,7 +508,7 @@
         // frente: terra com degradê, pedrinhas, camadas de rocha, queimado e contorno escuro
         float s = smoothstep(0.5 - e, 0.5 + e, d.r);
         if (s > 0.0) {
-          vec3 c = pebbles(dirt(w.y), w);
+          vec3 c = tx > 1.5 ? sand(dirt(w.y), w) : pebbles(dirt(w.y), w);
           float dep = d.g * 255.0;
           if (dep > 48.0 + 8.0 * sin(w.x * 0.05 + ph.y)) c = mix(c, s1, 0.5);
           if (dep > 115.0 + 12.0 * sin(w.x * 0.03 + ph.x)) c = mix(c, s2, 0.7);
@@ -547,7 +555,7 @@
       if (!gl.getProgramParameter(p, gl.LINK_STATUS)) { R.terrErr = gl.getProgramInfoLog(p); tp = false; return tp; }
       tp = p;
       const u = n => gl.getUniformLocation(p, n);
-      tLoc = { sz: u('sz'), D: u('D'), C: u('C'), S: u('S'), e: u('e'), d0: u('d0'), d1: u('d1'), d2: u('d2'), s1: u('s1'), s2: u('s2'),
+      tLoc = { tx: u('tx'), sz: u('sz'), D: u('D'), C: u('C'), S: u('S'), e: u('e'), d0: u('d0'), d1: u('d1'), d2: u('d2'), s1: u('s1'), s2: u('s2'),
                g0: u('g0'), g1: u('g1'), g2: u('g2'), dy: u('dy'), ph: u('ph'), L: u('L'), LC: u('LC') };
       tBuf = gl.createBuffer();
       return tp;
@@ -611,6 +619,7 @@
       gl.uniform2f(tLoc.sz, 800, 500); gl.uniform2f(tLoc.S, W, H);
       gl.uniform1f(tLoc.e, Math.min(0.5, Math.max(0.06, 0.6 / Math.max(0.1, Math.sqrt(Math.abs(ma * md - mb * mc)) * (o.px || 1)))));
       for (const k of ['d0', 'd1', 'd2', 's1', 's2', 'g0', 'g1', 'g2']) gl.uniform3fv(tLoc[k], hex3(o[k]));
+      gl.uniform1f(tLoc.tx, o.tx || 0);
       gl.uniform2f(tLoc.dy, o.dy[0], o.dy[1]); gl.uniform2f(tLoc.ph, o.ph[0], o.ph[1]);
       const L = new Float32Array(16), LC = new Float32Array(12);
       (o.lights || []).slice(0, 4).forEach((l, i) => { L.set([l.x, l.y, l.r, l.k], i * 4); LC.set(hex3(l.col || '#ffb347'), i * 3); });

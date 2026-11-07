@@ -322,6 +322,20 @@
       decor: ['pine', 'pine', 'tree', 'tree', 'bush', 'rock', 'flower'], sun: { x: 620, y: 80, col: '#e8f5c0', glow: 0.5 },
       clouds: 0.5, terrain: { base: 285, amp: 1.1 }
     },
+    recife: {        // debaixo d'água: luz vinda de cima, algas ao fundo, chão de areia com coral
+      under: true, sky: ['#5ac4ec', '#1f84c0', '#0b3f78'], far: ['#1f6a9c', '#2a7cb0'], near: ['#17588a', '#226c9e'], tl: '#0f5a6a', tl2: 'kelp', win: 'rgba(220,250,255,0.16)',
+      dirt: ['#e2cf9e', '#c4ad78', '#8a7650'], s1: '#7a8a8a', s2: '#55646a', g: ['#2f8a5a', '#8fe0a8', '#3aa86a'], tex: 'sand',
+      sea: ['#0a2d55', '#04142c', '#123f70', '#030c1c'], fore: '#0c4a52',
+      decor: ['coral', 'coral', 'alga', 'concha', 'estrela', 'ancora', 'alga'], sun: { x: 400, y: -30, col: '#e8fbff', glow: 1 },
+      clouds: 0.9, terrain: { base: 300, amp: 0.8 }
+    },
+    abismo: {        // fossa funda: escuro, luz fraca, anêmonas que brilham
+      under: true, sky: ['#14507e', '#0a2c52', '#03122a'], far: ['#0c2e52', '#123a62'], near: ['#09243f', '#0e2e4e'], tl: '#062a36', tl2: 'kelp', win: 'rgba(150,220,255,0.08)',
+      dirt: ['#7a8090', '#545a6a', '#2e3240'], s1: '#3a3048', s2: '#241c30', g: ['#3a5a7a', '#8ab8e0', '#4a7aa0'], tex: 'sand',
+      sea: ['#020a18', '#01040c', '#06142a', '#010308'], fore: '#041e28',
+      decor: ['anemona', 'anemona', 'concha', 'alga', 'coral', 'ancora'], sun: { x: 400, y: -60, col: '#bfe8ff', glow: 0.5 },
+      clouds: 0.6, terrain: { base: 305, amp: 0.95 }
+    },
     praia: {
       sky: ['#2b98d8', '#8fd8f0', '#fdf0cf'], far: ['#8fb8d0', '#cfe3ee'], near: ['#7fc4b0', '#bfe3d0'], tl: '#4d9a7a',
       dirt: ['#ead59c', '#c9ad6e', '#8a7040'], s1: '#a98c52', s2: '#70582c', g: ['#d4b870', '#f6e4a8', '#cdb06a'],
@@ -437,6 +451,8 @@
       weather: [{ type: 'storm', p: 0.4 }, { type: 'rain', p: 0.15 }, { type: 'sun', p: 0.15 }] },
     { name: 'Cabo Cerúleo',         theme: 'cabo',     enemies: ['seel', 'geodude', 'starmie'],      err: 4.8, hpMult: 1.25, wind: 3, guests: [{ sp: 'lapras', rarity: 0.08 }, { sp: 'seel', rarity: 0.16 }, { sp: 'squirtle', rarity: 0.12 }, { sp: 'magikarp', rarity: 0.14 }],
       weather: [{ type: 'rain', p: 0.35 }, { type: 'sun', p: 0.2 }, { type: 'storm', p: 0.1 }] },
+    { name: 'Recife de Coral',      theme: 'recife',   enemies: ['magikarp', 'starmie', 'seel'],      err: 4.6, hpMult: 1.25, wind: 2, guests: [{ sp: 'lapras', rarity: 0.08 }, { sp: 'squirtle', rarity: 0.16 }, { sp: 'charmander', rarity: 0.1 }] },
+    { name: 'Fossa Abissal',        theme: 'abismo',   enemies: ['dewgong', 'starmie', 'gyarados'],   err: 4.5, hpMult: 1.28, wind: 2, guests: [{ sp: 'lapras', rarity: 0.1 }, { sp: 'gastly', rarity: 0.08 }] },
     { name: 'Gruta Gelada',         theme: 'gelo',     enemies: ['seel', 'zubat', 'lapras'],         err: 4.4, hpMult: 1.3,  wind: 2, guests: [{ sp: 'seel', rarity: 0.14 }, { sp: 'snorlax', rarity: 0.07, stayRounds: 6 }, { sp: 'jigglypuff', rarity: 0.14 }],
       weather: [{ type: 'snow', p: 0.65 }] },
     { name: 'Ilha Cinnabar',        theme: 'lava',     enemies: ['growlithe', 'magmar', 'geodude'],  err: 4.2, hpMult: 1.35, wind: 2, guests: [{ sp: 'arcanine', rarity: 0.07 }, { sp: 'charmander', rarity: 0.15 }, { sp: 'onix', rarity: 0.12 }],
@@ -451,7 +467,8 @@
     campo: ['caterpie', 'pidgey', 'rattata', 'metapod'], floresta: ['caterpie', 'metapod', 'beedrill', 'pidgey', 'rattata'], praia: ['magikarp', 'starmie', 'seel'],
     caverna: ['zubat', 'geodude', 'graveler', 'dugtrio', 'machop'], noite: ['gastly', 'zubat', 'golbat'], usina: ['magnemite', 'magneton', 'geodude', 'zubat'],
     cabo: ['seel', 'dewgong', 'starmie', 'geodude', 'magikarp'], gelo: ['seel', 'dewgong', 'zubat', 'golbat', 'lapras'], lava: ['growlithe', 'magmar', 'geodude'],
-    vitoria: ['machop', 'scyther', 'geodude', 'golbat'], montanha: []
+    vitoria: ['machop', 'scyther', 'geodude', 'golbat'], montanha: [],
+    recife: ['magikarp', 'starmie', 'seel', 'squirtle'], abismo: ['dewgong', 'starmie', 'magikarp', 'seel']
   };
   MS.STAGES.forEach(st => { st.pool = POOL[st.theme] || []; });
 })();

@@ -1,8 +1,8 @@
 // Funciona sem internet: guarda os arquivos do jogo no aparelho.
 // Rede primeiro (para receber versões novas na hora); sem rede, usa a cópia guardada.
-const CACHE = 'monstrinhos-08-11-arte';
+const CACHE = 'monstrinhos-08-11-pokedex';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icons/icon192.png', './icons/icon512.png',
-  './js/sfx.js', './js/data.js', './js/art.js', './js/art2.js', './js/animated-kanto.js', './js/art-mar.js', './js/gl.js', './js/ai-worker.js', './js/game.js'];
+  './js/sfx.js', './js/data.js', './js/art.js', './js/art2.js', './js/animated-kanto.js', './js/art-mar.js', './js/pokedex.js', './js/gl.js', './js/ai-worker.js', './js/game.js'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES).catch(() => {})).then(() => self.skipWaiting()));

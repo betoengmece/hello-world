@@ -8,7 +8,7 @@
   const GRAV = 0.2;           // gravidade base (px/frame²)
   const WALK_MAX = 120;       // distância máxima de caminhada por turno (mapas largos dão um pouco mais)
   const walkMax = () => WALK_MAX + Math.max(0, W - 800) * 0.07;
-  const GAME_VERSION = '07/11 a';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
+  const GAME_VERSION = '2';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
   const TURN_TIME = 30 * 60;  // 30 s para mirar e atirar (estourou: passa a vez)
   const WEAK = 0.35;          // abaixo dessa fração de PV o inimigo pode ser capturado
   const PLAYER_COL = '#3a9bff', WILD_COL = '#e0433a', GUEST_COL = '#ffd34d';
@@ -3762,6 +3762,7 @@
       <g transform="translate(400 112)" text-anchor="middle">
         <text y="0" font-size="52" font-weight="900" fill="#fff" stroke="#173a78" stroke-width="7" paint-order="stroke" letter-spacing="1">Monstrinhos</text>
         <text y="38" font-size="30" font-weight="800" fill="#ffd34d" stroke="#6a3a00" stroke-width="5" paint-order="stroke" letter-spacing="4">DE ARTILHARIA</text>
+        <text y="62" font-size="14" font-weight="800" fill="#fff" stroke="#142946" stroke-width="3" paint-order="stroke" letter-spacing="1.5">v${GAME_VERSION}</text>
       </g>
       <g transform="translate(130 100)">${Art.ball(30, -12)}</g><g transform="translate(670 100)">${Art.ball(30, 12)}</g>`;
     let y = 196;
@@ -3770,6 +3771,7 @@
       s += uiBtn(250, y, 300, 50, 'Escolher fase', openStages); y += 62;
     }
     s += uiBtn(250, y, 300, 50, save ? 'Novo jogo (apaga o progresso)' : 'Novo jogo', startNewGame, { fs: save ? 18 : 20 });
+    s += uiBtn(250, y + 62, 300, 50, 'Pokédex', () => MS.Pokedex.show());
     s += `<text x="400" y="472" text-anchor="middle" font-size="10" fill="#fff" opacity=".8">Projeto de fã, sem fins lucrativos. Pokémon e seus nomes pertencem a Nintendo / Game Freak / Creatures.</text>
       <text x="400" y="488" text-anchor="middle" font-size="10" fill="#fff" opacity=".6">Todas as artes são desenhos próprios em SVG.</text>`;
     return s;
@@ -4119,6 +4121,10 @@
   const ARROWS = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
 
   addEventListener('keydown', e => {
+    if (MS.Pokedex?.open) {
+      if (e.target === window) MS.Pokedex.gamepad(e.key);
+      return;
+    }
     // Ações pontuais não devem disparar repetidamente ao segurar a tecla.
     if (e.repeat && ['o', 'm', 'f', 'r', 'p', 'b', 'g', 'c'].includes(e.key.toLowerCase())) return;
     if (e.key === 'o' || e.key === 'O') { e.preventDefault(); toggleSettings(); return; }
@@ -4172,6 +4178,7 @@
   });
 
   addEventListener('keyup', e => {
+    if (MS.Pokedex?.open) return;
     if (ARROWS[e.key]) keys[ARROWS[e.key]] = false;
     else if (e.code === 'Space') releaseFire();
     else if (e.key === 'q' || e.key === 'Q') keys.panL = false;

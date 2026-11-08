@@ -122,7 +122,44 @@
       ${puff(c, [14, -18], '#ffe9b0', '#ffffff')}
     </g>`;
   }
-  const machop = c => machoid(c, { s: 1, four: false });
+  function machop(c) {
+    const stride = c.step * .85;
+    const punch = Math.max(0, Math.min(1, c.breath / 18));
+    const reach = 7 * punch;
+    const fist = f1(reach);
+    const pose = f1(c.bob * .65);
+    const stance = f1(Math.sin(c.f * .12) * 1.6 + c.step * 2.5);
+    return `
+    <ellipse cx="-1" cy=".4" rx="14" ry="2.5" fill="#132434" opacity=".2"/>
+    <g fill="url(#gMachopSkin)" stroke="#344856" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round">
+      <g transform="translate(0 ${pose})">
+        <path d="M-7,-11 C-13,-8 -19,-10 -21,-15 Q-18,-13 -14,-15 L-8,-18Z"/>
+        <path d="M-6,-24 Q-11,-24 -15,-18 Q-17,-14 -14,-11 Q-10,-9 -8,-13 L-9,-16 L-4,-19Z" fill="#8295a2"/>
+        <path d="M-15,-14 l2.2,-.5 m-1.5,2.3 l2.3,-.5" fill="none" opacity=".7"/>
+        <path d="M-6,-25 Q-10,-21 -8,-16 L-7,-10 Q-5,-6 0,-7 L5,-8 Q8,-10 7,-15 L10,-21 Q8,-25 4,-26Z"/>
+        <path d="M-6,-18 Q-3,-16 -1,-16 M-6,-15 Q-3,-13 -1,-13 M-5,-12 Q-3,-10.5 -1,-10.5" fill="none" stroke="#576e7b" stroke-width=".8"/>
+        <path d="M-.5,-24 Q-4,-26 -7,-29 Q-9,-33 -7,-37 Q-6,-40 -2,-40 Q4,-41 8,-37 L12,-34 Q13,-32 12,-29 Q11,-25 7,-24 Q3,-22 -.5,-24Z"/>
+        <path d="M-6.4,-36.8 C-7.7,-40.6 -5.3,-43.1 -3.8,-43 Q-3.2,-39.4 -1.3,-38.2
+                 M-2.1,-39.5 Q-1.7,-44.3 .2,-44 Q1.2,-40.4 3.4,-38.3
+                 M2.4,-39.7 Q3.2,-44 5.1,-43.1 Q6.2,-40.2 8.3,-37.2" fill="#a58a6e" stroke="#5e514a" stroke-width="1"/>
+        <path d="M-5.5,-34.1 Q-4.1,-37.2 -1.4,-37.7 M-5.7,-23 Q-4.1,-24.3 -2.8,-24.1" fill="none" stroke="#e8f1f3" opacity=".78"/>
+        ${c.blink
+          ? '<path d="M2,-31.4 Q5,-30 7.4,-31.5 M9.8,-31.8 l1.6,-.6" fill="none"/>'
+          : '<path d="M1.4,-33.5 Q4.5,-32.6 8,-33.4 Q7.3,-29.3 4.6,-29.6 Q2.4,-29.8 1.4,-33.5Z M9.4,-32.9 l2.4,-1 q-.1,3.5 -2.2,3.3Z" fill="#fff9ec" stroke-width=".8"/><ellipse cx="5.8" cy="-31.7" rx="1.2" ry="1.55" fill="#a43239" stroke="none"/><circle cx="6.1" cy="-32.2" r=".43" fill="#fff" stroke="none"/>'}
+        <path d="M7,-27.4 Q9.2,-26.2 11,-28" fill="none" stroke-width=".9"/>
+        <g transform="rotate(${stance} 5 -20)">
+          <path d="M4,-22 Q1,-19 4,-16 Q7,-13 10,-15 L${f1(14 + reach)},${f1(-16 - 3 * punch)} L${f1(13 + reach)},${f1(-21 - 3 * punch)} Q9,-20 7,-21 Q6,-23 4,-22Z"/>
+          <g transform="translate(${fist} ${f1(-3 * punch)})">
+            <path d="M11,-20.8 Q12,-23.4 15,-23 Q19,-23 19,-19 Q18.8,-15.8 15.8,-15.4 Q12,-15 11,-17.4Z"/>
+            <path d="M14,-21 l.4,1.6 m1.6,-1.8 l.4,1.7 m1.4,-1.2 l.3,1.5" fill="none" stroke="#657c8b" stroke-width=".7"/>
+          </g>
+        </g>
+      </g>
+      <path d="M-6,${f1(-10 + c.bob * .65)} Q-8,-6 ${f1(-10 + stride)},-4 L${f1(-12 + stride)},-2 Q${f1(-12 + stride)},.3 ${f1(-7 + stride)},0 Q${f1(-4 + stride)},0 ${f1(-3 + stride)},-2 L-1,-9Z" fill="#8da1ad"/>
+      <path d="M2,${f1(-9 + c.bob * .65)} Q3,-5 ${f1(4 - stride)},-3 Q${f1(4 - stride)},-.3 ${f1(9 - stride)},0 L${f1(11 - stride)},-.1 Q${f1(13 - stride)},-.4 ${f1(12 - stride)},-2.5 L${f1(9 - stride)},-4 L7,-11Z"/>
+    </g>
+    ${puff(c, [19, -20], '#ffe9b0', '#fff')}`;
+  }
   const machamp = c => machoid(c, { s: 1.22, four: true });
 
   // ---------- Growlithe e Arcanine ----------

@@ -46,7 +46,7 @@
       <path d="M-6,-8 C-14,-8 -17,-15 -14,-22" fill="none" stroke="#f58a30" stroke-width="4.3" stroke-linecap="round"/>
       <circle cx="-14" cy="-29" r="10" fill="url(#fireball)" opacity=".55"/>
       <g transform="translate(-14 -22) scale(1 ${sc.toFixed(2)})">
-        <path d="M0,0 C-6,-4 -5,-10 0,-15 C1,-11 4,-12 4,-9 C6,-5 4,-1 0,0 Z" fill="#ff8a1a"/>
+        <path d="M0,0 C-6,-3 -6,-9 -3,-12 Q-3,-9 -1,-8 Q-2,-12 1,-17 Q1,-13 5,-10 C9,-4 5,0 0,0 Z" fill="url(#gTailFlame)" stroke="#ad3c28" stroke-width=".65"/>
         <path d="M0,-1 C-3,-3 -2,-7 0,-10 C2,-7 3,-3 0,-1 Z" fill="#ffd34d"/>
         <path d="M0,-2 C-1.2,-3 -1,-5 0,-6 C1,-5 1.2,-3 0,-2 Z" fill="#fffbe0"/>
       </g>
@@ -54,29 +54,30 @@
       <ellipse cx="1.5" cy="-9" rx="5.5" ry="6.5" fill="url(#gCream)"/>
       <path d="M4,-13 Q9,-13 9,-10" fill="none" stroke="#6b2a0e" stroke-width="3.6" stroke-linecap="round"/>
       <path d="M4,-13 Q9,-13 9,-10" fill="none" stroke="#f5892e" stroke-width="2.2" stroke-linecap="round"/>
-      <ellipse cx="3" cy="-22" rx="8.5" ry="7.8" fill="url(#gOrange)" stroke="#6b2a0e" stroke-width="1.2"/>
+      <path d="M-5.5,-21.5 C-6,-26 -2,-30 3,-30 C8,-30 11,-27 11.4,-23 Q14,-21 12.5,-18 Q9,-14 3,-14.2 C-2,-14.5 -5,-17 -5.5,-21.5Z" fill="url(#gOrange)" stroke="#6b2a0e" stroke-width="1.2"/>
+      <path d="M-2.5,-25.7 Q.5,-28 3.5,-27.6" fill="none" stroke="#ffe2aa" stroke-width="1.2" stroke-linecap="round" opacity=".8"/>
       ${eye(5.5, -23.5, 3.3, '#1b2a5a', c.blink)}
-      <circle cx="9.8" cy="-20.5" r=".7" fill="#6b2a0e"/>
+      <path d="M9.4,-17 L10.2,-15.9 L11.1,-17.5Z" fill="#fff3d6"/>
+      <circle cx="10.8" cy="-20.5" r=".7" fill="#6b2a0e"/>
       <path d="M5,-17.5 Q8.5,-15 11,-17.5" fill="none" stroke="#6b2a0e" stroke-width="1" stroke-linecap="round"/>
       ${puff(c, [11, -18], '#ff7a1a', '#fff3a0')}
     </g>`;
   }
 
   function bulbasaur(c) {
-    return feet(c.step, 'url(#gGreen)', '#1d4a2a') + `
+    return feet(c.step, 'url(#gBulbaSkin)', '#214d49', 6) + `
     <g transform="translate(0 ${f1(c.bob)})">
-      <ellipse cx="0" cy="-12" rx="9.5" ry="9.5" fill="url(#gGreen)" stroke="#1d4a2a" stroke-width="1.2"/>
+      <ellipse cx="-1.2" cy="-10.5" rx="11.5" ry="8.5" fill="url(#gBulbaSkin)" stroke="#214d49" stroke-width="1.2"/>
       <ellipse cx="2" cy="-8.5" rx="5" ry="5" fill="url(#gCreamGreen)"/>
       <path d="M-5,-15 l2,-1.5 l1,2 Z M-1,-18 l2,-1 l.6,2 Z M-6,-10 l2,-.5 l.3,1.8 Z" fill="#2b6b3a"/>
-      <ellipse cx="-6" cy="-22" rx="8" ry="7.5" fill="url(#gBulb)" stroke="#1d4a2a" stroke-width="1.1"/>
-      <path d="M-8,-27 Q-9,-31 -6,-34" fill="none" stroke="#1d4a2a" stroke-width=".7" opacity=".6"/>
-      <path d="M-6,-29 Q-11,-37 -17,-35 Q-13,-29 -6,-29 Z" fill="#2e9a4a" stroke="#1d4a2a" stroke-width=".8"/>
-      <path d="M-5,-29 Q-3,-37 2,-38 Q0,-31 -5,-29 Z" fill="#3fae5a" stroke="#1d4a2a" stroke-width=".8"/>
-      <path d="M0,-25 L1.5,-30.5 L4.5,-26.5 Z M6,-25.5 L9,-29.5 L10,-24.5 Z" fill="url(#gGreen)" stroke="#1d4a2a" stroke-width=".9" stroke-linejoin="round"/>
-      <ellipse cx="4.5" cy="-20" rx="8.2" ry="7" fill="url(#gGreen)" stroke="#1d4a2a" stroke-width="1.2"/>
+      <path d="M-15,-18 C-17,-24 -12,-27 -10,-29 Q-7,-31 -6,-35 Q-3,-30 1,-28 C7,-23 4,-16 -3,-15 Q-11,-13 -15,-18Z" fill="url(#gBulb)" stroke="#204c35" stroke-width="1.2"/>
+      <path d="M-13,-19 Q-11,-24 -6,-30 Q-7,-22 -4,-17 M-6,-30 Q-1,-24 0,-20" fill="none" stroke="#a5e596" stroke-width="1" opacity=".62" stroke-linecap="round"/>
+      <path d="M0,-25 L1.5,-30.5 L4.5,-26.5 Z M6,-25.5 L9,-29.5 L10,-24.5 Z" fill="url(#gBulbaSkin)" stroke="#214d49" stroke-width=".9" stroke-linejoin="round"/>
+      <path d="M-1,-23 Q2,-28 7,-26 Q12,-26 13,-21 L14,-18 Q12,-13 6,-13 Q-1,-13 -3,-17 Q-4,-20 -1,-23Z" fill="url(#gBulbaSkin)" stroke="#214d49" stroke-width="1.2"/>
+      <path d="M0,-21 l2.6,-1.4 l1.3,2.2 l-2.1,1.5Z M8.6,-25 l2.3,1.1 l-1.7,1.2Z M-6,-10 l2,-1.5 l1,2.1 l-2,1.1Z" fill="#287f70"/>
       ${eye(6.5, -21, 2.9, '#c0392b', c.blink)}
       <path d="M7,-16 Q10,-14.5 11,-16.8" fill="none" stroke="#1d4a2a" stroke-width="1" stroke-linecap="round"/>
-      <ellipse cx="6" cy="-12" rx="3" ry="1.8" fill="url(#gGreen)" stroke="#1d4a2a" stroke-width="1"/>
+      <ellipse cx="6" cy="-11" rx="3" ry="1.8" fill="url(#gBulbaSkin)" stroke="#214d49" stroke-width="1"/>
       ${puff(c, [11, -18], '#5cc46a', '#e6ffd0')}
     </g>`;
   }
@@ -84,15 +85,17 @@
   function squirtle(c) {
     return feet(c.step, 'url(#gBlue)', '#1d4a6b') + `
     <g transform="translate(0 ${f1(c.bob)})">
-      <path d="M-8,-7 Q-16,-8 -15,-2 Q-14,2 -10.5,.5" fill="none" stroke="#1d4a6b" stroke-width="5.5" stroke-linecap="round"/>
-      <path d="M-8,-7 Q-16,-8 -15,-2 Q-14,2 -10.5,.5" fill="none" stroke="#8fd3ef" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M-7,-8 C-12,-10 -12,-16 -17,-15 C-23,-14 -23,-7 -19,-5 Q-16,-4 -14,-7 Q-13,-3 -8,-2Z" fill="url(#gBlue)" stroke="#1d4a6b" stroke-width="1.1"/>
+      <path d="M-18.5,-12 Q-21,-11 -19,-8 Q-17,-6.5 -15.5,-8.3" fill="none" stroke="#4d8eaf" stroke-width="1" stroke-linecap="round"/>
       <ellipse cx="0" cy="-12" rx="9.5" ry="9.5" fill="url(#gBlue)" stroke="#1d4a6b" stroke-width="1.2"/>
       <ellipse cx="2.5" cy="-8" rx="5" ry="4.2" fill="url(#gCream)" stroke="#b89a5a" stroke-width=".6"/>
       <path d="M-10,-11 Q-11,-23 0,-23 Q9,-23 8,-13 Q7,-6 -1,-6 Q-10,-6 -10,-11 Z" fill="url(#gShell)" stroke="#4a2a10" stroke-width="1.2"/>
-      <path d="M-5,-19 L-1,-16 L3,-19 M-1,-16 L-1,-11 M-7,-12 L-1,-11 L5,-12" fill="none" stroke="#6b4016" stroke-width="1"/>
+      <path d="M-7,-18 L-4,-21 L1,-20 L3,-16 L0,-12 L-5,-12 L-7,-15 Z" fill="#99562f" stroke="#643721" stroke-width=".9"/>
+      <path d="M-6,-17 L-3.5,-19 L.2,-18.5 M-5,-12 L-7,-9 M0,-12 L2,-8" fill="none" stroke="#ffe0a2" stroke-width=".8" stroke-linecap="round" opacity=".65"/>
       <path d="M-10,-10 Q-1,-4 8,-11" fill="none" stroke="#f3e2b0" stroke-width="1.6"/>
       <ellipse cx="6" cy="-10" rx="3" ry="1.8" fill="url(#gBlue)" stroke="#1d4a6b" stroke-width="1"/>
-      <circle cx="6.5" cy="-19.5" r="7" fill="url(#gBlue)" stroke="#1d4a6b" stroke-width="1.2"/>
+      <path d="M-1,-20 Q-2,-28 6,-29 C11,-29 14,-25 13.5,-21 Q16,-18 12,-15 Q8,-12 3,-14 Q-1,-16 -1,-20Z" fill="url(#gBlue)" stroke="#1d4a6b" stroke-width="1.2"/>
+      <path d="M2,-25.8 Q4,-27.5 7,-27" fill="none" stroke="#fff" stroke-width="1.2" stroke-linecap="round" opacity=".7"/>
       ${eye(9, -21, 2.6, '#6b3a1a', c.blink)}
       <path d="M8,-15.5 Q11,-14 11,-16.5" fill="none" stroke="#1d4a6b" stroke-width="1" stroke-linecap="round"/>
       ${puff(c, [11, -17], '#6ad0ff', '#e6f8ff')}
@@ -103,6 +106,7 @@
   function pikachu(c) {
     const fl = c.charge ? (c.f % 8 < 4 ? 1 : 0.35) : 0;
     const bob = Math.sin(c.f * 0.08) * 0.7;
+    const tailAngle = Math.sin(c.f * 0.14) * 5 - (c.charge ? 7 : 0);
     const closed = ((c.f + 37) % 260) < 7;
     const darkEye = cx => closed
       ? `<path d="M${cx - 2},-23 Q${cx},-21.6 ${cx + 2},-23" fill="none" stroke="#222" stroke-width="1.1" stroke-linecap="round"/>`
@@ -115,17 +119,20 @@
       <ellipse cx="-4" cy="-2" rx="3.4" ry="2.3" fill="url(#gYellow)" stroke="#5a4300" stroke-width="1"/>
       <ellipse cx="4" cy="-2" rx="3.4" ry="2.3" fill="url(#gYellow)" stroke="#5a4300" stroke-width="1"/>
       <g transform="translate(0 ${f1(bob)})">
-        <path d="M7,-7 L13,-11 L10,-14 L17,-22 L13,-23 L19,-32 L8,-24 L11,-22 L5,-15 L8,-13 Z"
-              fill="url(#gYellow)" stroke="#5a4300" stroke-width="1" stroke-linejoin="round"/>
-        <path d="M7,-7 L13,-11 L10,-14 L8,-13 Z" fill="#8a5a1a"/>
+        <g transform="rotate(${f1(tailAngle)} -6 -8)">
+          <path d="M-5,-7 L-13,-10 L-11,-14 L-21,-18 L-18,-22 L-28,-26 L-22,-35 L-10,-26 L-14,-22 L-6,-17 L-9,-13 L-3,-10 Z" fill="url(#gYellow)" stroke="#5a4300" stroke-width="1.15" stroke-linejoin="round"/>
+          <path d="M-5,-7 L-13,-10 L-11,-14 L-8,-13 L-3,-10 Z" fill="#9b5e2b"/>
+          <path d="M-24,-28 L-21,-32 L-14,-27" fill="none" stroke="#fff7bc" stroke-width="1.2" stroke-linecap="round" opacity=".8"/>
+        </g>
         <ellipse cx="0" cy="-12" rx="9" ry="10.5" fill="url(#gYellow)" stroke="#5a4300" stroke-width="1.2"/>
-        <path d="M-5,-27 Q-11,-34 -12,-42 Q-6,-37 -1,-29 Z" fill="#222" stroke="#5a4300" stroke-width="1"/>
+        <path d="M-5,-27 Q-13,-35 -14,-43 Q-7,-41 -1,-29 Z" fill="#222" stroke="#5a4300" stroke-width="1"/>
         <path d="M-5,-27 Q-9.5,-32 -10.2,-36.5 Q-5.5,-34 -1,-29 Z" fill="url(#gYellow)"/>
         <path d="M5,-27 Q11,-34 12,-42 Q6,-37 1,-29 Z" fill="#222" stroke="#5a4300" stroke-width="1"/>
         <path d="M5,-27 Q9.5,-32 10.2,-36.5 Q5.5,-34 1,-29 Z" fill="url(#gYellow)"/>
         <ellipse cx="0" cy="-21.5" rx="9.5" ry="8" fill="url(#gYellow)" stroke="#5a4300" stroke-width="1.2"/>
         ${darkEye(-3.5)}${darkEye(3.5)}
-        <circle cx="-6.6" cy="-18.4" r="2.6" fill="#ef4b3c"/><circle cx="6.6" cy="-18.4" r="2.6" fill="#ef4b3c"/>
+        <circle cx="-6.6" cy="-18.4" r="2.6" fill="url(#gRed)"/><circle cx="6.6" cy="-18.4" r="2.6" fill="url(#gRed)"/>
+        <path d="M-3.8,-26 Q0,-28.3 3.4,-26.5" fill="none" stroke="#fff7bc" stroke-width="1.1" stroke-linecap="round" opacity=".8"/>
         <circle cx="0" cy="-20.3" r=".6" fill="#222"/>
         <path d="M-2,-17.6 Q-1,-16 0,-17.3 Q1,-16 2,-17.6" fill="none" stroke="#5a4300" stroke-width=".9" stroke-linecap="round"/>
         <ellipse cx="-5" cy="-11" rx="2.6" ry="1.6" fill="url(#gYellow)" stroke="#5a4300" stroke-width=".9"/>
@@ -224,16 +231,18 @@
     return `
     <g transform="translate(0 ${f1(-hop * 7)}) rotate(${f1(-hop * 14)} -2 0)">
       <path d="M-9,-12 Q-19,${f1(-22 + flop)} -22,-19 Q-18,-14 -22,-8 Q-19,${f1(-3 + flop)} -9,-10 Z" fill="#fbe9a8" stroke="#a8421e" stroke-width="1.1" stroke-linejoin="round"/>
-      <path d="M-4,-20 Q-2,-27 3,-31 Q4,-26 7,-23 Z" fill="#fbe9a8" stroke="#a8421e" stroke-width="1.1" stroke-linejoin="round"/>
+      <path d="M-8,-18 L-8,-26 L-3,-24 L1,-32 L4,-26 L9,-28 L7,-19 Z" fill="url(#gYellow)" stroke="#a8421e" stroke-width="1.1" stroke-linejoin="round"/>
+      <path d="M-20,-17 Q-16,-15 -11,-12 M-19,-9 Q-15,-10 -11,-11" fill="none" stroke="#b67d49" stroke-width=".8" stroke-linecap="round"/>
       <ellipse cx="0" cy="-12" rx="12.5" ry="10" fill="url(#gFish)" stroke="#8a2c10" stroke-width="1.3"/>
       <path d="M-10,-9 Q0,-3 11,-9 Q8,-2 0,-2 Q-8,-2 -10,-9 Z" fill="#fbe9a8"/>
-      <path d="M-4,-14 q2,-2 4,0 M2,-17 q2,-2 4,0 M-7,-9 q2,-2 4,0" fill="none" stroke="#b83a18" stroke-width=".9" opacity=".7"/>
+      <path d="M-9,-14 q2,-2.3 4,0 M-4,-16 q2,-2.3 4,0 M-4,-11 q2,-2.3 4,0 M1,-13 q2,-2.3 4,0" fill="none" stroke="#9d3c21" stroke-width=".9" opacity=".75"/>
+      <path d="M-8,-17 Q-4,-20 1,-19" fill="none" stroke="#ffd1a3" stroke-width="1.15" stroke-linecap="round"/>
       <path d="M-3,-10 Q-8,-5 -2,-4 Q0,-7 -3,-10 Z" fill="#fbe9a8" stroke="#a8421e" stroke-width=".9" stroke-linejoin="round"/>
       <path d="M11,-8 Q17,-4 15,1 M10,-7 Q13,-3 9,1" fill="none" stroke="#fbe9a8" stroke-width="2" stroke-linecap="round"/>
       <path d="M11,-8 Q17,-4 15,1 M10,-7 Q13,-3 9,1" fill="none" stroke="#a8421e" stroke-width=".7" stroke-linecap="round" opacity=".7"/>
       ${c.blink ? `<path d="M5,-14 Q7.5,-12.4 10,-14" fill="none" stroke="#222" stroke-width="1.2" stroke-linecap="round"/>`
                 : `<circle cx="7.5" cy="-14.5" r="3.4" fill="#fff" stroke="#8a2c10" stroke-width=".9"/><circle cx="8.3" cy="-14.5" r="2" fill="#222"/><circle cx="8.9" cy="-15.4" r=".8" fill="#fff"/>`}
-      <path d="M11.5,-11 Q14.5,-9.5 12.5,-7.6" fill="#7a1c0c" stroke="#8a2c10" stroke-width=".9"/>
+      <ellipse cx="12.5" cy="-9.5" rx="3.3" ry="2.5" fill="#712d35" stroke="#ffb38e" stroke-width="1.25" transform="rotate(17 12.5 -9.5)"/>
       ${puff(c, [14, -9], '#6ad0ff', '#e6f8ff')}
     </g>`;
   }
@@ -421,12 +430,15 @@
       <path d="${body}" fill="none" stroke="#3f74c8" stroke-width="12.4" stroke-linecap="round"/>
       <path d="${body}" fill="none" stroke="#8cc0f6" stroke-width="2.6" stroke-linecap="round" transform="translate(-2 -3)" opacity=".7"/>
       <path d="${body}" fill="none" stroke="#f3e6a0" stroke-width="3.6" stroke-linecap="round" stroke-dasharray="3 4.5" transform="translate(3 3)"/>
-      <path d="M-24,-12 L-30,-9 L-26,-17 Z M-5,-22 L-12,-19 L-7,-27 Z" fill="#f2c15a" stroke="#8a5a1a" stroke-width=".9" stroke-linejoin="round"/>
+      <path d="M-23,-8 Q-29,-9 -34,-4 L-28,-12 L-33,-17 Q-26,-17 -21,-12 Z M-7,-25 L-13,-23 L-9,-32 L-4,-30 Z" fill="url(#gCream)" stroke="#285075" stroke-width="1" stroke-linejoin="round"/>
+      <path d="M-19,-14 l3,3 M-13,-18 l3,3 M-7,-21 l4,1 M-5,-28 l4,.8 M-1,-35 l3,2" fill="none" stroke="#214d8e" stroke-width="1.1" stroke-linecap="round"/>
       <g transform="translate(${f1(hx)} ${f1(hy)})">
-        <path d="M-6,-6 L-12,-18 L-3,-9 L-5,-21 L2,-10 Z" fill="#e8452a" stroke="#7a1c0c" stroke-width="1" stroke-linejoin="round"/>
+        <path d="M-7,-5 L-13,-15 L-5,-12 L-4,-20 L1,-13 L7,-17 L5,-7 Z" fill="url(#gGyarados)" stroke="#153b70" stroke-width="1.2" stroke-linejoin="round"/>
+        <path d="M-12,0 L-20,-4 L-17,1 L-22,5 L-15,5 L-17,10 L-7,5 Z" fill="url(#gCream)" stroke="#285075" stroke-width=".95" stroke-linejoin="round"/>
         <path d="M-9,2 Q-17,4 -20,12 Q-12,8 -7,6 Z" fill="#f3e6a0" stroke="#8a5a1a" stroke-width=".9" stroke-linejoin="round"/>
-        <ellipse cx="0" cy="0" rx="11.6" ry="8.4" fill="#3f74c8" stroke="#1d3f7a" stroke-width="1.4"/>
-        <path d="M2,-6.4 Q12,-6 13,-1 L3,-1 Z" fill="#5a8ee0"/>
+        <ellipse cx="0" cy="0" rx="11.6" ry="8.4" fill="url(#gGyarados)" stroke="#1d3f7a" stroke-width="1.4"/>
+        <path d="M-2,-5.4 Q7,-8 12,-3 L9,-1 L1,-2 Z" fill="#75b8f4"/>
+        <path d="M-3,4 Q4,10 13,4.6 Q10,12 3,11 Q-3,9 -3,4Z" fill="url(#gCream)" stroke="#244771" stroke-width="1"/>
         <path d="M3,2 Q10,2 13,4.6 Q9,10 2,9 Q-3,7 -2,3 Z" fill="#7a1c1c" stroke="#1d3f7a" stroke-width="1.2" stroke-linejoin="round"/>
         <path d="M5,3 l1.6,3 l1.6,-3 M9,3.4 l1.2,2.4 l1.4,-2.6" fill="#fff" stroke="#fff" stroke-width=".6"/>
         <path d="M12,-2 Q22,0 21,6 M11,0 Q18,5 14,11" fill="none" stroke="#f3e6a0" stroke-width="1.6" stroke-linecap="round"/>
@@ -490,13 +502,14 @@
       <path d="M-7.6,-29 L-9.4,-35 L-4,-30.4 Z" fill="#7a5468"/>
       <path d="M4,-30 L9,-39 L11.6,-26 Z" fill="url(#gPink)" stroke="#9a4a6a" stroke-width="1.2" stroke-linejoin="round"/>
       <path d="M5.6,-30 L8.8,-36 L9.8,-28 Z" fill="#7a5468"/>
-      <ellipse cx="0" cy="-16" rx="14.6" ry="14" fill="url(#gPink)" stroke="#9a4a6a" stroke-width="1.3"/>
+      <path d="M-13,-16 Q-19,-13 -17,-10 Q-15,-8 -11,-11 M10,-16 Q17,-15 17,-11 Q16,-8 11,-11" fill="url(#gPink)" stroke="#894266" stroke-width="1.15"/>
+      <ellipse cx="0" cy="-16" rx="14.6" ry="14" fill="url(#gPink)" stroke="#894266" stroke-width="1.3"/>
       <ellipse cx="3" cy="-9" rx="8.6" ry="6.4" fill="#ffe8f0" opacity=".55"/>
-      <ellipse cx="9" cy="-12.5" rx="4" ry="2.8" fill="url(#gPink)" stroke="#9a4a6a" stroke-width="1"/>
+      <path d="M-9,-22 Q-6,-27 -.5,-27" fill="none" stroke="#fff2f8" stroke-width="1.25" stroke-linecap="round" opacity=".75"/>
       <path d="M-1,-27.6 C-10,-30 -9,-37 -2,-35.6 C3,-34.6 2,-30.4 -1.2,-31.4 C-3.4,-32 -2.2,-34 -0.4,-33.6" fill="none" stroke="#9a4a6a" stroke-width="2.8" stroke-linecap="round"/>
       <path d="M-1,-27.6 C-10,-30 -9,-37 -2,-35.6 C3,-34.6 2,-30.4 -1.2,-31.4 C-3.4,-32 -2.2,-34 -0.4,-33.6" fill="none" stroke="#f59cbc" stroke-width="1.5" stroke-linecap="round"/>
-      ${eye(1.6, -18.6, 4.2, '#1f8f9a', c.blink)}${eye(10, -18.2, 3.7, '#1f8f9a', c.blink)}
-      <path d="M6,-11 Q8.6,-9.4 11,-11.4" fill="none" stroke="#9a4a6a" stroke-width="1.1" stroke-linecap="round"/>
+      ${eye(-2.7, -18.2, 4.9, '#198fa6', c.blink)}${eye(7.4, -18.2, 4.4, '#198fa6', c.blink)}
+      <path d="M1,-11 Q4,-9 7,-11.4 Q6,-6.8 3,-8 Z" fill="#983b69" stroke="#894266" stroke-width=".8" stroke-linejoin="round"/>
       <ellipse cx="-6.4" cy="-13.4" rx="2.6" ry="1.5" fill="#ff7aa0" opacity=".5"/>
       ${puff(c, [13, -22], '#ffb3d0', '#fff0f6')}
     </g>`;
@@ -505,21 +518,26 @@
   function beedrill(c) {
     const fl = (c.flap || c.breath > 0) ? 0.95 : 0.6, w = Math.sin(c.f * fl) * 26;
     const hv = Math.sin(c.f * 0.07) * 1.6, atk = c.breath > 0 ? 8 : 0;
+    const wing = (angle, x, y, scale) => `<g transform="translate(${x} ${y}) rotate(${f1(angle)}) scale(${scale})">
+      <path d="M0,0 C-4,-4 -13,-11 -10,-21 C-8,-30 0,-29 4,-22 Q8,-13 0,0 Z" fill="url(#gWing)" stroke="#5d7093" stroke-width="1.15"/>
+      <path d="M0,-2 Q-2,-16 -5,-24 M-2,-12 L-8,-17 M-2,-15 L2,-21" fill="none" stroke="#799ab5" stroke-width=".8" stroke-linecap="round"/>
+    </g>`;
     return `
       <ellipse cx="-1" cy=".5" rx="${f1(9 - hv * 0.5)}" ry="2.2" fill="#000" opacity=".2"/>
       <g transform="translate(0 ${f1(-18 + hv)})">
-        <g transform="translate(-4 -6) rotate(${f1(-30 + w)})"><ellipse cx="-4" cy="-13" rx="6" ry="14" fill="url(#gWing)" stroke="#6a7aa0" stroke-width="1.1" opacity=".92"/></g>
-        <g transform="translate(-3 -4) rotate(${f1(-56 + w * 0.8)})"><ellipse cx="-3" cy="-9" rx="4.4" ry="9.5" fill="url(#gWing)" stroke="#6a7aa0" stroke-width="1" opacity=".85"/></g>
+        ${wing(-61 + w * 0.8, -3, -3, .76)}
+        ${wing(-22 + w, -4, -6, 1)}
         <path d="M-1,15 L1,26 L3.4,15 Z" fill="#e8e8ee" stroke="#4a3a2a" stroke-width="1" stroke-linejoin="round"/>
         <ellipse cx="0" cy="6" rx="7.2" ry="11.4" fill="url(#gBee)" stroke="#5a3a08" stroke-width="1.2"/>
         <path d="M-6.8,3 Q0,6.4 6.8,3 L6.4,7 Q0,10.4 -6.4,7 Z M-5.8,11 Q0,14.4 5.8,11 L4.6,14 Q0,16.6 -4.6,14 Z" fill="#2c2433"/>
         <ellipse cx="6" cy="-1" rx="3" ry="2.4" fill="#e8e8ee" stroke="#4a3a2a" stroke-width="1" transform="rotate(30 6 -1)"/>
-        <path d="M5,-1 L${f1(15 + atk)},${f1(-2.4 - atk * 0.2)} L6.4,2 Z" fill="#f4f4f8" stroke="#4a3a2a" stroke-width="1" stroke-linejoin="round"/>
+        <path d="M-3,-2 Q-7,-1 -6,3 L-18,8 L-11,1 Q-10,-3 -4,-5 Z" fill="url(#gStinger)" stroke="#3b3744" stroke-width="1.05" stroke-linejoin="round"/>
+        <path d="M5,-2 Q8,-5 10,-4 L${f1(17 + atk)},${f1(-2.4 - atk * 0.2)} L8,3 Q5,2 5,-2Z" fill="url(#gStinger)" stroke="#3b3744" stroke-width="1.05" stroke-linejoin="round"/>
         <path d="M-1,6 L-8,10 L-3,13 Z" fill="#e8e8ee" stroke="#4a3a2a" stroke-width="1" stroke-linejoin="round" opacity=".9"/>
         <path d="M-2,-12 L-6,-20 M3,-12.4 L7,-20.4" fill="none" stroke="#4a3a2a" stroke-width="1.4" stroke-linecap="round"/>
         <circle cx="1.6" cy="-8" r="9" fill="url(#gBee)" stroke="#5a3a08" stroke-width="1.3"/>
         ${c.blink ? `<path d="M0,-9 Q3,-7.4 6,-9" fill="none" stroke="#222" stroke-width="1.2" stroke-linecap="round"/>`
-                  : `<ellipse cx="-2.4" cy="-8.6" rx="3.2" ry="4.4" fill="#e5384e" stroke="#7a1028" stroke-width=".9"/><ellipse cx="5.6" cy="-8.4" rx="3.2" ry="4.4" fill="#e5384e" stroke="#7a1028" stroke-width=".9"/><circle cx="-3.2" cy="-10.2" r="1" fill="#fff"/><circle cx="4.8" cy="-10" r="1" fill="#fff"/>`}
+                  : `<ellipse cx="-2.4" cy="-8.6" rx="3.2" ry="4.4" fill="url(#gRed)" stroke="#7a1028" stroke-width=".9"/><ellipse cx="5.6" cy="-8.4" rx="3.2" ry="4.4" fill="url(#gRed)" stroke="#7a1028" stroke-width=".9"/><circle cx="-3.2" cy="-10.2" r="1" fill="#fff"/><circle cx="4.8" cy="-10" r="1" fill="#fff"/>`}
         <path d="M-1,-2.4 Q2,-1 4.6,-2.6" fill="none" stroke="#5a3a08" stroke-width="1" stroke-linecap="round"/>
         ${puff(c, [15, -2], '#c783e4', '#f0cef6')}
       </g>`;
@@ -532,12 +550,15 @@
       <path d="M${-r + 2.4},${top + 4} Q${-r + 3},${top + 1.4} ${-r + 6.4},${top + 1.4}" fill="none" stroke="#fff" stroke-width="1.4" stroke-linecap="round" opacity=".45"/>
       ${c.blink ? `<path d="M-3.6,${top + r * 0.7} h2.6 M1.6,${top + r * 0.7} h2.6" stroke="#222" stroke-width="1.1" stroke-linecap="round"/>`
                 : `<circle cx="-2.4" cy="${top + r * 0.7}" r="1.5" fill="#222"/><circle cx="2.8" cy="${top + r * 0.7}" r="1.5" fill="#222"/><circle cx="-2" cy="${f1(top + r * 0.7 - 0.5)}" r=".45" fill="#fff"/><circle cx="3.2" cy="${f1(top + r * 0.7 - 0.5)}" r=".45" fill="#fff"/>`}
-      <ellipse cx="0.6" cy="${top + r * 1.2}" rx="3.6" ry="2.4" fill="#e8a09a" stroke="#8a4a40" stroke-width=".8"/></g>`;
+      <ellipse cx="0.6" cy="${top + r * 1.2}" rx="3.6" ry="2.4" fill="url(#gPink)" stroke="#8a4a40" stroke-width=".8"/>
+      <path d="M${-r + 1.5},${top + r + 3} Q${-r + 3},${top + r + 8} ${-r + 2.8},-5" fill="none" stroke="#804d34" stroke-width="1.05" opacity=".45"/></g>`;
     return `
       <ellipse cx="0" cy="1" rx="19" ry="4.4" fill="#6b4a2a" opacity=".55"/>
       ${head(-13, -23, 0.8, 6.8)}${head(14, -26, 2.4, 7)}${head(0, -34, 4.2, 8)}
       <path d="M-20,1 Q-14,-6 -6,-4 Q0,-9 7,-4 Q15,-7 20,1 Z" fill="url(#gBrown)" stroke="#5a3a1c" stroke-width="1.2" stroke-linejoin="round"/>
-      <circle cx="-14" cy="-1.4" r="1.2" fill="#7f5328"/><circle cx="12" cy="-1.8" r="1.4" fill="#7f5328"/><circle cx="2" cy="-1" r="1" fill="#7f5328"/>
+      <path d="M-19,0 L-16,-5 L-11,-4 L-8,-1 L-13,1 Z M7,0 L10,-5 L16,-5 L20,-1 L16,1 Z" fill="url(#gRock)" stroke="#5b4943" stroke-width=".9" stroke-linejoin="round"/>
+      <path d="M-15,-3 L-12,-3 M11,-3 L15,-4" fill="none" stroke="#e2d4bc" stroke-width=".8" stroke-linecap="round"/>
+      <circle cx="-5" cy="1" r="1" fill="#724528"/><circle cx="3" cy="-1" r="1.2" fill="#724528"/>
       ${puff(c, [9, -27], '#c8a070', '#f0e0c0')}`;
   }
 
@@ -548,15 +569,16 @@
       <path d="M${-r * 0.7},${-r * 0.5} Q${-r * 0.3},${-r * 0.95} ${r * 0.2},${-r * 0.8}" fill="none" stroke="#fff" stroke-width="1.3" stroke-linecap="round" opacity=".5"/>
       ${c.blink ? `<path d="M${-r * 0.55},${-r * 0.1} h${r * 0.4} M${r * 0.15},${-r * 0.1} h${r * 0.4}" stroke="#222" stroke-width="1" stroke-linecap="round"/>`
                 : `<ellipse cx="${f1(-r * 0.32)}" cy="${f1(-r * 0.1)}" rx="${f1(r * 0.2)}" ry="${f1(r * 0.28)}" fill="#222"/><ellipse cx="${f1(r * 0.36)}" cy="${f1(-r * 0.1)}" rx="${f1(r * 0.2)}" ry="${f1(r * 0.28)}" fill="#222"/><circle cx="${f1(-r * 0.27)}" cy="${f1(-r * 0.22)}" r=".5" fill="#fff"/><circle cx="${f1(r * 0.41)}" cy="${f1(-r * 0.22)}" r=".5" fill="#fff"/>`}
-      <path d="M${-r * 0.4},${r * 0.35} Q0,${r * 0.75 + k} ${r * 0.45},${r * 0.35}" fill="none" stroke="#7a4a30" stroke-width="1" stroke-linecap="round"/></g>`;
+      <path d="M${-r * .42},${r * .34} Q0,${r * .48} ${r * .45},${r * .31} Q0,${r * .69 + k} ${-r * .42},${r * .34}Z" fill="#7a4a30" stroke="#7a4a30" stroke-width=".75" stroke-linejoin="round"/></g>`;
     return feet(c.step, 'url(#gBrown)', '#5a3a1c', 5) + `
     <g transform="translate(0 ${f1(c.bob)})">
       <path d="M-4.6,-3 Q-5.6,-16 -4.2,-27 L4.2,-27 Q5.6,-16 4.6,-3 Z" fill="url(#gBrown)" stroke="#5a3a1c" stroke-width="1.2" stroke-linejoin="round"/>
-      <path d="M-5,-10 Q0,-8 5,-10 M-4.8,-16.4 Q0,-14.4 4.8,-16.4 M-4.4,-22.6 Q0,-20.6 4.4,-22.6" fill="none" stroke="#5a3a1c" stroke-width=".9" opacity=".7"/>
+      <path d="M-5,-10 l4,2 l6,-2 M-4.8,-16.4 l4,1.8 l5.6,-1.8 M-4.4,-22.6 l4,1.8 l4.8,-1.8 M-2,-5 l1,1.1" fill="none" stroke="#5a3a1c" stroke-width=".9" opacity=".7"/>
       <g transform="rotate(${f1(sw * 2)} 0 -27)">
         <path d="M-1,-38 C-12,-44 -22,-42 -26,-34 C-17,-37 -9,-35 -2,-33 Z" fill="url(#gGreen)" stroke="#1d4a2a" stroke-width="1" stroke-linejoin="round"/>
         <path d="M1,-39 C8,-49 19,-50 25,-42 C16,-43 9,-39 3,-34 Z" fill="url(#gGreen)" stroke="#1d4a2a" stroke-width="1" stroke-linejoin="round"/>
         <path d="M-2,-40 C-9,-47 -12,-52 -10,-56 C-4,-52 0,-47 1,-40 Z" fill="url(#gGreen)" stroke="#1d4a2a" stroke-width="1" stroke-linejoin="round"/>
+        <path d="M-3,-37 Q-13,-41 -22,-36 M4,-38 Q12,-46 22,-43 M-1,-41 L-8,-52" fill="none" stroke="#b3f3a1" stroke-width="1.15" stroke-linecap="round" opacity=".68"/>
         ${face(-8.4, -31.4, 7.4, 0)}${face(8.8, -31.6, 7.6, 0.4)}${face(0.4, -36.6, 8.2, 0.8)}
       </g>
       ${puff(c, [12, -29], '#e8a8f0', '#fff0ff')}
@@ -571,17 +593,18 @@
       <ellipse cx="9.6" cy="-3.4" rx="7.4" ry="4.4" fill="url(#gCream)" stroke="#2f5868" stroke-width="1.2"/>
       <g transform="translate(0 ${f1(c.bob)}) scale(1 ${(1 + br * 0.012).toFixed(3)})">
         <ellipse cx="0" cy="-17.4" rx="19" ry="16" fill="url(#gSnor)" stroke="#2f5868" stroke-width="1.4"/>
-        <ellipse cx="1.6" cy="-14.4" rx="12.4" ry="11.6" fill="url(#gCream)" stroke="#b8a878" stroke-width=".8"/>
+        <path d="M-12,-15 C-11,-24 0,-26 7,-23 C15,-20 17,-12 11,-6 C5,-1 -8,-3 -11,-8 Q-13,-11 -12,-15Z" fill="url(#gCream)" stroke="#b8a878" stroke-width=".8"/>
+        <path d="M-8,-16 Q-7,-21 -1,-22" fill="none" stroke="#fffdf0" stroke-width="1.45" stroke-linecap="round" opacity=".8"/>
         <path d="M-17,-22 Q-23,-18 -19,-9 Q-15,-9 -13,-13 Z" fill="url(#gSnor)" stroke="#2f5868" stroke-width="1.2" stroke-linejoin="round"/>
         <path d="M14,-24 Q22,-21 19,-11 Q14,-10 11,-15 Z" fill="url(#gSnor)" stroke="#2f5868" stroke-width="1.2" stroke-linejoin="round"/>
         <path d="M-9,-30 L-10.6,-40 L-3,-34.6 Z" fill="url(#gSnor)" stroke="#2f5868" stroke-width="1.2" stroke-linejoin="round"/>
         <path d="M7,-34.6 L13.4,-40.6 L13.6,-29.6 Z" fill="url(#gSnor)" stroke="#2f5868" stroke-width="1.2" stroke-linejoin="round"/>
         <ellipse cx="2.4" cy="-27.6" rx="12.6" ry="9.8" fill="url(#gSnor)" stroke="#2f5868" stroke-width="1.4"/>
         <path d="M-6,-30 Q2,-37 11,-31 L11,-26 Q2,-31 -6,-26 Z" fill="#2f5868" opacity=".28"/>
-        <ellipse cx="4.6" cy="-25.2" rx="9.6" ry="7" fill="url(#gCream)" stroke="#b8a878" stroke-width=".8"/>
+        <path d="M-5,-24 Q-7,-30 -1,-32 Q2,-32 5,-29 Q8,-33 12,-31 Q16,-28 13,-23 Q10,-19 5,-19 Q-2,-19 -5,-24Z" fill="url(#gCream)" stroke="#ad9d72" stroke-width=".8"/>
         ${c.blink ? `<path d="M-0.4,-26.4 h4.2 M7.4,-26.4 h4.2" stroke="#222" stroke-width="1.3" stroke-linecap="round"/>`
                   : `<path d="M-0.6,-27.4 L4,-26.6 M7.6,-26.6 L12,-27.6" stroke="#222" stroke-width="1.4" stroke-linecap="round"/><ellipse cx="2.2" cy="-25.6" rx="1.4" ry="1" fill="#222"/><ellipse cx="9.8" cy="-25.6" rx="1.4" ry="1" fill="#222"/>`}
-        <ellipse cx="6.2" cy="-21.4" rx="3.6" ry="1.5" fill="#fff" opacity=".0"/>
+        <path d="M-21,-11 l.8,1.7 l1,-1.4 M16,-10 l1,1.6 l1.2,-1.7" fill="#fff5d8" stroke="#e8dcb9" stroke-width=".6" stroke-linecap="round"/>
         <path d="M2.4,-21.6 Q6.4,-19 11,-21.6" fill="none" stroke="#5a4a3a" stroke-width="1.1" stroke-linecap="round"/>
         <path d="M3.4,-21.4 L4,-19 L5.2,-21 M8.6,-21.4 L9,-19.2 L10.2,-21.6" fill="#fff" stroke="#6a5a4a" stroke-width=".6" stroke-linejoin="round"/>
         <ellipse cx="9.6" cy="-8.4" rx="5" ry="3.6" fill="url(#gSnor)" stroke="#2f5868" stroke-width="1.1" transform="rotate(${f1(c.breath > 0 ? -30 : 0)} 9.6 -8.4)"/>

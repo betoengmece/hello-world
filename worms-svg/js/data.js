@@ -67,7 +67,8 @@
     gelo2:     { label: 'Nevasca',         type: 'ice',      style: 'ice',     count: 2, spread: 5, speed: 1.0,  grav: 0.9, boom: 38, carve: 12, dmg: 40 },
     lambida:   { label: 'Lambida',         type: 'ghost',    style: 'ghost',   count: 1, spread: 0, speed: 0.95, grav: 0.8, boom: 30, carve: 4,  dmg: 32 },
     sombra:    { label: 'Bola Sombria',    type: 'ghost',    style: 'ghost',   count: 1, spread: 0, speed: 1.05, grav: 0.9, boom: 38, carve: 10, dmg: 52 },
-    soco:      { label: 'Soco Focado',     type: 'fighting', style: 'punch',   count: 1, spread: 0, speed: 1.1,  grav: 0.9, boom: 28, carve: 14, dmg: 42, push: 7 },
+    soco:      { label: 'Soco Focado',     type: 'fighting', style: 'punch',   count: 1, spread: 0, speed: 1.1,  grav: 0.9, boom: 28, carve: 8, dmg: 42, push: 26 },
+    seismic:   { label: 'Golpe Sísmico', type: 'fighting', style: 'rock', count: 1, spread: 0, speed: 0.95, grav: 1.18, boom: 42, carve: 42, dmg: 48, windMul: 0.55, push: 17, shake: 12, delay: 850 },
     karate:    { label: 'Golpe de Caratê', type: 'fighting', style: 'punch',   count: 2, spread: 4, speed: 1.1,  grav: 0.9, boom: 30, carve: 12, dmg: 36, push: 9 },
     sonico:    { label: 'Onda Sônica',     type: 'flying',   style: 'gust',    count: 2, spread: 7, speed: 1.05, grav: 0.5, boom: 20, carve: 3,  dmg: 17, push: 5 },
     presa:     { label: 'Presa Venenosa',  type: 'poison',   style: 'poison',  count: 2, spread: 3, speed: 1.1,  grav: 0.85, boom: 24, carve: 4, dmg: 27 },
@@ -125,7 +126,7 @@
   P('sementes',{ count: 1, spread: 0, boom: 22, dmg: 20, windMul: 1.1, split: { n: 3, wk: 'semente' } });
   // rápidos e secos
   P('investida', { windMul: 0.6, crit: 0.15 }); P('hiperpresa', { windMul: 0.6, crit: 0.3 }); P('corte', { windMul: 0.5, crit: 0.3 });
-  P('soco', { crit: 0.2, push: 11, windMul: 0.5 }); P('karate', { push: 12, windMul: 0.5, crit: 0.15 });
+  P('soco', { crit: 0.2, windMul: 0.5 }); P('karate', { push: 12, windMul: 0.5, crit: 0.15 });
   // efeitos de status
   P('fogo',   { st: { type: 'burn', p: 0.35 } }); P('fogo2', { st: { type: 'burn', p: 0.45 } });
   P('brasas', { st: { type: 'burn', p: 0.3 } }); P('presafogo', { st: { type: 'burn', p: 0.5 } }); P('rodafogo', { st: { type: 'burn', p: 0.4 } });
@@ -183,7 +184,7 @@
     gastly:     { name: 'Gastly',     types: ['ghost', 'poison'],   weapon: 'lambida',    maxhp: 65,  h: 46, hitY: 22, hitR: 13, catch: 0.7,  mouth: [10, -22], evo: 'gengar', evoXp: 300 },
     gengar:     { name: 'Gengar',     types: ['ghost', 'poison'],   weapon: 'sombra',     maxhp: 135, h: 48, hitY: 19, hitR: 15, catch: 0.22, mouth: [12, -24], scale: 1.1 },
     machop:     { name: 'Machop',     types: ['fighting'],          weapon: 'soco',       maxhp: 110, h: 42, hitY: 16, hitR: 13, catch: 0.55, mouth: [13, -18], evo: 'machamp', evoXp: 280 },
-    machamp:    { name: 'Machamp',    types: ['fighting'],          weapon: 'karate',     maxhp: 170, h: 54, hitY: 22, hitR: 17, catch: 0.2,  mouth: [14, -26], scale: 1.1 },
+    machamp:    { name: 'Machamp',    types: ['fighting'],          weapon: 'seismic',    maxhp: 170, h: 54, hitY: 22, hitR: 17, catch: 0.2,  mouth: [14, -26], scale: 1.1 },
     growlithe:  { name: 'Growlithe',  types: ['fire'],              weapon: 'presafogo',  maxhp: 100, h: 34, hitY: 13, hitR: 13, catch: 0.5,  mouth: [14, -16], evo: 'arcanine', evoXp: 300 },
     arcanine:   { name: 'Arcanine',   types: ['fire'],              weapon: 'rodafogo',   maxhp: 160, h: 50, hitY: 19, hitR: 17, catch: 0.2,  mouth: [18, -24], scale: 1.12 },
     seel:       { name: 'Seel',       types: ['water', 'ice'],      weapon: 'aurora',     maxhp: 100, h: 32, hitY: 12, hitR: 14, catch: 0.7,  mouth: [14, -12], evo: 'dewgong', evoXp: 200 },
@@ -230,8 +231,8 @@
     golbat:     [['power', 'Presa Letal'], ['multi', 'Chuva de Presas']],
     gastly:     [['area', 'Nuvem Sombria'], ['power', 'Lambida Gélida']],
     gengar:     [['area', 'Sombra Gigante'], ['multi', 'Chuva de Sombras']],
-    machop:     [['power', 'Soco Dinâmico'], ['area', 'Golpe Sísmico']],
-    machamp:    [['multi', 'Mil Socos'], ['power', 'Golpe Cruzado']],
+    machop:     [['power', 'Soco Dinâmico'], ['area', 'Soco de Impacto']],
+    machamp:    [{ wk: 'karate' }, ['power', 'Golpe Sísmico Forte']],
     growlithe:  [['power', 'Presa Ardente'], ['multi', 'Chama Dupla']],
     arcanine:   [['power', 'Roda Infernal'], ['area', 'Onda Ígnea']],
     seel:       [['power', 'Aurora Forte'], ['multi', 'Chuva de Gelo']],
@@ -246,7 +247,9 @@
     ALTS[sp].forEach((a, i) => {
       if (Array.isArray(a)) {
         const base = MS.WEAPONS[S.weapon], key = `${S.weapon}~${sp}${i}`;
-        MS.WEAPONS[key] = Object.assign({}, base, MODES[a[0]](base), { label: a[1], variant: a[0] });
+        const variant = Object.assign({}, base, MODES[a[0]](base), { label: a[1], variant: a[0] });
+        if (base.delay !== undefined) variant.delay = base.delay + Math.round((variant.dmg * variant.count - base.dmg * base.count) * 3.4);
+        MS.WEAPONS[key] = variant;
         S.altKeys.push(key);
       } else S.altKeys.push(a.wk);
     });
@@ -421,6 +424,7 @@
     if (wp.burrow) a.push('anda por baixo da terra e acerta por baixo');
     if (wp.bolts) a.push(wp.bolts.length > 1 ? 'chama ' + wp.bolts.length + ' raios do céu' : 'chama um raio do céu');
     if (wp.carve >= 50 && wp.dmg <= 20) a.push('quebra muito terreno, pouco dano');
+    if (wp.delay !== undefined && wp.carve >= 40) a.push('abre uma cratera');
     if (wp.teleport) a.push('teleporta você até onde cair');
     if (wp.beam) a.push('hiper raio do Pokémon até o alvo');
     if (wp.pull) a.push('puxa e agrupa quem está perto');

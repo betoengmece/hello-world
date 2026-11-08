@@ -20,7 +20,7 @@ const MS=ctx.window.MS;
 MS.Sfx=new Proxy({isOn:()=>false},{get:(obj,key)=>obj[key]||(()=>{})});
 let engine=fs.readFileSync(path.join(root,'js/game.js'),'utf8');
 // Acesso restrito a este teste: o arquivo distribuído continua com sua API de debug atual.
-engine=engine.replace('  applySettings();\n  fitWrap();\n  initMenu();','  MS.testHooks={restart,roundEnd,explode,captureChance,projSvg,renderAll,loadSave,saveGame};\n  applySettings();\n  fitWrap();\n  initMenu();');
+engine=engine.replace('  applySettings();\n  fitWrap();\n  initMenu();','  MS.testHooks={restart,roundEnd,explode,captureChance,projSvg,renderAll,loadSave,saveGame,pressFire,releaseFire,adjustAim,orderSvg,delayCost,actionDelay,toggleAiSpeed,getFrame:()=>frameNo};\n  applySettings();\n  fitWrap();\n  initMenu();');
 vm.runInContext(engine,ctx,{filename:'game.js'});
 const debug=MS.debug,hooks=MS.testHooks;
 assert(hooks,'test hooks must be installed');
@@ -296,4 +296,64 @@ console.log('OK: golpes especiais (subterrâneo, raio do céu, fissura, teleport
  assert(fogo>0&&fogo<hp0-foe.hp+1,'fogo enfraquece debaixo d\'água ('+fogo+' vs '+(hp0-foe.hp)+')');
  hooks.renderAll();
  console.log('OK underwater stages');
+}
+
+// v4: tutorial, previsão sem alterar a ordem real, memória por Pokémon e velocidade da IA.
+{
+  debug.initIntro();
+  hooks.renderAll();
+  assert.match(element('hud').innerHTML, /1\. Use/);
+  assert.match(element('aim').innerHTML, /#ffde7a/);
+  const angle = debug.get().angle;
+  hooks.adjustAim(1);
+  assert.equal(debug.get().angle, angle + 1);
+  hooks.pressFire();
+  for (let i = 0; i < 5; i++) frameCallback();
+  hooks.renderAll();
+  assert.match(element('hud').innerHTML, /3\. Solte/);
+  hooks.releaseFire();
+  for (let i = 0; i < 180 && debug.get().state === 'flying'; i++) frameCallback();
+  hooks.renderAll();
+  assert.match(element('msgbox').innerHTML, /Caiu antes/);
+  assert.doesNotMatch(element('aim').innerHTML, /#ffde7a/, 'guia visível só antes do primeiro lançamento');
+
+  debug.setMap({w:800,arch:'flat',layout:'sides'});
+  debug.newCampaign('machamp');
+  const battle = debug.get(), player = battle.teams[0].units[0], enemy = battle.teams[1].units[0];
+  const seismic = MS.WEAPONS[MS.SPECIES.machamp.weapon];
+  assert.equal(seismic.label, 'Golpe Sísmico');
+  assert(seismic.carve > MS.WEAPONS.soco.carve && MS.WEAPONS.soco.push > seismic.push);
+  assert(MS.movesOf('machamp', 'a').includes('karate'));
+  player.moves = ['seismic', 'karate'];
+  const cost = hooks.delayCost(player, hooks.actionDelay(player));
+  const realDelay = player.delay;
+  enemy.delay = realDelay + cost - 1;
+  for (const other of battle.teams[1].units) if (other !== enemy) other.delay = realDelay + cost + 100;
+  assert.equal(debug.turnOrder()[0], player);
+  assert.equal(debug.turnOrder(player, cost)[0], enemy);
+  assert.equal(player.delay, realDelay);
+  assert.match(hooks.orderSvg(), new RegExp('Após este golpe · \\+' + cost));
+  player.mi = 1;
+  assert.notEqual(hooks.delayCost(player, hooks.actionDelay(player)), cost);
+  player.mi = 0;
+
+  debug.setAngle(45);
+  debug.setPower(38);
+  debug.fire();
+  assert.equal(player.lastShot.power, 38);
+  assert.equal(player.lastShot.angle, 45);
+  for (let i = 0; i < 650 && debug.get().state === 'flying'; i++) frameCallback();
+  assert(Number.isFinite(player.lastShot.impact?.x), 'impacto associado ao ataque do Machamp');
+  for (let i = 0; i < 300 && debug.get().state === 'settle'; i++) frameCallback();
+  assert.equal(debug.get().state, 'ai');
+  hooks.toggleAiSpeed();
+  let frame = hooks.getFrame();
+  frameCallback();
+  assert.equal(hooks.getFrame() - frame, 2, 'IA em velocidade dupla');
+  hooks.toggleAiSpeed();
+  frame = hooks.getFrame();
+  frameCallback();
+  assert.equal(hooks.getFrame() - frame, 1, 'IA voltou para velocidade normal');
+  debug.setMap(null);
+  console.log('OK v4: tutorial, previsão de turnos, golpes, memória de impacto e velocidade da IA.');
 }

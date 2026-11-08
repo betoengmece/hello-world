@@ -6,21 +6,22 @@ const root=path.resolve(__dirname,'..');
 let frameCallback;
 const elements=new Map();
 function element(id){
-  if(!elements.has(id))elements.set(id,{id,style:{},innerHTML:'',textContent:'',children:[],classList:{add(){},remove(){},toggle(){}},setAttribute(k,v){this[k]=String(v);},getAttribute(k){return this[k];},addEventListener(){},getBoundingClientRect(){return {left:0,top:0,width:800,height:500};},querySelectorAll(){return [];}});
+  if(!elements.has(id))elements.set(id,{id,style:{},innerHTML:'',textContent:'',children:[],classList:{add(){},remove(){},toggle(){}},setAttribute(k,v){this[k]=String(v);},getAttribute(k){return this[k];},listeners:new Map(),addEventListener(type, fn){const list=this.listeners.get(type)||[];list.push(fn);this.listeners.set(type,list);},getBoundingClientRect(){return {left:0,top:0,width:800,height:500};},querySelectorAll(){return [];}});
   const el=elements.get(id);
   if(id==='clouds'&&!el.children.length)el.children=Array.from({length:5},(_,i)=>element('cloud-'+i));
   return el;
 }
 const math=Object.create(Math);let seed=7351;math.random=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};
 const storage=new Map();
-const ctx={console,Math:math,window:{},navigator:{maxTouchPoints:0},document:{getElementById:element,querySelectorAll(){return [];},body:element('body')},localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,String(v)),removeItem:k=>storage.delete(k)},addEventListener(){},matchMedia:()=>({matches:false}),requestAnimationFrame:f=>{frameCallback=f;},setTimeout(){},clearTimeout(){}};
+const controls = ['up','down','fire'].map(act => Object.assign(element('control-'+act), {dataset:{act}}));
+const ctx={console,Math:math,window:{},navigator:{maxTouchPoints:0},document:{getElementById:element,querySelectorAll(selector){return selector==='.btn' ? controls : [];},body:element('body')},localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,String(v)),removeItem:k=>storage.delete(k)},addEventListener(){},matchMedia:()=>({matches:false}),requestAnimationFrame:f=>{frameCallback=f;},setTimeout(){},clearTimeout(){}};
 vm.createContext(ctx);
 for(const name of ['data.js','art.js','art2.js','animated-kanto.js','art-mar.js'])vm.runInContext(fs.readFileSync(path.join(root,'js',name),'utf8'),ctx,{filename:name});
 const MS=ctx.window.MS;
 MS.Sfx=new Proxy({isOn:()=>false},{get:(obj,key)=>obj[key]||(()=>{})});
 let engine=fs.readFileSync(path.join(root,'js/game.js'),'utf8');
 // Acesso restrito a este teste: o arquivo distribuído continua com sua API de debug atual.
-engine=engine.replace('  applySettings();\n  fitWrap();\n  initMenu();','  MS.testHooks={restart,roundEnd,explode,captureChance,projSvg,renderAll,loadSave,saveGame,pressFire,releaseFire,adjustAim,orderSvg,delayCost,actionDelay,toggleAiSpeed,getFrame:()=>frameNo};\n  applySettings();\n  fitWrap();\n  initMenu();');
+engine=engine.replace('  applySettings();\n  fitWrap();\n  initMenu();','  MS.testHooks={restart,roundEnd,explode,captureChance,projSvg,renderAll,loadSave,saveGame,pressFire,releaseFire,adjustAim,orderSvg,delayCost,actionDelay,forecastTurns,toggleAiSpeed,getFrame:()=>frameNo};\n  applySettings();\n  fitWrap();\n  initMenu();');
 vm.runInContext(engine,ctx,{filename:'game.js'});
 const debug=MS.debug,hooks=MS.testHooks;
 assert(hooks,'test hooks must be installed');
@@ -356,4 +357,51 @@ console.log('OK: golpes especiais (subterrâneo, raio do céu, fissura, teleport
   assert.equal(hooks.getFrame() - frame, 1, 'IA voltou para velocidade normal');
   debug.setMap(null);
   console.log('OK v4: tutorial, previsão de turnos, golpes, memória de impacto e velocidade da IA.');
+}
+
+// v4.1: toque real da interface (eventos PointerEvent simulados) e fila em duelos.
+{
+  const pointer = (act, type, id = 1, pointerType = 'touch') => {
+    for (const handler of element('control-' + act).listeners.get(type) || [])
+      handler({pointerId:id, pointerType, preventDefault(){}});
+  };
+  debug.initIntro();
+  const start = debug.get().angle;
+  pointer('up', 'pointerdown');
+  pointer('up', 'pointerup');
+  assert.equal(debug.get().angle, start + 1, 'toque simples altera 1°');
+  pointer('down', 'pointerdown');
+  for (let i = 0; i < 25; i++) frameCallback();
+  pointer('down', 'lostpointercapture');
+  const stopped = debug.get().angle;
+  assert(stopped < start - 5, 'segurar repete o ajuste');
+  for (let i = 0; i < 12; i++) frameCallback();
+  assert.equal(debug.get().angle, stopped, 'perder a captura para a mira');
+
+  pointer('fire', 'pointerdown');
+  pointer('fire', 'pointerup');
+  assert.equal(debug.get().intro.balls, 5, 'toque acidental não gasta uma Pokébola');
+  pointer('fire', 'pointerdown');
+  for (let i = 0; i < 8; i++) frameCallback();
+  pointer('fire', 'pointerup', 2);
+  assert.equal(debug.get().state, 'aim', 'outro dedo não solta o tiro');
+  pointer('fire', 'pointerup');
+  assert.equal(debug.get().state, 'flying', 'tirou o dedo, lançou');
+  assert.equal(debug.get().intro.balls, 4);
+  assert(debug.get().intro.lastShot.power >= 3);
+
+  debug.newCampaign('machop');
+  const [player, enemy, other] = debug.get().units;
+  other.alive = false;
+  enemy.delay = 1;
+  enemy.webbed = true;
+  const forecast = hooks.forecastTurns(player, 850);
+  assert.equal(forecast.length, 3);
+  assert.equal(forecast[0].unit, enemy);
+  assert.equal(forecast[0].blocked, true);
+  assert.equal(forecast[1].unit, enemy);
+  assert.equal(forecast[1].blocked, false);
+  assert.equal(enemy.delay, 1);
+  assert.equal(enemy.webbed, true);
+  console.log('OK v4.1: toque e soltura, cancelamento da mira, fila de três e turno bloqueado.');
 }

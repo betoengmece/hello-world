@@ -8,7 +8,7 @@
   const GRAV = 0.2;           // gravidade base (px/frame²)
   const WALK_MAX = 120;       // distância máxima de caminhada por turno (mapas largos dão um pouco mais)
   const walkMax = () => WALK_MAX + Math.max(0, W - 800) * 0.07;
-  const GAME_VERSION = '07/11 a';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
+  const GAME_VERSION = '4';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
   const TURN_TIME = 30 * 60;  // 30 s para mirar e atirar (estourou: passa a vez)
   const WEAK = 0.35;          // abaixo dessa fração de PV o inimigo pode ser capturado
   const PLAYER_COL = '#3a9bff', WILD_COL = '#e0433a', GUEST_COL = '#ffd34d';
@@ -149,7 +149,8 @@
   let heights, grass, tuft, decor = [], graves = [], parts = [], floaters = [], clouds = [], cloudEls = [], fx = [], projs = [];
   let units = [], teams = [], turnTeam = 0, state = 'aim', wind = 0, power = 0, charging = false, angle = 45;
   let walkBudget = WALK_MAX, dirty = true, msg = '', msgT = 0, keys = {};
-  let camMoving = false;
+  let camMoving = false, aiFast = false;
+  let touchAim = null, fallFocus = null;
   let panX = null, mapArch = 'rolling', panDrag = null, miniDrag = false;   // panX: câmera livre (null = segue o jogador)
   let kbd = false;            // última entrada foi o teclado (Enter numa fase inicia; toque só seleciona)
   let menuPage = 'main', pageNo = 0, wxRounds = 3, wxPrev = null, wxK = 1;
@@ -195,16 +196,38 @@
     return { x: u.x + dx * c - dy * sn, y: u.y + dx * sn + dy * c };
   }
   // atraso: golpes fortes custam mais; andar e demorar também (quem tiver menos atraso joga antes)
-  const shotDelay = wk => { const w = WEAPONS[wk]; return w.none ? 400 : Math.round(520 + Math.min(420, (w.dmg || 10) * (w.count || 1) * 3.4)); };
+  const shotDelay = wk => { const w = WEAPONS[wk]; return w.delay ?? (w.none ? 400 : Math.round(520 + Math.min(420, (w.dmg || 10) * (w.count || 1) * 3.4))); };
   const extraDelay = () => Math.round((1 - Math.max(0, walkBudget) / walkMax()) * 120 + Math.max(0, TURN_TIME - turnT) / 60 * 5);
   // time menor paga menos atraso por ação: os dois lados atacam no mesmo ritmo (1 contra 3 não fica injusto)
   function teamMul(u) {
     const own = units.filter(v => v.alive && v.team === u.team).length, other = units.filter(v => v.alive && v.team !== u.team && v.team !== 2).length;
     return u.team === 2 || !own || !other ? 1 : Math.sqrt(own / other);
   }
-  function payDelay(u, base) { if (u) u.delay = (u.delay || 0) + Math.round((base + extraDelay()) * teamMul(u)); }
-  // ordem dos próximos a jogar (sem os visitantes)
-  const turnOrder = () => units.filter(v => v.alive && !v.hidden && v.team !== 2 && teams[v.team]).sort((a, b) => a.delay - b.delay || a.team - b.team);
+  const actionDelay = u => ballMode ? 480 : WEAPONS[curW(u)].protect ? 460 : shotDelay(curW(u));
+  const delayCost = (u, base) => Math.round((base + extraDelay()) * teamMul(u));
+  function payDelay(u, base) { if (u) u.delay = (u.delay || 0) + delayCost(u, base); }
+
+  // A previsão usa a mesma regra de desempate do próximo turno, sem alterar o atraso real.
+  function turnOrder(acting = null, cost = 0) {
+    const delay = u => u.delay + (u === acting ? cost : 0);
+    return units.filter(u => u.alive && u.hp > 0 && !u.hidden && u.team !== 2 && teams[u.team])
+      .sort((a, b) => delay(a) - delay(b) || a.team - b.team);
+  }
+
+  function adjustAim(delta) {
+    if (state !== 'aim' || settingsOpen || panel) return;
+    if (scene === 'intro') { angle = clamp(angle + delta, 4, 88); intro.aimed = true; }
+    else if (scene === 'battle') {
+      const u = activeUnit();
+      if (!u || teams[turnTeam].ai) return;
+      angle = fromElev(u, elevOf(u) + delta);
+      clampAim(u);
+    }
+  }
+
+  function stepTouchAim() {
+    if (touchAim && ++touchAim.frames > 14) adjustAim(touchAim.dir * (touchAim.frames > 42 ? 2.5 : 1.2));
+  }
 
   // ---------- Câmera 2.5D ----------
   const cam = { x: 400, y: 250, z: 1, shake: 0, sx: 0, sy: 0 };
@@ -212,7 +235,7 @@
   // zoom desligado no modo leve e no Fire TV: mudar a escala obriga a redesenhar todas as camadas (caro em aparelho fraco)
   const noZoom = () => settings.zoom === 'off' || (settings.zoom !== 'on' && (lite || (!glActive && isFireTV())));   // no WebGL o zoom é barato
   const GL_ZOOM = 2;          // no WebGL: a vez do Pokémon e o tiro ficam em zoom 2x (a arte vetorial continua nítida)
-  // depois do tiro: segura 1 s no ponto da batida (vendo o estrago), abre a tela toda e fica aberta até o jogador apertar algo
+  // depois do tiro: segura no ponto da batida e acompanha quedas próximas antes de voltar ao jogo
   let camHold = 0, camWide = false;
   function updateCamera() {
     let tx = 400, ty = 250, tz = 1, k = 0.06;
@@ -224,7 +247,10 @@
       tx = p.x; ty = p.y; tz = scene === 'intro' ? 1.2 : big ? GL_ZOOM : 1.35; k = 0.12;
     } else if (state === 'flying' && (bolts.length || beams.length)) {
       const b = bolts[0] || beams[0]; tx = b.x !== undefined ? b.x : (b.u.x + b.tx) / 2; ty = b.ty !== undefined ? Math.min(b.u.y, b.ty) - 20 : 250; tz = big ? 1.3 : 1.15; k = 0.1;
-    } else if (state === 'settle') { tx = focus.x; ty = focus.y; tz = big ? 1.8 : 1.25; }
+    } else if (state === 'settle') {
+      const follow = fallFocus?.alive && fallFocus.air ? fallFocus : focus;
+      tx = follow.x; ty = follow.y; tz = big ? 1.8 : 1.25;
+    }
     else if (state === 'guest' && guest) { tx = guest.x; ty = guest.y - 40; tz = big ? 1.8 : 1.45; }
     else if ((state === 'aim' || state === 'ai') && charging && scene === 'battle') {
       const u = activeUnit(); if (u) { tx = u.x; ty = u.y - 30; tz = big ? GL_ZOOM : 1.15; k = 0.04; }
@@ -239,7 +265,8 @@
       if (camWide && (charging || keys.left || keys.right || keys.up || keys.down || keys.panL || keys.panR)) camWide = false;
       if (camHold > 0) {
         if (--camHold === 0) camWide = state === 'settle';      // se a vez já mudou, a câmera vai direto para quem joga
-        tx = focus.x; ty = focus.y; tz = big ? GL_ZOOM : 1.35; k = 0.1;
+        const follow = fallFocus?.alive && fallFocus.air ? fallFocus : focus;
+        tx = follow.x; ty = follow.y; tz = big ? GL_ZOOM : 1.35; k = 0.14;
       } else if (camWide) { tx = cam.x; ty = 250; tz = 1; k = 0.06; }
     }
     // sem zoom (modo leve ou ajuste): a câmera só desloca as camadas e o navegador não precisa redesenhá-las em outra escala
@@ -581,6 +608,7 @@
     guest = null; gCool = 1; gMode = ''; lastShotGuest = false; splashU = null; evo = null;
     roundTurns = 0; windY = 0; windS = 0; turnT = TURN_TIME; bolts = []; beams = [];
     cam.x = 400; cam.y = 250; cam.z = 1; cam.shake = 0;
+    camHold = 0; camWide = false; fallFocus = null; touchAim = null;
     Sfx.chargeStop();
   }
 
@@ -592,7 +620,7 @@
              mvs, moves: MS.movesOf(sp, mvs), mi: 0,
              walkT: 0, moving: false, blinkOff: Math.floor(rnd(0, 230)), webbed: false, stuck: false, hidden: false, capScale: 1,
              scale: S.scale || 1, hop: 0, dealt: 0, rid: -1, turnsLeft: 0, sh: false, flying: false, alt: 0, dot: null, status: null,
-             delay: 0, tilt: 0, vy: 0, air: false, lastPow: null };
+             delay: 0, tilt: 0, vy: 0, air: false, lastShot: null };
   }
 
   // ---------- Menu ----------
@@ -954,7 +982,7 @@
     decor = []; teams = []; units = [];
     const mk = (sp, x, y, extra) => Object.assign(mkUnit(sp, x, -1, -1), { y }, extra);
     intro = {
-      balls: 5, t: 0, swing: 0, chosen: null, doneT: 0, outT: 0,
+      balls: 5, aimed: false, t: 0, swing: 0, chosen: null, doneT: 0, outT: 0,
       targets: [
         mk('charmander', 742, ROOF.top, { hard: 3, home: 742 }),
         mk('bulbasaur', 572, 420, { hard: 3, home: 572 }),
@@ -964,9 +992,8 @@
         mk('caterpie', 410, 420, { hard: 1, hrMul: 1.5, home: 410 })
       ]
     };
-    wind = 0; state = 'aim';
+    wind = 0; state = 'aim'; msg = ''; msgT = 0;
     { const m = lastAngles.campaign0; angle = m === undefined ? 45 : clamp(m > 90 ? 180 - m : m, 4, 88); }
-    showMsg('Acerte a Pokébola no Pokémon que você quer como parceiro!', 260);
     syncButtons();
   }
 
@@ -996,8 +1023,7 @@
     }
     if (I.swing > 0) I.swing--;
     if (state === 'aim') {
-      if (keys.up) angle = Math.min(88, angle + 1.2);
-      if (keys.down) angle = Math.max(4, angle - 1.2);
+      if (keys.up || keys.down) adjustAim(keys.up ? 1.2 : -1.2);
       if (charging) { power = Math.min(100, power + 0.9); Sfx.chargeSet(power); }
     }
     if (state === 'flying') stepIntroProj();
@@ -1011,11 +1037,48 @@
     if (I.doneT > 0 && --I.doneT === 0) newCampaign(I.chosen.sp);
   }
 
+  function introLaunch(force) {
+    const a = angle * Math.PI / 180, speed = (3 + force * 0.075) * 1.3;
+    return { x: TRAINER.x + 16, y: TRAINER.y - 52, vx: speed * Math.cos(a), vy: -speed * Math.sin(a) };
+  }
+
+  function stepIntroBall(p) {
+    p.vy += GRAV / 3; p.x += p.vx / 3; p.y += p.vy / 3;
+  }
+
+  function introObstacle(p) {
+    if (p.x < -40 || p.x > W + 40 || p.y > H + 40) return 'gone';
+    if ((p.x > WALL.x0 && p.x < WALL.x1 && p.y > WALL.top) || (p.x > ROOF.x0 && p.y > ROOF.top)) return 'wall';
+    if (p.x > POND.x0 && p.x < POND.x1 && p.y > POND.water + 2) return 'water';
+    if (p.x >= 0 && p.x < W && p.y >= gy(p.x)) return 'ground';
+    return null;
+  }
+
+  function introGuideSvg() {
+    if (intro.balls !== 5) return '';
+    const p = introLaunch(charging ? power : 55);
+    let dots = '';
+    for (let i = 1; i <= 72; i++) {
+      stepIntroBall(p);
+      if (introObstacle(p)) break;
+      if (i % 9 === 0) dots += `<circle cx="${f1(p.x)}" cy="${f1(p.y)}" r="2.1" fill="#ffde7a" opacity="${f1(1 - i / 96)}"/>`;
+    }
+    return dots;
+  }
+
+  function introMissHint(outcome, p) {
+    if (outcome === 'wall') return 'A bola bateu no obstáculo. Aumente o ângulo.';
+    if (outcome === 'water') return 'Caiu na água. Ajuste a força para alcançar a margem.';
+    const land = intro.targets.filter(u => !u.flying && !u.submerged);
+    const target = land.reduce((a, b) => Math.abs(a.x - p.x) < Math.abs(b.x - p.x) ? a : b);
+    if (p.x < target.x - 22) return 'Caiu antes do alvo. Segure o tiro por mais tempo.';
+    if (p.x > target.x + 22) return 'Passou do alvo. Solte o tiro mais cedo.';
+    return 'Caiu perto. Mude um pouco o ângulo e tente de novo.';
+  }
+
   function fireIntro() {
     if (state !== 'aim' || !charging) return;
-    const a = angle * Math.PI / 180, sp = (3 + power * 0.075) * 1.3;
-    projs.push({ wk: 'ball', wp: WEAPONS.ball, owner: 'trainer', x: TRAINER.x + 16, y: TRAINER.y - 52,
-                 vx: sp * Math.cos(a), vy: -sp * Math.sin(a), trail: [], spin: 0, age: 0 });
+    projs.push({ wk: 'ball', wp: WEAPONS.ball, owner: 'trainer', ...introLaunch(power), trail: [], spin: 0, age: 0 });
     intro.balls--; intro.swing = 10; lastAngles.campaign0 = angle;
     Sfx.chargeStop(); Sfx.ballThrow();
     power = 0; charging = false; state = 'flying';
@@ -1027,7 +1090,7 @@
       p.trail.push({ x: p.x, y: p.y }); if (p.trail.length > 10) p.trail.shift();
       let out = null, hit = null;
       for (let s = 0; s < 3 && !out && !hit; s++) {
-        p.vy += GRAV / 3; p.x += p.vx / 3; p.y += p.vy / 3; p.age++;
+        stepIntroBall(p); p.age++;
         if (p.x < -40 || p.x > W + 40 || p.y > H + 40) { out = 'gone'; break; }
         for (const u of intro.targets) {
           if (u.submerged) continue;
@@ -1035,17 +1098,14 @@
           if (Math.hypot(c.x - p.x, c.y - p.y) < hitRof(u) + 3) { hit = u; break; }
         }
         if (hit) break;
-        if (p.x > WALL.x0 && p.x < WALL.x1 && p.y > WALL.top) { out = 'wall'; break; }
-        if (p.x > ROOF.x0 && p.y > ROOF.top) { out = 'wall'; break; }
-        if (p.x > POND.x0 && p.x < POND.x1 && p.y > POND.water + 2) { out = 'water'; break; }
-        if (p.x >= 0 && p.x < W && p.y >= heights[Math.round(p.x)]) { out = 'ground'; break; }
+        out = introObstacle(p);
       }
       if (hit) { projs.splice(i, 1); pickTarget(hit, p.x, p.y); }
       else if (out) {
         projs.splice(i, 1);
         if (out === 'water') { Sfx.splash(); spray(p.x, POND.water, 10, '#bfe9ff', 3, 0.15, 40, 2, 'drop'); }
         else if (out !== 'gone') { Sfx.ballLand(); spray(p.x, p.y, 8, '#d8c8b0', 2.5, 0.12, 30, 2, 'chunk'); }
-        floaters.push({ x: clamp(p.x, 30, 770), y: clamp(p.y, 60, 410), t: 0, text: 'Errou!', col: '#ffffff', size: 16 });
+        if (intro.balls > 0) showMsg(introMissHint(out, p), 220);
       }
     }
     if (!projs.length && state === 'flying') {
@@ -1221,10 +1281,15 @@
   }
   const bubblePart = (x, y, r = rnd(1.2, 2.8)) => addPart({ x, y, vx: rnd(-0.15, 0.15), vy: rnd(-0.9, -0.4), g: -0.004, life: 160, max: 160, r, col: '#e0f6ff', kind: 'drop' });
 
+  function markImpact(p, x, y) {
+    focus = { x, y };
+    if (p.shot && !p.shot.impact) p.shot.impact = focus;
+  }
+
   function explode(x, y, p) {
     const wp = p.wp, style = wp.style;
     let anyHurt = false, sup = false, weak = false;
-    focus = { x, y };
+    markImpact(p, x, y);
     cam.shake = Math.max(cam.shake, wp.shake !== undefined ? wp.shake : wp.boom / 6);
     Sfx.boom(style);
     if (wp.boom >= 40 || style === 'thunder') { flash.a = Math.min(0.5, wp.boom / 100); flash.col = { fire: '#ffd9a0', dragon: '#c8b0ff', thunder: '#fffbb0', rock: '#e8dcc0' }[style] || '#ffffff'; }
@@ -1400,7 +1465,7 @@
     const ty = outcome === 'gone' ? H + 200 : surf(x, Math.min(p.y, H) - 40);
     if (ty >= WATER - 4) { showMsg('Teleporte falhou!', 70); Sfx.weakEff(); return; }
     spray(u.x, u.y - 14, 16, '#ff8ad0', 3, 0.02, 34, 2, 'spark');
-    u.x = x; u.y = ty; u.vy = 0; u.air = false; focus = { x, y: ty };
+    u.x = x; u.y = ty; u.vy = 0; u.air = false; markImpact(p, x, ty);
     spray(x, ty - 14, 18, '#ffffff', 3, 0.02, 36, 2, 'spark');
     floaters.push({ x, y: ty - spOf(u).h * u.scale - 30, t: 0, text: 'Teleporte!', col: '#ff8ad0', size: 14 });
     Sfx.ballCatch();
@@ -1414,17 +1479,17 @@
     for (let i = 0; i < wp.count; i++) {
       const off = wp.count === 1 ? 0 : (i - (wp.count - 1) / 2) * wp.spread * Math.PI / 180;
       const aa = a + off, s = sp * wp.speed;
-      projs.push({ wk, wp, owner, ownerUnit, x, y, vx: s * Math.cos(aa), vy: -s * Math.sin(aa), trail: [], spin: rnd(0, 6), age: 0, bn: wp.bounce || 0, crit: !!wp.crit && Math.random() < wp.crit, sp: false });
+      projs.push({ wk, wp, owner, ownerUnit, shot: ownerUnit?.lastShot, x, y, vx: s * Math.cos(aa), vy: -s * Math.sin(aa), trail: [], spin: rnd(0, 6), age: 0, bn: wp.bounce || 0, crit: !!wp.crit && Math.random() < wp.crit, sp: false });
     }
   }
 
   function fire() {
     if (state !== 'aim' && state !== 'ai') return;
     if (glActive && glLoading) return;
-    panX = null; camHold = 0; camWide = false;
+    panX = null; camHold = 0; camWide = false; fallFocus = null; touchAim = null;
     const u = activeUnit(); if (!u) return;
+    focus = centerOf(u);
     const S = spOf(u), a = angle * Math.PI / 180, sp = 3 + power * 0.075;   // ângulo em relação à horizontal
-    u.lastPow = power;
     if (!ballMode && !teams[turnTeam].ai) lastBall = false;      // tiro normal: deixa de repetir a Pokébola
     const wk = curW(u);
     if (!ballMode && WEAPONS[wk].none) {
@@ -1444,7 +1509,8 @@
       lastAngles[aimKey(u)] = elevOf(u);
       return;
     }
-    payDelay(u, ballMode ? 480 : shotDelay(wk));
+    payDelay(u, actionDelay(u));
+    u.lastShot = { angle: Math.round(elevOf(u)), power: Math.round(power), impact: null };
     if (ballMode) {
       const m = mouthAt(u, u.face, true);
       launch('ball', m.x, m.y, a, sp, 'player', u);
@@ -1567,7 +1633,7 @@
         if (p.wp.split && !p.sp && p.vy > 0 && p.age > 10) { splitProj(p); outcome = 'gone'; break; }
         if (p.x < -60 || p.x > W + 60 || p.y > H + 60) { outcome = 'gone'; break; }
         if (p.y >= WATER && p.wp.style !== 'water') {
-          outcome = 'gone'; Sfx.splash();
+          outcome = 'gone'; markImpact(p, p.x, WATER); Sfx.splash();
           for (let k = 0; k < 10; k++) addPart({ x: p.x, y: WATER, vx: rnd(-1.5, 1.5), vy: rnd(-3, -1), g: 0.15, life: 40, max: 40, r: rnd(1.2, 2.2), col: '#bfe9ff', kind: 'drop' });
           break;
         }
@@ -1605,7 +1671,9 @@
       if (isBall) { ballResolve(p, target, outcome); continue; }
       explode(p.x, Math.min(p.y, H), p);
     }
-    if (!projs.length && !bolts.length && !beams.length && state === 'flying') { state = 'settle'; camHold = 60; camWide = false; }
+    if (!projs.length && !bolts.length && !beams.length && state === 'flying') {
+      state = 'settle'; camHold = 40; camWide = false;
+    }
   }
 
   function homingTarget(p) {
@@ -1623,7 +1691,7 @@
     p.sp = true;
     for (let i = 0; i < sp.n; i++) {
       const off = (i - (sp.n - 1) / 2);
-      projs.push({ wk: sp.wk, wp: wp2, owner: p.owner, ownerUnit: p.ownerUnit, x: p.x + off * 9, y: p.y - 4, vx: p.vx * 0.85 + off * 0.5, vy: 0.4 + Math.abs(off) * 0.05, trail: [], spin: rnd(0, 6), age: 20, bn: 0, crit: false, sp: true });
+      projs.push({ wk: sp.wk, wp: wp2, owner: p.owner, ownerUnit: p.ownerUnit, shot: p.shot, x: p.x + off * 9, y: p.y - 4, vx: p.vx * 0.85 + off * 0.5, vy: 0.4 + Math.abs(off) * 0.05, trail: [], spin: rnd(0, 6), age: 20, bn: 0, crit: false, sp: true });
     }
     spray(p.x, p.y, 8, '#d8c8b0', 2.2, 0.1, 24, 2, 'chunk'); Sfx.boom('gust');
   }
@@ -1641,7 +1709,7 @@
   }
 
   function ballResolve(p, u, outcome) {
-    focus = { x: p.x, y: p.y };
+    markImpact(p, p.x, p.y);
     if (!u) {
       Sfx.ballLand();
       spray(p.x, p.y, 8, '#d8c8b0', 2.5, 0.12, 30, 2, 'chunk');
@@ -1693,6 +1761,7 @@
     Sfx.splash(); Sfx.death();
     showMsg(`${u.name} ${under() ? 'afundou no abismo!' : 'afogou!'}`, 100);
     if (u === activeUnit() && (state === 'aim' || state === 'ai')) { charging = false; power = 0; Sfx.chargeStop(); ai = null; state = 'settle'; }
+    if (state === 'settle') { focus = { x: u.x, y: WATER }; fallFocus = null; camHold = Math.max(camHold, 44); camWide = false; }
   }
   function updateUnits() {
     for (const u of units) {
@@ -1708,9 +1777,16 @@
       if (onGround(u)) { u.vy = 0; u.air = false; }
       else {
         u.air = true; u.vy = Math.min(8, (u.vy || 0) + 0.32);
+        if (state === 'settle' && !fallFocus && Math.abs(u.x - focus.x) < 105) {
+          fallFocus = u;
+          camWide = false;
+        }
         const n = Math.ceil(u.vy);
         for (let i = 0; i < n; i++) { u.y += u.vy / n; if (onGround(u)) { u.y = Math.floor(u.y); u.vy = 0; u.air = false; break; } }
         if (u.y > WATER) { u.y = WATER + 2; u.air = false; drownNow(u); continue; }
+      }
+      if (state === 'settle' && fallFocus === u && !u.air) {
+        focus = { x: u.x, y: u.y - 12 }; fallFocus = null; camHold = Math.max(camHold, 20); camWide = false;
       }
       // o corpo inclina com o chão (a mira é relativa ao corpo)
       let t = 0;
@@ -1755,7 +1831,7 @@
   let dotDone = false;
   let turnHi = 0;      // destaque de quem está na vez (anel pulsando + câmera vai até ele)
   function startTurn() {
-    dotDone = false; panX = null; camWide = false; turnHi = 90;
+    dotDone = false; panX = null; camWide = false; fallFocus = null; touchAim = null; turnHi = 90;
     // ordem por atraso: joga o Pokémon (de qualquer lado) com menos atraso acumulado
     const order = turnOrder();
     if (!order.length) return;
@@ -1839,7 +1915,7 @@
     teams.forEach(fixCur);
     if (guest && !guest.alive) { guest = null; gCool = 1 + Math.floor(Math.random() * 3); }
     units = units.filter(u => u.team !== 2 || u.alive);
-    if (camHold > 0) return;            // deixa ver o estrago (1 s) antes de passar a vez; aí a câmera vai até quem joga
+    if (camHold > 0) return;            // deixa ver o impacto antes de passar a vez
 
     {
       if (!teamAlive(teams[1])) { stageClear(); return; }
@@ -2525,19 +2601,33 @@
     return s;
   }
 
-  // ordem dos turnos (menor atraso joga primeiro), como no painel dos mobiles
   function orderSvg() {
-    const list = turnOrder().slice(0, 6); if (!list.length) return '';
-    const base = list[0].delay, act = activeUnit(), y0 = 80;
-    let s = `<rect x="8" y="${y0}" width="150" height="${20 + list.length * 14}" rx="10" fill="#0d1b2a" opacity=".66"/>
-      <text x="18" y="${y0 + 13}" font-size="8.5" fill="#bfe3ff" letter-spacing="1.2">ORDEM · ATRASO</text>`;
-    list.forEach((v, i) => {
-      const y = y0 + 27 + i * 14, isAct = v === act && (state === 'aim' || state === 'ai');
-      s += `<circle cx="20" cy="${y - 3.5}" r="3.6" fill="${sideColor(v)}" stroke="${isAct ? '#fff' : '#000'}" stroke-width="${isAct ? 1.3 : 0.6}"/>
-        <text x="29" y="${y}" font-size="10" font-weight="${isAct ? 'bold' : 'normal'}" fill="${isAct ? '#ffe9a8' : '#fff'}">${v.name}${v.team === 1 ? ' (s)' : ''}</text>
-        <text x="150" y="${y}" text-anchor="end" font-size="9.5" fill="#bfe3ff">${v.delay - base}</text>`;
+    const act = state === 'aim' || state === 'ai' ? activeUnit() : null;
+    const cost = act ? delayCost(act, actionDelay(act)) : 0;
+    const list = turnOrder(act, cost).slice(0, 3);
+    if (!list.length) return '';
+    const y0 = 80;
+    let s = `<rect x="8" y="${y0}" width="150" height="${35 + list.length * 15}" rx="10" fill="#0d1b2a" opacity=".78"/>
+      <text x="18" y="${y0 + 15}" font-size="10" font-weight="bold" fill="#bfe3ff" letter-spacing=".8">PRÓXIMOS TURNOS</text>
+      <text x="18" y="${y0 + 29}" font-size="9" fill="#ffe9a8">${act ? `Após este golpe · +${cost}` : 'Ordem prevista'}</text>`;
+    list.forEach((u, i) => {
+      const y = y0 + 44 + i * 15;
+      s += `<text x="18" y="${y}" font-size="9" fill="#bfe3ff">${i + 1}</text>
+        <circle cx="34" cy="${y - 3.5}" r="3.6" fill="${sideColor(u)}" stroke="#fff" stroke-width=".6"/>
+        <text x="43" y="${y}" font-size="11" fill="#fff">${u.name}${u.team === 1 ? ' (s)' : ''}</text>`;
     });
     return s;
+  }
+
+  const shotRef = u => u.lastShot ? `Último tiro · ${u.lastShot.angle}° · ${u.lastShot.power}%` : '';
+  const lastImpact = u => state === 'aim' && !teams[u.team].ai ? u.lastShot?.impact : null;
+
+  function impactMarkerSvg(u) {
+    const p = lastImpact(u);
+    if (!p) return '';
+    return `<g transform="translate(${f1(p.x)} ${f1(p.y)})" opacity=".8">
+      <circle r="7" fill="#111c2b" fill-opacity=".6" stroke="#ffe69a" stroke-width="1.5" stroke-dasharray="2 2"/>
+      <circle r="1.6" fill="#ffe69a"/><text x="0" y="-11" text-anchor="middle" font-size="8" fill="#ffe69a" stroke="#101a2a" stroke-width="2" paint-order="stroke">Último impacto</text></g>`;
   }
 
   // barra de baixo: mostrador do ângulo, força (com a marca do último tiro) e movimento
@@ -2551,7 +2641,7 @@
     const bx = 216, bw = 312, py = 446, my = 476;
     let ticks = '';
     for (let i = 1; i < 10; i++) ticks += `M${f1(bx + bw * i / 10)},${py} v${i === 5 ? 12 : 6}`;
-    const lp = u.lastPow;
+    const lp = u.lastShot?.power;
     return `<rect x="152" y="434" width="388" height="58" rx="12" fill="#0d1b2a" opacity=".78"/>
       <path d="M${cx - r - 3},${cy} H${cx + r + 3}" stroke="#8aa0c8" stroke-width="1"/>
       <path d="M${cx - r},${cy} A${r},${r} 0 0 1 ${cx + r},${cy}" fill="none" stroke="#8aa0c8" stroke-opacity=".5" stroke-width="1"/>
@@ -2567,7 +2657,8 @@
       <text x="${bx}" y="${my - 3}" font-size="8" fill="#bfe3ff" letter-spacing="1.2">MOVER</text>
       <rect x="${bx + 44}" y="${my - 9}" width="${bw - 44}" height="6" rx="3" fill="#000" opacity=".55"/>
       <rect x="${bx + 45}" y="${my - 8}" width="${f1(Math.max(0, walkBudget / walkMax()) * (bw - 46))}" height="4" rx="2" fill="#9be36a"/>
-      <text x="${bx + bw}" y="${my + 12}" text-anchor="end" font-size="8" fill="#bfe3ff">${teams[turnTeam].ai ? '' : 'P passa a vez · golpe forte = mais atraso'}</text>`;
+      <text x="${bx + bw}" y="${my + 12}" text-anchor="end" font-size="8" fill="#bfe3ff">${teams[turnTeam].ai ? '' : 'P passa a vez · golpe forte = mais atraso'}</text>
+      <text x="${bx}" y="${my + 12}" font-size="9" fill="#ffe9a8">${shotRef(u)}</text>`;
   }
 
   function hudSvg() {
@@ -2575,6 +2666,14 @@
       let s = `<rect x="8" y="8" width="176" height="40" rx="12" fill="#0d1b2a" opacity=".72"/>
         <text x="20" y="25" font-size="10" fill="#ddd" letter-spacing="1">POKÉBOLAS</text>`;
       for (let i = 0; i < 5; i++) s += `<g opacity="${i < intro.balls ? 1 : 0.18}">${ballIcon(26 + i * 28, 36, 7)}</g>`;
+      if (state === 'aim' && !msg) {
+        const fireKey = isTouch ? 'TIRO' : 'ESPAÇO';
+        const instruction = charging ? '3. Solte para lançar a Pokébola.'
+          : intro.aimed || intro.balls < 5 ? `2. Segure ${fireKey} para ganhar força.`
+          : '1. Use ▲ e ▼ para mirar em um Pokémon.';
+        s += `<rect x="219" y="12" width="362" height="30" rx="10" fill="#0d1b2a" opacity=".8"/>
+          <text x="400" y="32" text-anchor="middle" font-size="14" font-weight="bold" fill="#ffe9a8">${instruction}</text>`;
+      }
       return s;
     }
     if (scene !== 'battle' || state === 'over' || state === 'evolve') return '';
@@ -2845,7 +2944,7 @@
     $('intro').innerHTML = s;
 
     let aim = '';
-    if (state === 'aim' && I.balls > 0) aim = aimSvg(TRAINER.x + 16, TRAINER.y - 52, angle * Math.PI / 180, Math.round(angle));
+    if (state === 'aim' && I.balls > 0) aim = introGuideSvg() + aimSvg(TRAINER.x + 16, TRAINER.y - 52, angle * Math.PI / 180, Math.round(angle));
     $('aim').innerHTML = aim;
   }
 
@@ -3450,11 +3549,12 @@
     R.pill(bx, py, bw, 12, '#000', 0.55);
     if (charging) { const pw = Math.max(0, power / 100 * (bw - 2)); if (pw > 0) { R.hgrad(bx + 1 + 5, py + 1, Math.max(0, pw - 10), 10, ['#5ad16a', '#ffd34d', '#ff4d3a']); R.circle(bx + 6, py + 6, 5, '#5ad16a'); R.circle(bx + 1 + Math.max(5, pw - 5), py + 6, 5, power > 70 ? '#ff6a3a' : power > 40 ? '#ffd34d' : '#5ad16a'); } }
     for (let i = 1; i < 10; i++) R.line(bx + bw * i / 10, py, bx + bw * i / 10, py + (i === 5 ? 12 : 6), 1, '#fff', 0.25, false);
-    const lp = u.lastPow;
+    const lp = u.lastShot?.power;
     if (lp !== null && lp !== undefined) { const lx = bx + bw * lp / 100; R.tri(lx, py - 1, lx - 4, py - 7, lx + 4, py - 7, '#fff'); R.text('último', Math.min(bx + bw - 30, lx + 6), py - 2, { size: 7.5, fill: '#fff', weight: 'normal', anchor: 'start' }, 0.8); }
     R.text('MOVER', bx, my - 3, { size: 8, fill: '#bfe3ff', weight: 'normal', anchor: 'start', ls: 1.2 });
     R.pill(bx + 44, my - 9, bw - 44, 6, '#000', 0.55);
     R.pill(bx + 45, my - 8, Math.max(0, walkBudget / walkMax()) * (bw - 46), 4, '#9be36a');
+    if (u.lastShot) R.text(shotRef(u), bx, my + 12, { size: 9, fill: '#ffe9a8', weight: 'normal', anchor: 'start' });
     if (!teams[turnTeam].ai) R.text('P passa a vez · golpe forte = mais atraso', bx + bw, my + 12, { size: 8, fill: '#bfe3ff', weight: 'normal', anchor: 'end' });
   }
   function glUi() {
@@ -3510,6 +3610,12 @@
     if (inBattle && act && (state === 'aim' || (state === 'ai' && ai && ['aim', 'wait', 'charge'].includes(ai.phase)))) {
       const a = angle * Math.PI / 180, m = mouthAt(act, act.face, ballMode), x2 = m.x + Math.cos(a) * 46, y2 = m.y - Math.sin(a) * 46;
       const ac = ballMode ? '#ffd34d' : '#ff4d4d';
+      const mark = lastImpact(act);
+      if (mark) {
+        R.ring(mark.x, mark.y, 7, 1.5, '#ffe69a', .8);
+        R.circle(mark.x, mark.y, 1.6, '#ffe69a', .8);
+        R.text('Último impacto', mark.x, mark.y - 11, { size: 8, fill: '#ffe69a', stroke: '#101a2a', sw: 1 });
+      }
       R.dashed(m.x, m.y, x2, y2, 2, 3, 5, '#fff', 0.85, true);
       R.ring(x2, y2, 6, 2, ac);
       R.line(x2 - 10, y2, x2 - 4, y2, 2, ac); R.line(x2 + 4, y2, x2 + 10, y2, 2, ac); R.line(x2, y2 - 10, x2, y2 - 4, 2, ac); R.line(x2, y2 + 4, x2, y2 + 10, 2, ac);
@@ -3634,6 +3740,7 @@
   }
   function renderAllInner() {
     fpsTick();
+    syncAiSpeed();
     // enquanto um golpe cava, o contorno do terreno é refeito no máximo a cada 4 quadros
     if (dirty && glShader()) { miniTerr = null; dirty = false; }      // terreno pela placa de vídeo: o SVG do chão não precisa ser refeito
     else if (dirty && (!terrDirty || state !== 'flying' || frameNo - terrAt > 3)) { renderTerrain(); dirty = false; terrAt = frameNo; }
@@ -3660,7 +3767,7 @@
       if (inBattle && act && (state === 'aim' || (state === 'ai' && ai && ['aim', 'wait', 'charge'].includes(ai.phase)))) {
         const a = angle * Math.PI / 180, m = mouthAt(act, act.face, ballMode);
         const rel = Math.round(elevOf(act));
-        aim = aimSvg(m.x, m.y, a, rel);
+        aim = impactMarkerSvg(act) + aimSvg(m.x, m.y, a, rel);
       }
       $('aim').innerHTML = aim;
     }
@@ -3762,6 +3869,7 @@
       <g transform="translate(400 112)" text-anchor="middle">
         <text y="0" font-size="52" font-weight="900" fill="#fff" stroke="#173a78" stroke-width="7" paint-order="stroke" letter-spacing="1">Monstrinhos</text>
         <text y="38" font-size="30" font-weight="800" fill="#ffd34d" stroke="#6a3a00" stroke-width="5" paint-order="stroke" letter-spacing="4">DE ARTILHARIA</text>
+        <text y="62" font-size="14" font-weight="800" fill="#fff" stroke="#142946" stroke-width="3" paint-order="stroke" letter-spacing="1.5">v${GAME_VERSION}</text>
       </g>
       <g transform="translate(130 100)">${Art.ball(30, -12)}</g><g transform="translate(670 100)">${Art.ball(30, 12)}</g>`;
     let y = 196;
@@ -3770,6 +3878,7 @@
       s += uiBtn(250, y, 300, 50, 'Escolher fase', openStages); y += 62;
     }
     s += uiBtn(250, y, 300, 50, save ? 'Novo jogo (apaga o progresso)' : 'Novo jogo', startNewGame, { fs: save ? 18 : 20 });
+    s += uiBtn(250, y + 62, 300, 50, 'Pokédex', () => MS.Pokedex.show());
     s += `<text x="400" y="472" text-anchor="middle" font-size="10" fill="#fff" opacity=".8">Projeto de fã, sem fins lucrativos. Pokémon e seus nomes pertencem a Nintendo / Game Freak / Creatures.</text>
       <text x="400" y="488" text-anchor="middle" font-size="10" fill="#fff" opacity=".6">Todas as artes são desenhos próprios em SVG.</text>`;
     return s;
@@ -3972,12 +4081,31 @@
   // no celular o canto superior direito já é todo ocupado (☰ 🔊 PASSAR ↻) e a base tem a barra de mira: o ⚙ vai para a esquerda
   if (isTouch) $('settingsBtn').setAttribute('transform', 'translate(-664 352)');
 
+  function aiTurn() {
+    return scene === 'battle' && !lastShotGuest && teams[turnTeam]?.ai &&
+      ['ai', 'flying', 'settle', 'skip'].includes(state);
+  }
+
+  function syncAiSpeed() {
+    const btn = $('speedBtn');
+    btn.style.display = aiTurn() && !panel && !settingsOpen ? '' : 'none';
+    const label = aiFast ? 'IA ×2' : 'IA ×1 · acelerar';
+    if ($('speedLabel').textContent !== label) $('speedLabel').textContent = label;
+  }
+
+  function toggleAiSpeed() {
+    if (!aiTurn() || panel || settingsOpen) return;
+    aiFast = !aiFast;
+    Sfx.click();
+    syncAiSpeed();
+  }
+
   function syncButtons() {
     const b = scene === 'battle' && !panel && state !== 'evolve' && !settingsOpen, i = scene === 'intro' && !settingsOpen;
     const camp = b && kind === 'campaign';
     const au = b && teams[turnTeam] && !teams[turnTeam].ai ? activeUnit() : null;
     const show = { left: b, right: b, up: b || i, down: b || i, fire: b || i, pass: !!au, restart: b || i,
-                   ball: camp, move: !!(au && au.moves.length > 1), menu: b || i, sound: !settingsOpen, settings: true };
+                   ball: camp, move: !!(au && au.moves.length > 1), menu: b || i, sound: !settingsOpen, settings: true, speed: aiTurn() && !panel && !settingsOpen };
     // na fase da cidade os botões vão para a esquerda, para não cobrir a lagoa e os alvos da direita
     const introPos = { up: 'translate(-536 0)', down: 'translate(-536 0)', fire: 'translate(190 452) scale(.75) translate(-738 -436)' };
     document.querySelectorAll('.btn').forEach(el => {
@@ -4007,6 +4135,7 @@
   let fireLatch = false, fireDownAt = 0;
   function pressFire() {
     if (state === 'aim' && !charging && (scene === 'intro' ? intro.balls > 0 : !teams[turnTeam].ai)) {
+      if (scene === 'intro') { intro.aimed = true; msg = ''; msgT = 0; }
       charging = true; power = 0; Sfx.unlock(); Sfx.chargeStart();
     }
   }
@@ -4018,12 +4147,17 @@
 
   document.querySelectorAll('.btn').forEach(btn => {
     const act = btn.dataset.act;
-    const holdKey = { left: 'left', right: 'right', up: 'up', down: 'down' }[act];
+    const holdKey = { left: 'left', right: 'right' }[act];
+    const aimDir = act === 'up' ? 1 : act === 'down' ? -1 : 0;
     const press = e => {
       e.preventDefault();
       try { btn.setPointerCapture(e.pointerId); } catch (_) {}
       btn.classList.add('on');
       if (holdKey) keys[holdKey] = true;
+      else if (aimDir) {
+        touchAim = { dir: aimDir, frames: 0, pointer: e.pointerId };
+        adjustAim(aimDir);
+      }
       else if (act === 'fire') {
         // TIRO: segurar e soltar, ou tocar uma vez para começar a carregar e outra para soltar (bom para ponteiro de TV)
         if (charging && fireLatch) { fireLatch = false; releaseFire(); }
@@ -4036,6 +4170,7 @@
       else if (act === 'menu') { Sfx.click(); initMenu(); }
       else if (act === 'sound') toggleSound();
       else if (act === 'settings') toggleSettings();
+      else if (act === 'speed') toggleAiSpeed();
     };
     const release = e => {
       e.preventDefault();
@@ -4054,6 +4189,10 @@
         charging = false; power = 0; fireLatch = false; Sfx.chargeStop();
       }
     };
+    const stopAiming = e => { if (aimDir && touchAim?.pointer === e.pointerId) touchAim = null; };
+    btn.addEventListener('pointerup', stopAiming);
+    btn.addEventListener('pointercancel', stopAiming);
+    btn.addEventListener('lostpointercapture', stopAiming);
     btn.addEventListener('pointerdown', press);
     btn.addEventListener('pointerup', release);
     btn.addEventListener('pointercancel', cancel);
@@ -4119,6 +4258,10 @@
   const ARROWS = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
 
   addEventListener('keydown', e => {
+    if (MS.Pokedex?.open) {
+      if (e.target === window) MS.Pokedex.gamepad(e.key);
+      return;
+    }
     // Ações pontuais não devem disparar repetidamente ao segurar a tecla.
     if (e.repeat && ['o', 'm', 'f', 'r', 'p', 'b', 'g', 'c'].includes(e.key.toLowerCase())) return;
     if (e.key === 'o' || e.key === 'O') { e.preventDefault(); toggleSettings(); return; }
@@ -4137,6 +4280,7 @@
       } else if (e.key === 'm' || e.key === 'M') toggleSound();
       return;
     }
+    if (!e.repeat && e.key.toLowerCase() === 'x' && aiTurn()) { toggleAiSpeed(); return; }
     if (e.key === 'm' || e.key === 'M') { toggleSound(); return; }
     if (e.key === 'f' || e.key === 'F') { toggleFullscreen(); return; }
     if (evo) {
@@ -4172,12 +4316,13 @@
   });
 
   addEventListener('keyup', e => {
+    if (MS.Pokedex?.open) return;
     if (ARROWS[e.key]) keys[ARROWS[e.key]] = false;
     else if (e.code === 'Space') releaseFire();
     else if (e.key === 'q' || e.key === 'Q') keys.panL = false;
     else if (e.key === 'e' || e.key === 'E') keys.panR = false;
   });
-  addEventListener('blur', () => { keys = {}; charging = false; power = 0; fireLatch = false; document.querySelectorAll('.btn.on').forEach(btn => btn.classList.remove('on')); Sfx.chargeStop(); });
+  addEventListener('blur', () => { keys = {}; touchAim = null; charging = false; power = 0; fireLatch = false; document.querySelectorAll('.btn.on').forEach(btn => btn.classList.remove('on')); Sfx.chargeStop(); });
 
   // ---------- Controle (DualSense/PS5, Xbox, genéricos): vira as mesmas teclas do teclado ----------
   // X segura e solta para atirar (e confirma nos menus) · direcional/analógico esquerdo anda e mira · ▢ Pokébola · △ troca de golpe
@@ -4221,8 +4366,7 @@
   function stepBattle() {
     if (state === 'aim') {
       if ((W > VW || glActive) && (keys.panL || keys.panR)) panX = clamp((panX === null ? cam.x : panX) + (keys.panR ? 8 : 0) - (keys.panL ? 8 : 0), VW / 2, W - VW / 2);
-      const au = activeUnit();
-      if (au && (keys.up || keys.down)) angle = fromElev(au, elevOf(au) + (keys.up ? 1.2 : -1.2));
+      if (keys.up || keys.down) adjustAim(keys.up ? 1.2 : -1.2);
       if (!charging) {
         const dir = keys.left ? -1 : keys.right ? 1 : 0;
         if (dir) {
@@ -4260,7 +4404,7 @@
     frameNo++;
     pollPad();
     drawerT = Math.max(0, Math.min(1, drawerT + (settingsOpen ? 0.09 : -0.09)));
-    if (settingsOpen) { updateCamera(); return; }   // pausado
+    if (settingsOpen) { touchAim = null; updateCamera(); return; }   // pausado
     if (glActive && glLoading && scene === 'battle') { updateCamera(); return; }   // preparando as imagens: a batalha espera
     if (under() && frameNo % 7 === 0) bubblePart(cam.x + rnd(-430, 430) / cam.z, WATER - rnd(0, 40));
     if (under()) for (const u of units) if (inBubble(u) && frameNo % 40 === (u.uid * 7) % 40) { const b = bubbleOf(u); bubblePart(b.x + rnd(-4, 4), b.y - b.ry, rnd(1, 1.8)); }
@@ -4271,6 +4415,7 @@
       if (scene !== 'intro') u.moving = false;
     }
     if (panel && panel.pause) { updateCamera(); return; }          // pergunta na tela: jogo parado
+    stepTouchAim();
     if (scene === 'battle') { stepBattle(); stepWeather(); }
     else if (scene === 'intro') stepIntro();
     updateUnits();
@@ -4309,7 +4454,11 @@
       if (acc > STEP * 3) acc = 0;
     }
     if (!steps) return;
-    for (let i = 0; i < steps; i++) tick();
+    for (let i = 0; i < steps; i++) {
+      const double = aiFast && aiTurn() && state !== 'settle' && !panel && !settingsOpen && !(glActive && glLoading);
+      tick();
+      if (double && aiTurn() && state !== 'settle' && !panel && !settingsOpen) tick();
+    }
     const b = busy();
     if (b) perfSample(ts); else perfLast = 0;
     // modo leve: desenha no máximo a 30 quadros por segundo (a lógica continua a 60)

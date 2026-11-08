@@ -45,6 +45,36 @@
   body.lite #cFar, body.lite #cMid, body.lite #cFore{display:none}
   body.lite #clouds, body.lite #Lfar, body.lite #Lmid, body.lite #Lfore, body.lite #tbackG, body.lite #strata1, body.lite #strata2,
   body.lite #dirtTexRect, body.lite #scorch, body.lite #tufts, body.lite #edgeGrassHi, body.lite #waveBack, body.lite #sunGlowC, body.lite #pshadow{display:none}
+  #pokedex{box-sizing:border-box;width:min(790px,96vw);max-width:none;max-height:94dvh;padding:0;border:1px solid #48637e;
+    border-radius:18px;background:#101e30;color:#eef5fc;box-shadow:0 22px 80px #000a;text-align:left;overflow:auto;overscroll-behavior:contain}
+  #pokedex::backdrop{background:#07101de0}
+  #pokedex header{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:13px 20px;border-bottom:1px solid #344c65}
+  #pokedex h2,#pokedex h3,#pokedex p{margin:0}
+  #pokedex h2{font-size:24px;color:#ffdb76}
+  #pokedex .dex-layout{display:grid;grid-template-columns:minmax(142px,220px) minmax(0,1fr);gap:18px;padding:16px 20px}
+  #pokedex .dex-library{min-width:0;display:flex;flex-direction:column;gap:8px}
+  #pokedex input,#pokedex button,#pokedex .dex-svg{box-sizing:border-box;font:inherit;color:inherit;border-radius:9px;border:1px solid #496681;background:#172a40;padding:8px 10px}
+  #pokedex input{width:100%;min-width:0;font-size:16px}
+  #pokedex button,#pokedex .dex-svg{cursor:pointer}
+  #pokedex .dex-list{display:grid;align-content:start;gap:4px;overflow:auto;max-height:min(53dvh,440px);overscroll-behavior:contain}
+  #pokedex .dex-list button{text-align:left;overflow-wrap:anywhere}
+  #pokedex .dex-list button[aria-pressed="true"]{background:#284764;border-color:#ffda76;color:#ffda76;font-weight:700}
+  #pokedex :focus-visible{outline:2px solid #ffda76;outline-offset:-2px}
+  #pokedex .dex-count,#pokedex .dex-stats,#pokedex .dex-empty{color:#b9cbdd;font-size:13px}
+  #pokedex .dex-entry{min-width:0}
+  #pokedex .dex-picture{display:block;width:100%;height:clamp(128px,43dvh,370px);border-radius:13px;
+    background:radial-gradient(ellipse at center,#344d65,#182940 78%);border:1px solid #354f68}
+  #pokedex .dex-name{font-size:24px;margin-top:10px;overflow-wrap:anywhere}
+  #pokedex .dex-types{color:#8fdaec;font-size:13px;font-weight:700}
+  #pokedex .dex-description{margin:6px 0;line-height:1.4;font-size:14px}
+  #pokedex .dex-svg{display:inline-block;margin-top:10px;text-decoration:none;background:#ffda76;color:#251b0c;border-color:#ffda76;font-weight:700}
+  @media(max-width:520px){
+    #pokedex header{padding:9px 11px}
+    #pokedex .dex-layout{grid-template-columns:minmax(96px,31%) minmax(0,1fr);gap:10px;padding:10px}
+    #pokedex .dex-list button{padding:7px 5px;font-size:13px}
+    #pokedex .dex-name{font-size:20px}
+    #pokedex .dex-picture{height:clamp(115px,31dvh,245px)}
+  }
 </style>
 </head>
 <body>
@@ -159,6 +189,18 @@
     <clipPath id="tclip"><path id="tclipPath" clip-rule="evenodd"/></clipPath>
 
     <!-- personagens -->
+    <radialGradient id="gBulbaSkin" cx=".33" cy=".26" r=".84">
+      <stop offset="0" stop-color="#c2f6dd"/><stop offset=".55" stop-color="#71cdb2"/><stop offset="1" stop-color="#318780"/>
+    </radialGradient>
+    <linearGradient id="gTailFlame" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffb447"/><stop offset=".55" stop-color="#ff7a36"/><stop offset="1" stop-color="#e54025"/>
+    </linearGradient>
+    <radialGradient id="gGyarados" cx=".35" cy=".25" r=".86">
+      <stop offset="0" stop-color="#95d3ff"/><stop offset=".55" stop-color="#487fcf"/><stop offset="1" stop-color="#264b90"/>
+    </radialGradient>
+    <linearGradient id="gStinger" x2=".2" y2="1">
+      <stop offset="0" stop-color="#fffdf1"/><stop offset=".48" stop-color="#e2e9ee"/><stop offset="1" stop-color="#8e9db1"/>
+    </linearGradient>
     <radialGradient id="gOrange" cx=".38" cy=".3" r=".8">
       <stop offset="0" stop-color="#ffc283"/><stop offset=".55" stop-color="#f58a30"/><stop offset="1" stop-color="#cf5f17"/>
     </radialGradient>
@@ -272,8 +314,11 @@
     <radialGradient id="gGhost" cx=".38" cy=".3" r=".8">
       <stop offset="0" stop-color="#b496e0"/><stop offset=".55" stop-color="#7a56b4"/><stop offset="1" stop-color="#3c2866"/>
     </radialGradient>
+    <radialGradient id="gMachopSkin" cx=".34" cy=".27" r=".83">
+      <stop offset="0" stop-color="#dbe8ea"/><stop offset=".55" stop-color="#a6b7be"/><stop offset="1" stop-color="#657c8b"/>
+    </radialGradient>
     <radialGradient id="gMach" cx=".38" cy=".3" r=".8">
-      <stop offset="0" stop-color="#c4d0ee"/><stop offset=".55" stop-color="#8896c8"/><stop offset="1" stop-color="#505e98"/>
+      <stop offset="0" stop-color="#d9e5ee"/><stop offset=".55" stop-color="#a0b5c7"/><stop offset="1" stop-color="#647e98"/>
     </radialGradient>
     <radialGradient id="gArc" cx=".38" cy=".3" r=".8">
       <stop offset="0" stop-color="#ffc468"/><stop offset=".55" stop-color="#f08a22"/><stop offset="1" stop-color="#b24c08"/>
@@ -356,6 +401,10 @@
   <g class="btn" id="menuBtn" data-act="menu"><rect x="552" y="8" width="56" height="44" rx="10"/><text x="580" y="38" style="font-size:22px">☰</text></g>
   <g class="btn" id="settingsBtn" data-act="settings"><rect x="676" y="8" width="56" height="44" rx="10"/><text x="704" y="38" style="font-size:22px">⚙</text></g>
   <g class="btn" id="soundBtn" data-act="sound"><rect x="614" y="8" width="56" height="44" rx="10"/><text id="soundIcon" x="642" y="38" style="font-size:20px">🔊</text></g>
+  <g id="speedBtn" class="btn" data-act="speed" style="display:none">
+    <rect x="338" y="49" width="124" height="31" rx="9"/>
+    <text id="speedLabel" x="400" y="69" style="font-size:12px">IA ×1</text>
+  </g>
   <g id="overlay" style="pointer-events:none"></g>
   <text id="fpsT" x="400" y="20" text-anchor="middle" font-size="13" font-weight="bold" fill="#7be07b" stroke="#000" stroke-width=".6" paint-order="stroke" style="pointer-events:none"></text>
 </svg>
@@ -363,19 +412,45 @@
 <div id="help">
   <kbd>←</kbd> <kbd>→</kbd> andar &nbsp;·&nbsp; <kbd>↑</kbd> <kbd>↓</kbd> mirar &nbsp;·&nbsp;
   segure <kbd>ESPAÇO</kbd> para força e solte para atirar &nbsp;·&nbsp; <kbd>B</kbd> Pokébola (inimigo fraco) &nbsp;·&nbsp; <kbd>G</kbd> troca de golpe &nbsp;·&nbsp;
-  <kbd>Q</kbd> <kbd>E</kbd> olham o mapa (arraste na tela) &nbsp;·&nbsp; <kbd>P</kbd> passa a vez (joga quem tem menos atraso) &nbsp;·&nbsp; <b>Controle (PS5/Xbox):</b> direcional anda e mira, segure X para atirar, ▢ bola, △ golpe, R2 passa, L1/R1 olham o mapa, Options ajustes &nbsp;·&nbsp; <kbd>R</kbd> reinicia &nbsp;·&nbsp; <kbd>M</kbd> som &nbsp;·&nbsp; <kbd>ESC</kbd> menu
+  <kbd>Q</kbd> <kbd>E</kbd> olham o mapa (arraste na tela) &nbsp;·&nbsp; <kbd>P</kbd> passa a vez (joga quem tem menos atraso) &nbsp;·&nbsp; <kbd>X</kbd> velocidade da IA &nbsp;·&nbsp; <b>Controle (PS5/Xbox):</b> direcional anda e mira, segure X para atirar, ▢ bola, △ golpe, R2 passa, L1/R1 olham o mapa, Options ajustes &nbsp;·&nbsp; <kbd>R</kbd> reinicia &nbsp;·&nbsp; <kbd>M</kbd> som &nbsp;·&nbsp; <kbd>ESC</kbd> menu
 </div>
 <div id="rotate">📱 Gire o celular para o modo paisagem (deitado) para jogar melhor.</div>
 </div>
 
+<dialog id="pokedex" aria-labelledby="dex-heading">
+  <header>
+    <h2 id="dex-heading">Pokédex</h2>
+    <form method="dialog"><button type="submit" autofocus>Voltar ao menu</button></form>
+  </header>
+  <div class="dex-layout">
+    <div class="dex-library">
+      <input type="search" aria-label="Buscar Pokémon" placeholder="Buscar…">
+      <p class="dex-count" role="status"></p>
+      <div class="dex-list" aria-label="Pokémon do jogo"></div>
+    </div>
+    <div>
+      <article class="dex-entry">
+        <svg class="dex-picture" role="img" xmlns="http://www.w3.org/2000/svg"><g></g></svg>
+        <h3 class="dex-name"></h3>
+        <p class="dex-types"></p>
+        <p class="dex-description"></p>
+        <p class="dex-stats"></p>
+        <a class="dex-svg" target="_blank" rel="noopener">Abrir SVG</a>
+      </article>
+      <p class="dex-empty" hidden>Nenhum Pokémon encontrado.</p>
+    </div>
+  </div>
+</dialog>
+
 <script src="js/sfx.js?v=20261107a"></script>
-<script src="js/data.js?v=20261107a"></script>
-<script src="js/art.js?v=20261107a"></script>
-<script src="js/art2.js?v=20261107a"></script>
+<script src="js/data.js?v=20261108d"></script>
+<script src="js/art.js?v=20261108a"></script>
+<script src="js/art2.js?v=20261108c"></script>
 <script src="js/animated-kanto.js?v=20261107a"></script>
 <script src="js/art-mar.js?v=20261107a"></script>
 <script src="js/gl.js?v=20261107a"></script>
-<script src="js/game.js?v=20261107a"></script>
+<script src="js/pokedex.js?v=20261108c"></script>
+<script src="js/game.js?v=20261108d"></script>
 <script>
 // jogo instalável e sem internet (só funciona em https ou localhost)
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {

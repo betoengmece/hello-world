@@ -31,7 +31,7 @@
     gastly: 'Uma névoa roxa flutua ao redor do rosto escuro.',
     gengar: 'O sorriso largo e as pontas nas costas dão forma a este fantasma roxo.',
     machop: 'Um lutador compacto de pele cinza-azulada, três cristas na cabeça e uma cauda curta. Fecha os punhos para atacar.',
-    machamp: 'Quatro braços dão a este lutador uma silhueta larga e uma guarda alta.',
+    machamp: 'Os dois braços de cima erguem os punhos, enquanto os de baixo fazem a guarda. O cinturão dourado contrasta com a pele azul-acinzentada.',
     growlithe: 'Pelo alaranjado, listras escuras e uma juba clara lembram um cão tigrado.',
     arcanine: 'A juba volumosa e a cauda espessa contornam o corpo de pelagem listrada.',
     seel: 'Uma foca de corpo claro com um pequeno chifre e nadadeiras arredondadas.',

@@ -99,29 +99,6 @@
   }
 
   // ---------- Machop e Machamp ----------
-  function machoid(c, o) {
-    const s = o.s, fist = (x, y, r) => `<circle cx="${x}" cy="${y}" r="${r}" fill="url(#gMach)" stroke="#38406a" stroke-width="1.1"/>`;
-    const punch = c.breath > 0 ? 7 : 0;
-    const arm = (x, y, ex, ey, w) => `<path d="M${x},${y} L${ex},${ey}" stroke="#38406a" stroke-width="${w + 2.4}" stroke-linecap="round"/><path d="M${x},${y} L${ex},${ey}" stroke="#8896c8" stroke-width="${w}" stroke-linecap="round"/>${fist(ex, ey, w * 0.62 + 1)}`;
-    return feet(c.step, 'url(#gMach)', '#38406a', 5 * s) + `
-    <g transform="translate(0 ${f1(c.bob)}) scale(${s})">
-      ${arm(-6, -20, -14, -12, 4.6)}
-      ${o.four ? arm(-5, -15, -13, -5, 4.2) : ''}
-      <ellipse cx="0" cy="-14" rx="9.6" ry="10.6" fill="url(#gMach)" stroke="#38406a" stroke-width="1.3"/>
-      <path d="M-5,-18 Q0,-16 5,-18 M-6,-14 Q0,-12 6,-14 M-5,-10 Q0,-8.4 5,-10" fill="none" stroke="#38406a" stroke-width=".9" opacity=".55"/>
-      <path d="M-9.6,-8 Q0,-4.4 9.6,-8 L9.4,-4.4 Q0,-1 -9.4,-4.4 Z" fill="#e0433a" stroke="#7a1c14" stroke-width="1"/>
-      <circle cx="0" cy="-5.6" r="2.2" fill="#ffd34d" stroke="#7a5a08" stroke-width=".8"/>
-      <ellipse cx="2" cy="-29" rx="9.4" ry="8" fill="url(#gMach)" stroke="#38406a" stroke-width="1.3"/>
-      <path d="M-5.4,-34 L-4,-39 L-1,-35 L1,-40 L3.6,-35 L7,-38.6 L7.4,-34" fill="#d34a6a" stroke="#7a1c40" stroke-width="1" stroke-linejoin="round"/>
-      <path d="M-6,-30 L-9.4,-31.6 L-7,-27 Z" fill="#8896c8" stroke="#38406a" stroke-width="1" stroke-linejoin="round"/>
-      <path d="M2,-32.6 L7,-31 M9,-31 L12.4,-32.6" stroke="#222" stroke-width="1.6" stroke-linecap="round"/>
-      ${eye(5, -28.6, 2.7, '#222', c.blink)}${eye(10.6, -28.6, 2.3, '#222', c.blink)}
-      <path d="M5.4,-23.6 Q8.6,-22 11.4,-23.8" fill="none" stroke="#38406a" stroke-width="1.1" stroke-linecap="round"/>
-      ${arm(7, -18, 14 + punch, -18 - punch * 0.2, 5)}
-      ${o.four ? arm(7, -13, 14 + punch, -9, 4.6) : ''}
-      ${puff(c, [14, -18], '#ffe9b0', '#ffffff')}
-    </g>`;
-  }
   function machop(c) {
     const stride = c.step * .85;
     const punch = Math.max(0, Math.min(1, c.breath / 18));
@@ -160,7 +137,55 @@
     </g>
     ${puff(c, [19, -20], '#ffe9b0', '#fff')}`;
   }
-  const machamp = c => machoid(c, { s: 1.22, four: true });
+  function machamp(c) {
+    const punch = Math.max(0, Math.min(1, c.breath / 18));
+    const sway = Math.sin(c.f * .09 + c.x) * 2;
+    const stride = c.step;
+    const arm = (upper, front) => {
+      const side = front ? 1 : -1;
+      const lift = upper ? -sway : sway;
+      const angle = lift + c.step * side + (front ? (upper ? 22 : -31) * punch : -8 * punch);
+      const pivot = upper ? -34 : -25;
+      return `<g transform="scale(${side} 1) rotate(${f1(angle)} 10 ${pivot})"${front ? '' : ' opacity=".92"'}>
+        ${upper ? `
+          <path d="M8,-34 C12,-42 18,-40 20,-35 Q22,-35 23,-41 L29,-40 Q30,-32 26,-28 C22,-24 18,-27 15,-30 Q10,-27 8,-34Z"/>
+          <path d="M13,-36 Q16,-38 18,-35 M20,-30 Q24,-29 26,-33" fill="none" stroke="#637888" stroke-width=".9"/>
+          <path d="M22,-41 Q21,-44 23,-46 Q24,-48 26,-47 Q28,-48 30,-46 L31,-43 Q32,-39 28,-38 L24,-38 Q22,-39 22,-41Z"/>
+          <path d="M24,-45 l.5,2.1 m1.7,-2.8 l.6,2.1 m1.5,-1.4 l.7,2" fill="none" stroke="#667c8e" stroke-width=".75"/>
+        ` : `
+          <path d="M8,-26 Q13,-31 17,-26 Q19,-24 18,-20 Q22,-22 26,-20 L28,-15 Q25,-11 20,-12 Q15,-11 13,-15 L11,-18 Q8,-18 8,-26Z"/>
+          <path d="M13,-25 Q15,-24 15,-21 M18,-17 Q20,-15 23,-16" fill="none" stroke="#637888" stroke-width=".9"/>
+          <path d="M23,-21 Q26,-25 29,-22 Q31,-22 32,-19 Q34,-16 31,-13 Q27,-11 24,-14 Q22,-15 23,-17Z"/>
+          <path d="M26,-21 l.8,2.1 m1.4,-2.8 l.8,2.2 m1.2,-1.1 l.7,2" fill="none" stroke="#667c8e" stroke-width=".75"/>
+        `}
+      </g>`;
+    };
+
+    return `
+      <ellipse cx="0" cy=".2" rx="18" ry="2.8" fill="#132434" opacity=".23"/>
+      <g fill="url(#gMach)" stroke="#303f53" stroke-width="1.15" stroke-linecap="round" stroke-linejoin="round">
+        <path transform="translate(${f1(stride)} 0)" d="M-11,-16 Q-16,-13 -16,-8 L-16,-4 Q-21,-3 -19,-.6 Q-14,1 -8,-1 Q-6,-2 -7,-5 L-3,-13Z" fill="#879daf"/>
+        <path transform="translate(${f1(-stride)} 0)" d="M5,-16 Q12,-17 15,-13 Q18,-9 16,-4 Q22,-3 20,-.8 Q17,.6 11,0 Q8,-1 8,-4 L3,-12Z"/>
+        <g transform="translate(0 ${f1(c.bob * .55)})">
+          ${arm(true, false)}${arm(false, false)}
+          <path d="M-13,-35 Q-9,-40 -5,-39 L6,-39 Q12,-40 15,-35 Q18,-30 14,-25 Q13,-21 10,-18 L10,-13 Q7,-8 1,-9 L-7,-10 Q-11,-11 -12,-17 Q-15,-21 -15,-27 Q-18,-31 -13,-35Z"/>
+          <path d="M-11,-31 Q-7,-34 -2,-31 Q0,-30 2,-31 Q8,-35 12,-31 M-11,-26 Q-5,-23 0,-25 Q5,-22 11,-26 M-5,-21 Q0,-19 6,-21" fill="none" stroke="#677b8c" stroke-width=".95"/>
+          <path d="M-9,-34 Q-6,-35 -4,-34 M4,-33 Q8,-35 10,-33" fill="none" stroke="#edf7f8" opacity=".75"/>
+          <path d="M-11,-16 Q0,-12 12,-17 L13,-12 Q11,-9 7,-7 L2,-9 L-2,-8 Q-7,-7 -11,-10Z" fill="#263345"/>
+          <path d="M-11,-16 Q0,-13 12,-17 L12,-13 Q1,-9 -11,-12Z" fill="#8e4e39" stroke="#4e3839" stroke-width=".9"/>
+          <path d="M-3,-15 L4,-15 L5,-12.4 L2,-10.5 L-2,-11 L-4,-13Z" fill="#f6ca5c" stroke="#806023" stroke-width=".9"/>
+          <path d="M-1.7,-13.8 h3.2" stroke="#fff1ab" stroke-width=".85"/>
+          <path d="M-7,-38 Q-10,-41 -8,-46 Q-7,-51 -1,-52 Q6,-53 10,-49 L13,-46 L13,-41 Q10,-37 7,-36 Q0,-34 -7,-38Z"/>
+          <path d="M-6,-48 L-7,-53 Q-5,-55 -3,-50 M-2,-51 L-2,-55 Q0,-57 2,-51 M3,-51 L5,-55 Q7,-55 8,-50" fill="#8a9ead" stroke="#485e73" stroke-width="1"/>
+          ${c.blink ? '<path d="M-3,-45.7 Q0,-44.7 3,-45.5 M7,-45.4 l3,-.9" fill="none"/>'
+            : '<path d="M-4,-47 Q0,-46 4,-46.6 Q3,-43.3 0,-43.4 Q-2,-43.4 -4,-47Z M6.8,-46.4 L11.3,-47.7 Q10.9,-44.3 8.3,-44Z" fill="#fff6e8" stroke-width=".85"/><ellipse cx="1.2" cy="-45.2" rx="1.1" ry="1.3" fill="#a83644" stroke="none"/><ellipse cx="9.6" cy="-46.2" rx=".75" ry="1.05" fill="#a83644" stroke="none"/>'}
+          <path d="M3,-41.7 Q7,-40.4 11,-42.4 Q10,-38.7 6.3,-38.8 Q4,-39.3 3,-41.7Z" fill="#9b8b9b" stroke-width=".8"/>
+          <path d="M4.5,-41 Q7,-40.7 9.6,-41.3" fill="none" stroke="#e7dae1" stroke-width=".7"/>
+          ${arm(true, true)}${arm(false, true)}
+        </g>
+      </g>
+      ${puff(c, [14, -26], '#ffe9b0', '#fff')}`;
+  }
 
   // ---------- Growlithe e Arcanine ----------
   function canine(c, o) {

@@ -8,7 +8,7 @@
   const GRAV = 0.2;           // gravidade base (px/frame²)
   const WALK_MAX = 120;       // distância máxima de caminhada por turno (mapas largos dão um pouco mais)
   const walkMax = () => WALK_MAX + Math.max(0, W - 800) * 0.07;
-  const GAME_VERSION = '07/11 a';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
+  const GAME_VERSION = '09/11 a';    // aparece em ⚙ Ajustes: confere se o navegador pegou a versão nova
   const TURN_TIME = 30 * 60;  // 30 s para mirar e atirar (estourou: passa a vez)
   const WEAK = 0.35;          // abaixo dessa fração de PV o inimigo pode ser capturado
   const PLAYER_COL = '#3a9bff', WILD_COL = '#e0433a', GUEST_COL = '#ffd34d';
@@ -575,6 +575,7 @@
   }
 
   function resetCommon() {
+    kos = []; party = 0; hitStop = 0; resetItems();
     fx = []; projs = []; parts = []; floaters = []; graves = [];
     power = 0; charging = false; ballMode = false; lastBall = false; pickups = []; weather = null; bolt = null; ai = null; cap = null; panel = null; pendingPanel = null;
     keys = {}; wxPrev = null; wxK = 1;
@@ -806,17 +807,23 @@
     state = 'over'; guest = null; units = units.filter(u => u.team !== 2);
     const last = stageIdx >= STAGES.length - 1;
     Sfx.win();
+    const mine = teams[0] ? teams[0].units : [], lost = mine.filter(u => !u.alive).length, alive = mine.filter(u => u.alive);
+    const hpk = alive.reduce((a, u) => a + u.hp, 0) / Math.max(1, alive.reduce((a, u) => a + u.maxhp, 0));
+    const nStars = lost === 0 ? (hpk >= 0.5 ? 3 : 2) : 1;
+    putStars(stageIdx, nStars);
+    for (const u of alive) { u.cheer = 1 + Math.floor(Math.random() * 10); u.face = 1; }
+    party = 150;
     const xp = awardXp();
     if (!last) campaign.stage = Math.max(campaign.stage, stageIdx + 1); else campaign.done = true;
     saveGame();
     const buttons = last
       ? [{ label: 'Menu principal', fn: initMenu }]
       : [{ label: 'Próxima fase ▶', fn: () => beginStage(stageIdx + 1) }, { label: 'Menu', fn: initMenu }];
-    pendingPanel = { t: 70, evos: xp.evos, panel: {
+    pendingPanel = { t: 150, evos: xp.evos, panel: {
       title: last ? '🏆 Você é o Campeão!' : 'Fase concluída!',
       sub: last ? `Você terminou a campanha com ${campaign.roster.length} Pokémon. Dá para rejogar qualquer fase pelo menu.` : `${STAGES[stageIdx].name} superada.`,
-      lines: xp.lines, caught: stageCaught.slice(), buttons } };
-    showMsg(last ? 'Campeão!' : 'Fase concluída!', 70);
+      lines: xp.lines, caught: stageCaught.slice(), buttons, stars: nStars, f0: 0 } };
+    showMsg(last ? 'Campeão!' : `Vitória! ${starStr(nStars)}`, 90);
   }
 
   // ---------- Cena de evolução ----------
@@ -998,7 +1005,7 @@
     if (state === 'aim') {
       if (keys.up) angle = Math.min(88, angle + 1.2);
       if (keys.down) angle = Math.max(4, angle - 1.2);
-      if (charging) { power = Math.min(100, power + 0.9); Sfx.chargeSet(power); }
+      if (charging) stepCharge(0.9);
     }
     if (state === 'flying') stepIntroProj();
     if (state === 'capture' && cap) stepCapture();
@@ -1230,19 +1237,30 @@
     if (wp.boom >= 40 || style === 'thunder') { flash.a = Math.min(0.5, wp.boom / 100); flash.col = { fire: '#ffd9a0', dragon: '#c8b0ff', thunder: '#fffbb0', rock: '#e8dcc0' }[style] || '#ffffff'; }
     carve(x, y, wp.carve);
     fx.push({ x, y, t: 0, max: 36, r: wp.boom, fill: FX_FILL[style], style });
+    {                                                // poeira subindo do chão quando a explosão encosta nele
+      const gy0 = surf(x, y - 6);
+      if (gy0 - y < 26 && gy0 < WATER && !under()) { const dc = (THEMES[themeKey].dirt || ['#c8b898'])[0]; for (let i = 0; i < 10; i++) addPart({ x: x + rnd(-6, 6), y: gy0 - 2, vx: rnd(-3.2, 3.2), vy: rnd(-1.3, -0.2), g: 0.015, life: 46, max: 46, r: rnd(3, 6.5), col: dc, kind: 'smoke' }); }
+      if (wp.dmg >= 30) cam.shake = Math.max(cam.shake, wp.boom / 4.5);
+    }
     burst(x, y, style);
     for (const u of units) {
       if (!u.alive || u.hidden) continue;
       const c = centerOf(u), d = Math.hypot(c.x - x, c.y - y);
       if (d >= wp.boom) continue;
       const k = 1 - d / wp.boom, mult = typeMult(wp.type, spOf(u).types);
-      const dmg = shieldDmg(u, Math.round(wp.dmg * k * mult * wxMul(wp.type) * seaMul(wp.type, p.ownerUnit, u) * (p.crit ? 1.6 : 1)));
+      const dmg = shieldDmg(u, Math.round(wp.dmg * k * mult * wxMul(wp.type) * seaMul(wp.type, p.ownerUnit, u) * (p.crit ? 1.6 : 1) * (p.boost || 1)));
       if (dmg > 0) {
         u.hp -= dmg; u.hurt = 24; anyHurt = true;
+        u.sq = 1; hitStop = Math.max(hitStop, Math.min(8, 2 + Math.round(dmg / 8)));
+        if (dmg >= 26 && k > 0.35) floaters.push({ x: u.x + rnd(-16, 16), y: u.y - spOf(u).h * u.scale - 52, t: 0, text: pick(POW), col: '#ffd34d', size: Math.min(25, 16 + dmg / 7), pop: 1, comic: true, rot: rnd(-0.28, 0.28) });
+        if (!wp.push && !u.flying) {                 // empurrãozinho para longe da explosão (nunca para fora da beirada)
+          const dir = (u.x - x) >= 0 ? 1 : -1, n = Math.min(9, Math.round(dmg / 6 * k));
+          for (let i = 0; i < n; i++) { if (ledgeAhead(u, dir)) break; const ny = stepTo(u, u.x + dir); if (ny === null) break; u.x += dir; u.y = ny; }
+        }
         if (p.crit && k > 0.2) floaters.push({ x: u.x + 16, y: u.y - spOf(u).h * u.scale - 4, t: 4, text: 'Crítico!', col: '#ff5a5a', size: 12 });
         if (wp.drain && p.ownerUnit && p.ownerUnit.alive && u !== p.ownerUnit) { const h = Math.round(dmg * wp.drain); p.ownerUnit.hp = Math.min(p.ownerUnit.maxhp, p.ownerUnit.hp + h); if (h > 0) floaters.push({ x: p.ownerUnit.x, y: p.ownerUnit.y - spOf(p.ownerUnit).h * p.ownerUnit.scale - 18, t: 0, text: '+' + h, col: '#7be07b' }); }
         if (p.ownerUnit && p.ownerUnit.team === 0 && u.team > 0) p.ownerUnit.dealt += dmg;
-        floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 18, t: 0, text: '-' + dmg, col: sideColor(u) });
+        floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 18, t: 0, text: '-' + dmg, col: sideColor(u), size: Math.min(24, 13 + dmg / 5), pop: 1 });
         if (mult > 1 && k > 0.2) { sup = true; floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 34, t: 6, text: 'Super efetivo!', col: '#ff9a1a', size: 12 }); }
         else if (mult < 1 && k > 0.2) { weak = true; floaters.push({ x: u.x, y: u.y - spOf(u).h * u.scale - 34, t: 6, text: 'Pouco efetivo...', col: '#b8c0cc', size: 12 }); }
       }
@@ -1418,6 +1436,69 @@
     }
   }
 
+  // ---------- Sensação de impacto ----------
+  let hitStop = 0, kos = [], party = 0;
+  const POW = ['POW!', 'TUM!', 'PAF!', 'BAM!', 'CABUM!', 'PLAFT!'];
+  // achata e estica o Pokémon quando apanha (mola que vai parando)
+  const sqXY = u => { const k = u.sq || 0; if (k <= 0) return [1, 1]; const w = Math.cos((1 - k) * 15) * k; return [1 + 0.28 * w, 1 - 0.24 * w]; };
+  const popK = t => t < 4 ? 0.4 + 1.1 * t / 4 : t < 10 ? 1.5 - 0.5 * (t - 4) / 6 : 1;
+  const floatO = f => f.comic ? { size: f.size || 24, fill: '#ffd34d', stroke: '#6a2a00', sw: 2.4 } : { size: f.size || 15, fill: f.col, stroke: f.col === '#ffffff' || f.col === '#fff' ? '#000' : '#fff', sw: f.pop ? 1.4 : 0.8 };
+  // nocauteado: cai de lado, estrelinhas girando na cabeça e some numa nuvem
+  function koPose(k) {
+    const u = k.u, t = k.t, S = spOf(u), fall = Math.min(1, t / 16);
+    return { fall, hop: t < 16 ? -Math.sin(t / 16 * Math.PI) * 14 : 0, a: t > 78 ? Math.max(0, 1 - (t - 78) / 10) : 1,
+      hx: u.x - u.face * S.h * 0.75 * u.scale * fall, hy: u.y - 12 - S.hitR * u.scale * 0.6 };
+  }
+  // estrelas por fase (1 a 3): guardadas à parte do save
+  const STARS_KEY = SAVE_KEY + '_estrelas';
+  function getStars() { try { const a = JSON.parse(localStorage.getItem(STARS_KEY)); return Array.isArray(a) ? a : []; } catch (_) { return []; } }
+  function putStars(si, n) { try { const a = getStars(); a[si] = Math.max(a[si] || 0, n); localStorage.setItem(STARS_KEY, JSON.stringify(a)); } catch (_) {} }
+  const starStr = n => '★'.repeat(n) + '☆'.repeat(3 - n);
+
+  // ---------- Itens ----------
+  // escolhidos antes do tiro; cada um custa atraso extra. Tiro Duplo: dois tiros seguidos, mais caro que dois tiros separados
+  const ITEMS = {
+    duplo: { name: 'Tiro Duplo', btn: '2X', cost: 220, note: 'dois tiros seguidos' },
+    forca: { name: 'Força+', btn: 'F+', cost: 180, note: '+30% de dano' },
+    cura:  { name: 'Cura', btn: 'CURA', cost: 260, note: 'recupera 35 de vida' }
+  };
+  let items = [{}, {}], itemSel = null, dual = null, dualGo = false;
+  function resetItems() { items = [{ duplo: 2, forca: 1, cura: 1 }, { duplo: 1, cura: 1 }]; itemSel = null; dual = null; }
+  function itemBtnText() { const t = typeof document !== 'undefined' && document.querySelector && document.querySelector('#itemBtn text'); if (t) t.textContent = itemSel ? ITEMS[itemSel].btn : 'ITEM'; }
+  function cycleItem() {
+    if (scene !== 'battle' || state !== 'aim' || teams[turnTeam].ai || charging) return;
+    const inv = items[turnTeam] || {}, list = [null, ...Object.keys(ITEMS).filter(k => inv[k] > 0)];
+    if (list.length < 2) { showMsg('Sem itens nesta fase.', 70); Sfx.ballFail(); return; }
+    itemSel = list[(list.indexOf(itemSel) + 1) % list.length]; Sfx.select();
+    showMsg(itemSel ? `${ITEMS[itemSel].name}: ${ITEMS[itemSel].note} (+atraso) · resta ${inv[itemSel]}` : 'Sem item neste tiro', 110);
+    itemBtnText();
+  }
+  // gasta o item escolhido no tiro (a CPU decide sozinha); devolve o multiplicador de dano
+  function useItem(u) {
+    const t = teams[turnTeam], inv = items[turnTeam] || {};
+    let k = t.ai ? null : itemSel;
+    if (t.ai && kind === 'campaign') {
+      if (inv.cura > 0 && u.hp < u.maxhp * 0.4 && Math.random() < 0.7) k = 'cura';
+      else if (inv.duplo > 0 && Math.random() < 0.3) k = 'duplo';
+    }
+    itemSel = null; itemBtnText();
+    if (!k || !(inv[k] > 0)) return 1;
+    inv[k]--; u.delay += Math.round(ITEMS[k].cost * teamMul(u));
+    const fy = u.y - spOf(u).h * u.scale - 30;
+    if (k === 'cura') { const h = Math.min(35, u.maxhp - u.hp); u.hp += h; floaters.push({ x: u.x, y: fy, t: 0, text: `Cura +${h}`, col: '#8fe070', size: 14 }); spray(u.x, u.y - 14, 14, '#8fe070', 2, -0.03, 40, 1.8, 'spark'); Sfx.ballCatch(); }
+    if (k === 'forca') { floaters.push({ x: u.x, y: fy, t: 0, text: 'Força+!', col: '#ff9a4a', size: 14 }); return 1.3; }
+    if (k === 'duplo') { dual = { u, ang: angle, pow: power, st: state }; floaters.push({ x: u.x, y: fy, t: 0, text: 'Tiro Duplo!', col: '#ffe27a', size: 14 }); }
+    return 1;
+  }
+  // depois do primeiro tiro do Tiro Duplo acabar, sai o segundo com a mesma mira e força
+  function dualNext() {
+    const d = dual; dual = null;
+    if (!d || !d.u.alive || d.u.hidden || activeUnit() !== d.u) return false;
+    angle = d.ang; power = d.pow; state = d.st; dualGo = true; fire(); dualGo = false;
+    if (state === d.st) { state = 'settle'; return false; }
+    showMsg('Segundo tiro!', 50);
+    return true;
+  }
   function fire() {
     if (state !== 'aim' && state !== 'ai') return;
     if (glActive && glLoading) return;
@@ -1452,8 +1533,10 @@
       campaign[BALLS[ballType].key]--; ballMode = false; Sfx.ballThrow();
       if (!teams[turnTeam].ai) { lastBall = true; lastBallType = ballType; }
     } else {
+      const boost = dualGo ? 1 : useItem(u), n0 = projs.length;
       const { x: mx, y: my } = mouthAt(u, u.face, false);
       launch(wk, mx, my, a, sp, 'unit', u);
+      if (boost !== 1) for (let i = n0; i < projs.length; i++) projs[i].boost = boost;
       u.breath = 18; Sfx.shoot(WEAPONS[wk].style);
       muzzle(mx, my, WEAPONS[wk].style, a);
     }
@@ -1605,7 +1688,10 @@
       if (isBall) { ballResolve(p, target, outcome); continue; }
       explode(p.x, Math.min(p.y, H), p);
     }
-    if (!projs.length && !bolts.length && !beams.length && state === 'flying') { state = 'settle'; camHold = 60; camWide = false; }
+    if (!projs.length && !bolts.length && !beams.length && state === 'flying') {
+      if (dual && dualNext()) return;
+      state = 'settle'; camHold = 60; camWide = false;
+    }
   }
 
   function homingTarget(p) {
@@ -1623,7 +1709,7 @@
     p.sp = true;
     for (let i = 0; i < sp.n; i++) {
       const off = (i - (sp.n - 1) / 2);
-      projs.push({ wk: sp.wk, wp: wp2, owner: p.owner, ownerUnit: p.ownerUnit, x: p.x + off * 9, y: p.y - 4, vx: p.vx * 0.85 + off * 0.5, vy: 0.4 + Math.abs(off) * 0.05, trail: [], spin: rnd(0, 6), age: 20, bn: 0, crit: false, sp: true });
+      projs.push({ wk: sp.wk, wp: wp2, owner: p.owner, ownerUnit: p.ownerUnit, x: p.x + off * 9, y: p.y - 4, vx: p.vx * 0.85 + off * 0.5, vy: 0.4 + Math.abs(off) * 0.05, trail: [], spin: rnd(0, 6), age: 20, bn: 0, crit: false, sp: true, boost: p.boost });
     }
     spray(p.x, p.y, 8, '#d8c8b0', 2.2, 0.1, 24, 2, 'chunk'); Sfx.boom('gust');
   }
@@ -1831,7 +1917,7 @@
         if (drowned) {
           for (let k = 0; k < 16; k++) addPart({ x: u.x, y: WATER, vx: rnd(-2, 2), vy: rnd(-4, -1.5), g: 0.15, life: 45, max: 45, r: rnd(1.5, 2.5), col: '#bfe9ff', kind: 'drop' });
           Sfx.splash();
-        } else { smoke(u.x, u.y - 14, 8); spray(u.x, u.y - 14, 10, '#ffffff', 2.5, 0.02, 30, 2, 'spark'); }
+        } else { kos.push({ u, t: 0 }); spray(u.x, u.y - 14, 10, '#ffffff', 2.5, 0.02, 30, 2, 'spark'); }
         Sfx.death();
         showMsg(`${u.name} ${drowned ? (under() ? 'afundou no abismo!' : 'afogou!') : 'desmaiou!'}`, 100);
       }
@@ -2300,7 +2386,7 @@
     const shield = u.shield > 0 && u.capScale > 0.5 ? `<circle cx="0" cy="${f1(-S.hitY * u.scale)}" r="${f1(S.hitR * u.scale * 1.75 + 4)}" fill="#8fe0ff" fill-opacity=".13" stroke="#bff3ff" stroke-width="1.8" stroke-opacity="${(0.55 + 0.3 * Math.sin(af * 0.12)).toFixed(2)}"/>` : '';
     return { t: `translate(${f1(u.x)} ${f1(u.y + hop - lift + bobT)})`, h: `
       ${lift ? `<g transform="translate(0 ${f1(lift)})">${shadow}</g>` : shadow}${shield}
-      <g transform="${tilt}scale(${f1(u.face * sc)} ${f1(sc)})"${flash ? ' opacity=".45"' : ''}><g${shF(u.sp, u.sh)}>${Art.draw(u.sp, ctx)}</g></g>
+      <g transform="${tilt}scale(${f1(u.face * sc * sqXY(u)[0])} ${f1(sc * sqXY(u)[1])})"${flash ? ' opacity=".45"' : ''}><g${shF(u.sp, u.sh)}>${Art.draw(u.sp, ctx)}</g></g>
       ${u.sh && u.capScale > 0.5 ? glint(af, -S.hitR * u.scale * 0.8, -S.hitY * u.scale - 6, 1.2, u.blinkOff) + glint(af, S.hitR * u.scale * 0.9, -S.hitY * u.scale + 8, 0.9, u.blinkOff + 2) + glint(af, 0, -S.h * u.scale * 0.8, 1, u.blinkOff + 4) : ''}
       ${statusIcon(u)}${web}${label}` };
   }
@@ -2807,6 +2893,12 @@
       if (inBubble(u)) h += svgBubble(u);
       items.push({ k: u.uid, t: p.t, h });
     }
+    for (const k of kos) {
+      const u = k.u, q = koPose(k);
+      let h = `<g transform="rotate(${f1(-u.face * q.fall * 83)}) scale(${f1(u.face * u.scale)} ${f1(u.scale)})" opacity="${q.a.toFixed(2)}"><g${shF(u.sp, u.sh)}>${Art.draw(u.sp, { f: 0, blink: true, breath: 0, bob: 0, step: 0, x: 0, charge: false, flap: false })}</g></g>`;
+      if (k.t > 10 && k.t < 84) for (let i = 0; i < 3; i++) { const a = frameNo * 0.13 + i * 2.09; h += `<text x="${f1(q.hx - u.x + Math.cos(a) * 11)}" y="${f1(q.hy - u.y - 10 + Math.sin(a) * 4)}" text-anchor="middle" font-size="11" fill="#ffd34d" stroke="#6a4a00" stroke-width=".8">★</text>`; }
+      items.push({ k: 'ko' + u.uid, t: `translate(${f1(u.x)} ${f1(u.y + q.hop)})`, h });
+    }
     return items;
   }
 
@@ -3204,7 +3296,7 @@
       R.circle(0, cy, r, '#8fe0ff', 0.13); R.ring(0, cy, r, 1.8, '#bff3ff', 0.55 + 0.3 * Math.sin(af * 0.12));
     }
     const body = glBody(u);
-    if (body) { R.push(); if (u.tilt && !u.flying) R.rot(u.tilt); R.sc(u.face * sc, sc); R.spr(body, flash ? 0.45 : 1); R.pop(); }
+    if (body) { R.push(); if (u.tilt && !u.flying) R.rot(u.tilt); R.sc(u.face * sc * sqXY(u)[0], sc * sqXY(u)[1]); R.spr(body, flash ? 0.45 : 1); R.pop(); }
     if (u.sh && u.capScale > 0.5) {
       for (const [x, y, s, ph] of [[-S.hitR * u.scale * 0.8, -S.hitY * u.scale - 6, 1.2, u.blinkOff], [S.hitR * u.scale * 0.9, -S.hitY * u.scale + 8, 0.9, u.blinkOff + 2], [0, -S.h * u.scale * 0.8, 1, u.blinkOff + 4]]) {
         const k = Math.max(0, Math.sin(af * 0.09 + ph)); if (k >= 0.05) R.star(x, y, s * k, k);
@@ -3533,6 +3625,11 @@
         R.ellipse(u.x, u.y + 1, 16 * Math.max(1, u.scale), 4, col, 0.35 + 0.2 * Math.sin(frameNo * 0.3));
       }
     }
+    for (const k of kos) {
+      const u = k.u, q = koPose(k), s = glBodySpr(u, glBodyRes(u), 0, 'k');
+      if (s) { R.push(); R.tr(u.x, u.y + q.hop); R.rot(-u.face * q.fall * 1.45); R.sc(u.face * u.scale, u.scale); R.spr(s, q.a); R.pop(); }
+      if (k.t > 10 && k.t < 84) for (let i = 0; i < 3; i++) { const a = frameNo * 0.13 + i * 2.09; R.text('★', q.hx + Math.cos(a) * 11, q.hy - 10 + Math.sin(a) * 4, { size: 11, fill: '#ffd34d', stroke: '#6a4a00', sw: 0.8 }, q.a); }
+    }
     // sombra dos tiros, tiros, captura
     if (!lite) for (const p of projs) {
       if (p.x < 0 || p.x >= W) continue;
@@ -3603,7 +3700,11 @@
       R.add(false);
     }
     glWater(true);
-    for (const f of floaters) R.text(f.text, f.x, f.y - f.t * 0.5, { size: f.size || 15, fill: f.col, stroke: f.col === '#ffffff' || f.col === '#fff' ? '#000' : '#fff', sw: 0.8 }, clamp(1 - f.t / 60, 0, 1));
+    for (const f of floaters) {
+      const a = clamp(1 - f.t / 60, 0, 1);
+      if (!f.pop) { R.text(f.text, f.x, f.y - f.t * 0.5, floatO(f), a); continue; }
+      R.push(); R.tr(f.x, f.y - f.t * 0.35); if (f.rot) R.rot(f.rot); R.sc(popK(f.t)); R.text(f.text, 0, 0, floatO(f), a); R.pop();
+    }
     // primeiro plano
     glLayer(1.3); glDrawSnap('fore');
     // clima e clarão (tela)
@@ -3713,9 +3814,10 @@
                       stroke-width="${f1(3 * (1 - k))}" opacity="${(0.8 * (1 - k)).toFixed(2)}"/>`;
     }).join('');
 
-    $('floaters').innerHTML = floaters.map(f => `<text x="${f1(f.x)}" y="${f1(f.y - f.t * 0.5)}" text-anchor="middle"
-        font-size="${f.size || 15}" font-weight="bold" fill="${f.col}" stroke="${f.col === '#ffffff' || f.col === '#fff' ? '#000' : '#fff'}" stroke-width=".8"
-        opacity="${clamp(1 - f.t / 60, 0, 1).toFixed(2)}">${f.text}</text>`).join('');
+    $('floaters').innerHTML = floaters.map(f => { const o = floatO(f), y = f.y - f.t * (f.pop ? 0.35 : 0.5);
+      return `<text transform="translate(${f1(f.x)} ${f1(y)})${f.rot ? ` rotate(${f1(f.rot * 57.3)})` : ''}${f.pop ? ` scale(${popK(f.t).toFixed(2)})` : ''}" text-anchor="middle"
+        font-size="${o.size}" font-weight="bold" fill="${o.fill}" stroke="${o.stroke}" stroke-width="${o.sw}" paint-order="stroke"
+        opacity="${clamp(1 - f.t / 60, 0, 1).toFixed(2)}">${f.text}</text>`; }).join('');
     }
 
     if (useGL) $('powerbar').innerHTML = '';                     // no WebGL a barra é desenhada pela placa de vídeo
@@ -3796,7 +3898,7 @@
           stroke="${sel ? '#ffb347' : cur ? '#8fe070' : '#fff'}" stroke-opacity="${sel || cur ? 1 : 0.55}" stroke-width="${sel || cur ? 3 : 1.6}"/>
         <text x="${x + 16}" y="${y + 40}" font-size="30" font-weight="900" fill="${sel && !locked ? '#241400' : '#ffd34d'}">${i + 1}</text>
         <text x="${x + 44}" y="${y + 29}" font-size="12.5" font-weight="bold" fill="${sel && !locked ? '#241400' : '#fff'}">${st.name}</text>
-        <text x="${x + 44}" y="${y + 47}" font-size="10" fill="${sel && !locked ? '#3a2400' : '#bfe3ff'}">${locked ? 'bloqueada' : cleared ? '✔ concluída' : 'fase atual'}${st.boss ? ' · CHEFE' : ''}</text>
+        <text x="${x + 44}" y="${y + 47}" font-size="10" fill="${sel && !locked ? '#3a2400' : '#bfe3ff'}">${locked ? 'bloqueada' : cleared ? (getStars()[i] ? `<tspan fill="${sel && !locked ? '#7a4a00' : '#ffd34d'}">${starStr(getStars()[i])}</tspan>` : '✔ concluída') : 'fase atual'}${st.boss ? ' · CHEFE' : ''}</text>
         ${locked ? `<text x="${x + cw - 12}" y="${y + 24}" text-anchor="end" font-size="15">🔒</text>` : ''}</g>`;
     });
     // detalhes da fase em foco
@@ -3875,12 +3977,24 @@
     return s;
   }
 
+  function panelStars(P, by) {
+    if (!P.f0) P.f0 = frameNo;
+    const t = frameNo - P.f0; let s = '';
+    for (let i = 0; i < 3; i++) {
+      const ti = t - 8 - i * 14, on = i < P.stars, k = ti < 0 ? 0 : ti < 10 ? 1 + 0.5 * Math.sin(ti / 10 * Math.PI) : 1;
+      if (ti === 0 && on) Sfx.select();
+      const x = 400 + (i - 1) * 54, y = by - 4 - (i === 1 ? 10 : 0);
+      s += `<g transform="translate(${x} ${y}) scale(${f1(k * (i === 1 ? 1.25 : 1))})"><path d="M0,-20 L5.9,-8.1 L19,-6.2 L9.5,3.1 L11.8,16.2 L0,10 L-11.8,16.2 L-9.5,3.1 L-19,-6.2 L-5.9,-8.1 Z" fill="${on ? '#ffd34d' : '#3a4a6a'}" stroke="${on ? '#a86a00' : '#1a2440'}" stroke-width="2.4" stroke-linejoin="round"/>${on ? '<path d="M-5,-8 L0,-16 L3,-9 Z" fill="#fff6c0" opacity=".8"/>' : ''}</g>`;
+    }
+    return s;
+  }
   function panelSvg() {
     const P = panel;
     const nl = (P.lines || []).length, bx = 130, by = 90, bw = 540, bh = (P.caught.length ? 320 : 250) + nl * 20;
     let s = `<rect width="800" height="500" fill="#000" opacity=".5"/>
       <rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="20" fill="#13203a" fill-opacity=".96" stroke="#ffd34d" stroke-width="3"/>
       <text x="400" y="${by + 54}" text-anchor="middle" font-size="30" font-weight="800" fill="#ffd34d">${P.title}</text>
+      ${P.stars ? panelStars(P, by) : ''}
       <text x="400" y="${by + 82}" text-anchor="middle" font-size="15" fill="#fff">${P.sub}</text>`;
     let y = by + 100;
     (P.lines || []).forEach((ln, i) => { s += `<text x="400" y="${y + 6 + i * 20}" text-anchor="middle" font-size="13.5" fill="${ln.includes('evoluiu') ? '#6ad0ff' : '#cfe'}" font-weight="${ln.includes('evoluiu') ? 'bold' : 'normal'}">${ln}</text>`; });
@@ -3977,7 +4091,7 @@
     const camp = b && kind === 'campaign';
     const au = b && teams[turnTeam] && !teams[turnTeam].ai ? activeUnit() : null;
     const show = { left: b, right: b, up: b || i, down: b || i, fire: b || i, pass: !!au, restart: b || i,
-                   ball: camp, move: !!(au && au.moves.length > 1), menu: b || i, sound: !settingsOpen, settings: true };
+                   ball: camp, item: !!au && state === 'aim', move: !!(au && au.moves.length > 1), menu: b || i, sound: !settingsOpen, settings: true };
     // na fase da cidade os botões vão para a esquerda, para não cobrir a lagoa e os alvos da direita
     const introPos = { up: 'translate(-536 0)', down: 'translate(-536 0)', fire: 'translate(190 452) scale(.75) translate(-738 -436)' };
     document.querySelectorAll('.btn').forEach(el => {
@@ -4005,10 +4119,19 @@
   }
 
   let fireLatch = false, fireDownAt = 0;
+  // tiro em dois toques: o 1º começa a barra (sobe até o máximo e volta); o 2º atira. Se a barra zerar, o tiro é cancelado
+  let chargeDir = 1;
   function pressFire() {
-    if (state === 'aim' && !charging && (scene === 'intro' ? intro.balls > 0 : !teams[turnTeam].ai)) {
-      charging = true; power = 0; Sfx.unlock(); Sfx.chargeStart();
+    if (charging) { releaseFire(); return; }
+    if (state === 'aim' && (scene === 'intro' ? intro.balls > 0 : !teams[turnTeam].ai)) {
+      charging = true; power = 0; chargeDir = 1; Sfx.unlock(); Sfx.chargeStart();
     }
+  }
+  function stepCharge(rate) {
+    power += rate * chargeDir;
+    if (power >= 100) { power = 100; chargeDir = -1; }
+    if (chargeDir < 0 && power <= 0) { power = 0; charging = false; chargeDir = 1; Sfx.chargeStop(); showMsg('Tiro cancelado', 60); return; }
+    Sfx.chargeSet(power);
   }
   function releaseFire() {
     if (!charging) return;
@@ -4026,13 +4149,13 @@
       if (holdKey) keys[holdKey] = true;
       else if (act === 'fire') {
         // TIRO: segurar e soltar, ou tocar uma vez para começar a carregar e outra para soltar (bom para ponteiro de TV)
-        if (charging && fireLatch) { fireLatch = false; releaseFire(); }
-        else { pressFire(); fireDownAt = Date.now(); fireLatch = false; }
+        pressFire();
       }
       else if (act === 'pass') passTurn();
       else if (act === 'restart') restart();
       else if (act === 'ball') toggleBall();
       else if (act === 'move') cycleMove();
+      else if (act === 'item') cycleItem();
       else if (act === 'menu') { Sfx.click(); initMenu(); }
       else if (act === 'sound') toggleSound();
       else if (act === 'settings') toggleSettings();
@@ -4042,17 +4165,14 @@
       btn.classList.remove('on');
       if (holdKey) keys[holdKey] = false;
       else if (act === 'fire') {
-        if (charging && !fireLatch && Date.now() - fireDownAt < 260) { fireLatch = true; showMsg('Carregando... toque TIRO de novo para soltar', 90); }
-        else if (!fireLatch) releaseFire();
+        /* tiro em dois toques: soltar o botão não faz nada */
       }
     };
     const cancel = e => {
       e.preventDefault();
       btn.classList.remove('on');
       if (holdKey) keys[holdKey] = false;
-      else if (act === 'fire') {
-        charging = false; power = 0; fireLatch = false; Sfx.chargeStop();
-      }
+      else if (act === 'fire') { /* dois toques: perder o toque não cancela */ }
     };
     btn.addEventListener('pointerdown', press);
     btn.addEventListener('pointerup', release);
@@ -4166,6 +4286,7 @@
     if (e.key === 'p' || e.key === 'P') { passTurn(); return; }
     if (e.key === 'b' || e.key === 'B') toggleBall();
     else if (e.key === 'g' || e.key === 'G') cycleMove();
+    else if (e.key === 'i' || e.key === 'I') cycleItem();
     else if (e.key === 'q' || e.key === 'Q') keys.panL = true;
     else if (e.key === 'e' || e.key === 'E') keys.panR = true;
     else if (e.key === 'c' || e.key === 'C') panX = null;
@@ -4173,7 +4294,7 @@
 
   addEventListener('keyup', e => {
     if (ARROWS[e.key]) keys[ARROWS[e.key]] = false;
-    else if (e.code === 'Space') releaseFire();
+    else if (e.code === 'Space') { /* tiro em dois toques */ }
     else if (e.key === 'q' || e.key === 'Q') keys.panL = false;
     else if (e.key === 'e' || e.key === 'E') keys.panR = false;
   });
@@ -4183,7 +4304,7 @@
   // X segura e solta para atirar (e confirma nos menus) · direcional/analógico esquerdo anda e mira · ▢ Pokébola · △ troca de golpe
   // L1/R1 (ou analógico direito) olham o mapa · L2 recentraliza · R2 passa a vez · Create reinicia · Options ajustes · O volta
   const PAD_KEYS = { 0: { key: ' ', code: 'Space' }, 2: { key: 'b' }, 3: { key: 'g' }, 4: { key: 'q', hold: true }, 5: { key: 'e', hold: true },
-                     6: { key: 'c' }, 7: { key: 'p' }, 8: { key: 'r' }, 9: { key: 'o' },
+                     6: { key: 'c' }, 7: { key: 'p' }, 8: { key: 'r' }, 9: { key: 'o' }, 10: { key: 'i' }, 11: { key: 'i' },
                      12: { key: 'ArrowUp', hold: true }, 13: { key: 'ArrowDown', hold: true }, 14: { key: 'ArrowLeft', hold: true }, 15: { key: 'ArrowRight', hold: true } };
   // Fire TV (navegador Silk): o X e os direcionais/analógicos ficam presos no ponteiro e os botões chegam com outra numeração
   // (O = 0, △ = 1, ▢ = 3, L1 = 4, R1 = 5, Create = 8, Options = 9). Então: O atira, L1/R1 andam, △/▢ miram, Create troca de golpe.
@@ -4232,10 +4353,7 @@
           if (wu && wu.face !== dir) { wu.face = dir; angle = 180 - angle; }
           walkUnit(wu, dir);
         }
-      } else {
-        power = Math.min(100, power + 0.9);
-        Sfx.chargeSet(power);
-      }
+      } else stepCharge(0.9);
     }
     if (state === 'aim' && !teams[turnTeam].ai) clampAim(activeUnit());      // andar muda a inclinação e a faixa de mira
     if (state === 'aim' && !teams[turnTeam].ai && --turnT <= 0) { if (charging) fire(); else passTurn(); }
@@ -4262,11 +4380,14 @@
     drawerT = Math.max(0, Math.min(1, drawerT + (settingsOpen ? 0.09 : -0.09)));
     if (settingsOpen) { updateCamera(); return; }   // pausado
     if (glActive && glLoading && scene === 'battle') { updateCamera(); return; }   // preparando as imagens: a batalha espera
+    if (hitStop > 0) { hitStop--; updateCamera(); return; }      // pausa curtinha no impacto (dá peso ao golpe)
     if (under() && frameNo % 7 === 0) bubblePart(cam.x + rnd(-430, 430) / cam.z, WATER - rnd(0, 40));
     if (under()) for (const u of units) if (inBubble(u) && frameNo % 40 === (u.uid * 7) % 40) { const b = bubbleOf(u); bubblePart(b.x + rnd(-4, 4), b.y - b.ry, rnd(1, 1.8)); }
     for (const u of units) {
       if (u.breath > 0) u.breath--;
       if (u.hurt > 0) u.hurt--;
+      if (u.sq > 0) u.sq = Math.max(0, u.sq - 0.045);
+      if (u.cheer) { u.cheer++; u.hop = u.cheer % 35; }
       if (turnHi > 0 && u === units[0]) turnHi--;
       if (scene !== 'intro') u.moving = false;
     }
@@ -4281,6 +4402,12 @@
     fx = fx.filter(f => f.t < f.max);
     for (const f of floaters) f.t++;
     floaters = floaters.filter(f => f.t < 60);
+    for (const k of kos) { k.t++; if (k.t === 84) { smoke(k.u.x, k.u.y - 12, 10); spray(k.u.x, k.u.y - 14, 14, '#ffffff', 2.6, -0.01, 34, 2, 'spark'); } }
+    kos = kos.filter(k => k.t < 96);
+    if (party > 0 && scene === 'battle') {                         // confete da vitória
+      party--;
+      if (party % 2 === 0) for (let i = 0; i < 3; i++) addPart({ x: cam.x + rnd(-420, 420) / cam.z, y: cam.y - 260 / cam.z + rnd(-20, 10), vx: rnd(-0.6, 0.6), vy: rnd(0.8, 2), g: 0.012, life: 170, max: 170, r: rnd(2, 3.4), col: pick(['#ff5a6a', '#ffd34d', '#5ad0ff', '#8fe070', '#c88aff', '#ffffff']), kind: 'leaf' });
+    }
     if (msgT > 0 && --msgT === 0) msg = '';
     updateCamera();
   }
@@ -4289,7 +4416,7 @@
   function busy() {
     if (settingsOpen) return drawerT > 0 && drawerT < 1;
     if (glLoading || glLoadFade > 0) return true;
-    return projs.length > 0 || charging || !!cap || fx.length > 0 || floaters.length > 0 || flash.a > 0.02 || cam.shake > 0 ||
+    return projs.length > 0 || charging || !!cap || fx.length > 0 || floaters.length > 0 || kos.length > 0 || party > 0 || hitStop > 0 || flash.a > 0.02 || cam.shake > 0 ||
       !!(evo) || ['flying', 'capture', 'settle', 'guest', 'skip', 'evolve'].includes(state) || scene === 'intro' ||
       !!(keys.left || keys.right || keys.up || keys.down || keys.panL || keys.panR) || camMoving || !!panDrag || miniDrag;
   }
@@ -4328,7 +4455,7 @@
     toggleSettings, settings, sync: () => syncButtons(), plan: u => { ai = { phase: 'plan', t: 0 }; planShot(u); },
     forceGuest: sp => { gCool = 0; STAGES[stageIdx].guests = [{ sp, rarity: 1 }]; },
     skipEvolve, stageClear,
-    initMenu, initIntro, playStage, cycleMove, maybeChangeWeather, rollWeather, initStage, newCampaign, beginStage, fire, toggleBall, pickTarget,
+    initMenu, initIntro, playStage, cycleMove, cycleItem, get items() { return items; }, get kos() { return kos; }, getStars, pressFire, maybeChangeWeather, rollWeather, initStage, newCampaign, beginStage, fire, toggleBall, pickTarget,
     setZoom: z => { settings.zoom = z; },
     setQuality: q => { settings.quality = q; settings.autoLite = false; applySettings(); }, get lite() { return lite; }, pollPad,
     setAngle: a => { angle = a; const u = activeUnit(); if (u && scene === 'battle') u.face = Math.cos(a * Math.PI / 180) >= 0 ? 1 : -1; }, aimWindow: u => aimWindow(u || activeUnit()), setPower: p => { power = p; }, passTurn, turnOrder,
